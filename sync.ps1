@@ -9,6 +9,8 @@ function Test-SyncPath([string]$Path) {
         $path -match '^MarketPlay-Pack-[^/]+\.zip$' -or
         $path -match '^plugins/RPGMaker(\.jar|/config\.yml)$' -or
         $path -match '^dialogue-display-plugin/(src/|build\.gradle\.kts$|settings\.gradle\.kts$)' -or
+        $path -match '^plugins/MarketPlay\.jar$' -or
+        $path -match '^marketplay-plugin/(src/|build\.gradle\.kts$|settings\.gradle\.kts$)' -or
         $path -match '^dialogue-resource-pack/' -or
         $path -match '^rpgmaker-web-editor/(src/|public/|scripts/|package(-lock)?\.json$|index\.html$|README\.md$|\.gitignore$|tsconfig[^/]*\.json$|vite\.config\.ts$)'
 }
@@ -34,6 +36,9 @@ if ($SelfTest) {
         'dialogue-resource-pack/pack.mcmeta' = $true
         'rpgmaker-web-editor/src/App.tsx' = $true
         'plugins/RPGMaker/config.yml' = $true
+        'marketplay-plugin/src/main/java/MarketPlayPlugin.java' = $true
+        'plugins/MarketPlay.jar' = $true
+        'plugins/MarketPlay/marketplay.db' = $false
         'world/level.dat' = $false
         'logs/latest.log' = $false
         'plugins/Citizens/saves.yml' = $false

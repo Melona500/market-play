@@ -15,6 +15,8 @@ $WebPath           = Join-Path $RepoPath 'rpgmaker-web-editor'
 $ServerPath        = $RepoPath
 $PluginProjectPath = Join-Path $RepoPath 'dialogue-display-plugin'
 $PluginJar         = Join-Path $ServerPath 'plugins\RPGMaker.jar'
+$MarketPlayProjectPath = Join-Path $RepoPath 'marketplay-plugin'
+$MarketPlayJar     = Join-Path $ServerPath 'plugins\MarketPlay.jar'
 $SyncScript        = Join-Path $RepoPath 'sync.ps1'
 $PackBuildScript   = Join-Path $RepoPath 'build-resource-pack.ps1'
 
@@ -198,15 +200,15 @@ function Ensure-Jdk21 {
     }
 }
 
-function Test-RpgMakerBuildRequired {
-    if (-not (Test-Path -LiteralPath $PluginJar)) {
+function Test-PluginBuildRequired([string]$ProjectPath, [string]$JarPath) {
+    if (-not (Test-Path -LiteralPath $JarPath)) {
         return $true
     }
 
-    $jarTime = (Get-Item -LiteralPath $PluginJar).LastWriteTimeUtc
+    $jarTime = (Get-Item -LiteralPath $JarPath).LastWriteTimeUtc
     $inputs = @(
-        Get-ChildItem -LiteralPath (Join-Path $PluginProjectPath 'src') -File -Recurse
-        Get-ChildItem -LiteralPath $PluginProjectPath -File |
+        Get-ChildItem -LiteralPath (Join-Path $ProjectPath 'src') -File -Recurse
+        Get-ChildItem -LiteralPath $ProjectPath -File |
             Where-Object { $_.Name -in @('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties') }
     )
     return $null -ne ($inputs | Where-Object { $_.LastWriteTimeUtc -gt $jarTime } | Select-Object -First 1)
@@ -260,10 +262,10 @@ function Start-ResourcePackTunnel {
     Write-Host "Resource pack: $publicBase/$packName"
 }
 
-function Deploy-RpgMakerPlugin {
+function Deploy-Plugin([string]$Name, [string]$ProjectPath, [string]$JarPath) {
     Write-Host ''
     Write-Host '========================================'
-    Write-Host ' Building RPGMaker Plugin'
+    Write-Host " Building $Name Plugin"
     Write-Host '========================================'
 
     Ensure-Gradle
@@ -277,12 +279,24 @@ function Deploy-RpgMakerPlugin {
         $env:JAVA_HOME = $JdkHome
         $env:Path = (Join-Path $JdkHome 'bin') + ';' + $previousPath
 
-        Remove-Item -LiteralPath $BuildLog -Force -ErrorAction SilentlyContinue
-        & $GradleBat -p $PluginProjectPath deployToServer --no-daemon --console=plain --stacktrace 2>&1 |
-            Tee-Object -FilePath $BuildLog
+        $junctionRoot = Join-Path $env:LOCALAPPDATA 'MarketPlayBuild'
+        $junctionPath = Join-Path $junctionRoot 'repo'
+        New-Item -ItemType Directory -Force -Path $junctionRoot | Out-Null
+        if (-not (Test-Path -LiteralPath $junctionPath)) {
+            New-Item -ItemType Junction -Path $junctionPath -Target $RepoPath | Out-Null
+        }
+        if (-not ((Get-Item -LiteralPath $junctionPath).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Gradle build path exists but is not a junction: $junctionPath"
+        }
+        $buildProject = Join-Path $junctionPath (Split-Path -Leaf $ProjectPath)
+        $buildLog = Join-Path $ToolsPath ($Name.ToLowerInvariant() + '-gradle-build.log')
+        $projectCache = Join-Path $junctionRoot ($Name.ToLowerInvariant() + '-gradle-cache')
+        Remove-Item -LiteralPath $buildLog -Force -ErrorAction SilentlyContinue
+        & $GradleBat -p $buildProject --project-cache-dir $projectCache deployToServer --no-daemon --console=plain --stacktrace 2>&1 |
+            Tee-Object -FilePath $buildLog
         $gradleExitCode = $LASTEXITCODE
         if ($gradleExitCode -ne 0) {
-            throw "RPGMaker plugin deployment failed with exit code $gradleExitCode. Full Gradle log: $BuildLog"
+            throw "$Name plugin deployment failed with exit code $gradleExitCode. Full Gradle log: $buildLog"
         }
     }
     finally {
@@ -295,11 +309,11 @@ function Deploy-RpgMakerPlugin {
         $env:Path = $previousPath
     }
 
-    if (-not (Test-Path -LiteralPath $PluginJar)) {
-        throw "RPGMaker plugin JAR was not created: $PluginJar"
+    if (-not (Test-Path -LiteralPath $JarPath)) {
+        throw "$Name plugin JAR was not created: $JarPath"
     }
 
-    Write-Host 'RPGMaker plugin deployed.'
+    Write-Host "$Name plugin deployed."
 }
 
 try {
@@ -310,12 +324,21 @@ try {
     if (-not (Test-Path -LiteralPath $PluginProjectPath)) {
         throw "RPGMaker plugin project not found: $PluginProjectPath"
     }
+    if (-not (Test-Path -LiteralPath $MarketPlayProjectPath)) {
+        throw "MarketPlay plugin project not found: $MarketPlayProjectPath"
+    }
 
-    if ($BuildOnly -or (Test-RpgMakerBuildRequired)) {
-        Deploy-RpgMakerPlugin
+    if ($BuildOnly -or (Test-PluginBuildRequired $PluginProjectPath $PluginJar)) {
+        Deploy-Plugin 'RPGMaker' $PluginProjectPath $PluginJar
     }
     else {
         Write-Host 'RPGMaker plugin unchanged. Skipping build.'
+    }
+    if ($BuildOnly -or (Test-PluginBuildRequired $MarketPlayProjectPath $MarketPlayJar)) {
+        Deploy-Plugin 'MarketPlay' $MarketPlayProjectPath $MarketPlayJar
+    }
+    else {
+        Write-Host 'MarketPlay plugin unchanged. Skipping build.'
     }
 
     Ensure-Jdk21
