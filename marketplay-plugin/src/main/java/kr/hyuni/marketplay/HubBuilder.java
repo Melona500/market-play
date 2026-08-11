@@ -173,7 +173,7 @@ final class HubBuilder {
     static boolean contains(Area area, Location location) { return area.contains(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ()); }
 
     record LocationKey(int x, int y, int z) {
-        boolean matches(Block block) { return block.getX() == x && block.getY() == y && block.getZ() == z; }
+        boolean matches(Block block) { return "world".equals(block.getWorld().getName()) && block.getX() == x && block.getY() == y && block.getZ() == z; }
     }
 
     record Node(String id, String name, LocationKey location, Material reward, Skill skill, String toolId) {}
