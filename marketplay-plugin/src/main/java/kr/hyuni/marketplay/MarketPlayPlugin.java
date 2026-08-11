@@ -6,6 +6,8 @@ import net.citizensnpcs.api.event.NPCRightClickEvent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -52,6 +54,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component TOOLBOX_TITLE = Component.text("생활도구함", NamedTextColor.AQUA);
     private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
     private static final Component TRAVEL_TITLE = Component.text("여행 안내", NamedTextColor.AQUA);
+    private static final Component ADVENTURE_TITLE = Component.text("모험과 사냥", NamedTextColor.RED);
     private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
     private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
     private ProfileStore profiles;
@@ -166,7 +169,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         });
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (!hubReady || event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
         if (HubBuilder.MARKET.matches(event.getClickedBlock())) {
@@ -192,6 +195,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "board" -> openBoardMenu(player);
             case "housing" -> openHousingMenu(player);
             case "travel", "lobby" -> openTravelMenu(player);
+            case "adventure" -> openAdventureMenu(player);
             case "resources" -> openHubMenu(player, "resources");
             case "art" -> openHubMenu(player, "art");
             case "restaurant" -> openHubMenu(player, "restaurant");
@@ -207,6 +211,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         boolean market = event.getView().title().equals(MARKET_TITLE);
         boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
         boolean hubMenu = event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
+                || event.getView().title().equals(ADVENTURE_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE);
         if (!market && !toolbox && !hubMenu) return;
         event.setCancelled(true);
@@ -226,6 +231,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getWhoClicked() instanceof Player player && busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
         if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)
                 || event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
+                || event.getView().title().equals(ADVENTURE_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)) event.setCancelled(true);
     }
 
@@ -325,6 +331,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("tools")) { openToolbox(player); return true; }
+        if (args.length > 0 && args[0].equalsIgnoreCase("menu")) { openHubMenu(player, args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "hub"); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("board")) return board(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("home")) return housing.command(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("mail")) return housing.mail(player, args);
@@ -419,7 +426,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             skills.append(skill.displayName()).append(' ').append(profile.level(skill));
         }
         player.sendMessage(Component.text(skills.toString(), NamedTextColor.GREEN));
-        player.sendMessage(Component.text("광장 북쪽 상점에서 도구를 사고, 자원 지역에서 채집한 뒤 판매대에 파세요.", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("로비 안내 NPC 또는 /mp menu에서 채집·탐험·사냥 지역으로 이동하세요.", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/mp exchange · stall · restaurant · guild · service 로 사회경제 활동을 시작하세요.", NamedTextColor.AQUA));
     }
 
@@ -536,6 +543,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     void openHubMenu(Player player, String section) {
         if (section.equals("travel")) { openTravelMenu(player); return; }
+        if (section.equals("adventure")) { openAdventureMenu(player); return; }
         if (section.equals("board")) { openBoardMenu(player); return; }
         if (section.equals("housing")) { openHousingMenu(player); return; }
         Inventory menu = Bukkit.createInventory(null, 27, HUB_TITLE);
@@ -547,6 +555,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(15, menuItem(Material.FILLED_MAP, "그림과 전시", "art", "작품 제작·전시·거래"));
         menu.setItem(16, menuItem(Material.COOKED_BEEF, "레스토랑", "restaurant", "요리와 협동 영업"));
         menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
+        menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
         player.openInventory(menu);
     }
 
@@ -558,7 +567,18 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(13, menuItem(Material.LAPIS_ORE, "반짝광산", "glitter", "자작부터 이용 가능"));
         menu.setItem(14, menuItem(Material.AMETHYST_BLOCK, "요정광산", "fairy", "백작부터 이용 가능"));
         menu.setItem(15, menuItem(Material.STONE_BRICKS, "왕성", "castle", "자작부터 이용 가능"));
-        menu.setItem(16, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
+        menu.setItem(16, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
+        menu.setItem(22, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
+        player.openInventory(menu);
+    }
+
+    private void openAdventureMenu(Player player) {
+        Inventory menu = Bukkit.createInventory(null, 27, ADVENTURE_TITLE);
+        menu.setItem(10, menuItem(Material.IRON_SWORD, "기사 시험장", "knight", "왕성 훈련장·자작/평판 조건"));
+        menu.setItem(12, menuItem(Material.ZOMBIE_HEAD, "던전 접수소", "dungeon-gate", "쓰레기장·해적·아누비스 사냥"));
+        menu.setItem(14, menuItem(Material.SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE, "무한 탑 접수소", "tower-gate", "솔로·길드 연속 전투"));
+        menu.setItem(16, menuItem(Material.DRAGON_EGG, "후반 마을", "endgame", "용·선행·전직·천국 콘텐츠"));
+        menu.setItem(22, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
         player.openInventory(menu);
     }
 
@@ -601,10 +621,13 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "board" -> openBoardMenu(player);
             case "board-chat" -> board(player, new String[]{"board"});
             case "travel" -> openTravelMenu(player);
+            case "adventure" -> openAdventureMenu(player);
             case "housing" -> openHousingMenu(player);
             case "resources" -> resources.teleport(player);
             case "lobby" -> teleportLobby(player);
             case "joy", "sea", "glitter", "fairy", "castle" -> exploration.command(player, new String[]{"explore", action});
+            case "knight" -> { exploration.command(player, new String[]{"explore", "castle"}); player.sendMessage(Component.text("왕성 훈련장에서 /mp knight start", NamedTextColor.YELLOW)); }
+            case "endgame", "dungeon-gate", "tower-gate" -> endgame.teleport(player, action);
             case "home" -> player.performCommand("marketplay home");
             case "home-create" -> player.performCommand("marketplay home create");
             case "mail" -> player.performCommand("marketplay mail");
@@ -839,7 +862,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             marketDay = loaded;
             prices.clear();
             prices.putAll(loaded.prices());
-            if (hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
+            if (hubReady) hub.updateDisplays(hub.world());
         }));
     }
 
@@ -848,7 +871,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         profiles.bulletins(Instant.now(), 3).whenComplete((loaded, error) -> getServer().getScheduler().runTask(this, () -> {
             if (error != null) { getLogger().severe("게시판 로드 실패: " + error.getMessage()); return; }
             bulletinPosts = loaded;
-            if (hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
+            if (hubReady) hub.updateDisplays(hub.world());
         }));
     }
     private void tag(ItemStack item) {

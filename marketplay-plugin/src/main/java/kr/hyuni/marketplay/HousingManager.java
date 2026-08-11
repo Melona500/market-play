@@ -99,7 +99,7 @@ final class HousingManager implements Listener {
         if (args.length == 1) { openOwn(player); return true; }
         switch (args[1].toLowerCase(Locale.ROOT)) {
             case "visit" -> { if (args.length == 3) visit(player, args[2]); else help(player); }
-            case "leave" -> player.teleportAsync(Bukkit.getWorlds().getFirst().getSpawnLocation());
+            case "leave" -> player.teleportAsync(plugin.lobbyLocation());
             case "visibility" -> { if (args.length == 3) visibility(player, args[2]); else help(player); }
             case "invite" -> { if (args.length == 3) grant(player, args[2], "visit", true, true); else help(player); }
             case "grant" -> { if (args.length == 5) grant(player, args[2], args[3], args[4].equalsIgnoreCase("on"), false); else help(player); }
@@ -504,7 +504,7 @@ final class HousingManager implements Listener {
     @EventHandler public void onRespawn(PlayerRespawnEvent event) {
         if (!isHouse(event.getRespawnLocation().getWorld())) return;
         Session session = sessions.get(event.getRespawnLocation().getWorld().getName());
-        if (session == null || !canVisit(session, event.getPlayer())) event.setRespawnLocation(Bukkit.getWorlds().getFirst().getSpawnLocation());
+        if (session == null || !canVisit(session, event.getPlayer())) event.setRespawnLocation(plugin.lobbyLocation());
     }
     @EventHandler public void onChangedWorld(PlayerChangedWorldEvent event) { if (isHouse(event.getFrom())) scheduleUnload(event.getFrom()); if (isHouse(event.getPlayer().getWorld())) cancelUnload(event.getPlayer().getWorld().getName()); }
     @EventHandler public void onQuit(PlayerQuitEvent event) { World world = event.getPlayer().getWorld(); if (isHouse(world)) Bukkit.getScheduler().runTask(plugin, () -> scheduleUnload(world)); }

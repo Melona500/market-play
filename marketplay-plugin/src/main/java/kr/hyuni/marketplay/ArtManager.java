@@ -285,7 +285,7 @@ final class ArtManager implements Listener {
     @EventHandler public void onWorldLoad(WorldLoadEvent event) { validateFrames(event.getWorld()); }
 
     private void buildGallery(List<ArtStore.Exhibit> exhibits) {
-        World world = Bukkit.getWorlds().getFirst();
+        World world = plugin.lobbyWorld();
         world.getEntitiesByClass(ItemFrame.class).stream().filter(frame -> frame.getPersistentDataContainer().has(galleryKey, PersistentDataType.INTEGER)).forEach(ItemFrame::remove);
         for (int x = -4; x <= 3; x++) world.getBlockAt(x, HubBuilder.FLOOR_Y + 2, -24).setType(Material.SMOOTH_QUARTZ);
         for (int slot = 0; slot < 8; slot++) {

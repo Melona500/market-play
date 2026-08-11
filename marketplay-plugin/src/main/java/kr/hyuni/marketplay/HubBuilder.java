@@ -76,7 +76,7 @@ final class HubBuilder {
             if (existed) throw new IllegalStateException("기존 로비 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             paste(world);
             plugin.getLogger().info("FAWE schematic으로 시장놀이 중앙광장을 설치했습니다.");
-        } else if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        }
         if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
         protect(world);
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
@@ -152,7 +152,7 @@ final class HubBuilder {
         building(-70, -24, 22, 19, Material.OAK_PLANKS, Material.DARK_OAK_PLANKS);
         building(-70, 5, 22, 19, Material.BIRCH_PLANKS, Material.SPRUCE_PLANKS);
         building(-45, 31, 18, 18, Material.MUD_BRICKS, Material.MANGROVE_PLANKS);
-        workstations(-63, -13, List.of(Material.BED, Material.BARREL, Material.LOOM, Material.CRAFTING_TABLE));
+        workstations(-63, -13, List.of(Material.RED_BED, Material.BARREL, Material.LOOM, Material.CRAFTING_TABLE));
         workstations(-63, 16, List.of(Material.FLOWER_POT, Material.CHISELED_BOOKSHELF, Material.CARTOGRAPHY_TABLE));
         for (int x = -74; x <= -28; x += 8) tree(x, 58 + Math.floorMod(x, 8));
     }
@@ -161,7 +161,7 @@ final class HubBuilder {
         building(48, -24, 24, 22, Material.QUARTZ_BRICKS, Material.SMOOTH_QUARTZ);
         building(48, 6, 24, 22, Material.PRISMARINE_BRICKS, Material.DARK_PRISMARINE);
         building(28, 34, 20, 18, Material.STONE_BRICKS, Material.COPPER_BLOCK);
-        workstations(55, -12, List.of(Material.PAINTING, Material.CHISELED_BOOKSHELF, Material.CARTOGRAPHY_TABLE, Material.LOOM));
+        workstations(55, -12, List.of(Material.DECORATED_POT, Material.CHISELED_BOOKSHELF, Material.CARTOGRAPHY_TABLE, Material.LOOM));
         workstations(55, 18, List.of(Material.JUKEBOX, Material.NOTE_BLOCK, Material.LECTERN, Material.DECORATED_POT));
         for (int z = -18; z <= 22; z += 8) {
             world.getBlockAt(75, 65, z).setType(Material.SEA_LANTERN, false);
@@ -278,6 +278,7 @@ final class HubBuilder {
         ensureNpc("housing", "주택 안내원", -43.5, 65, .5);
         ensureNpc("art", "미술관 큐레이터", 43.5, 65, .5);
         ensureNpc("travel", "여행 안내원", .5, 65, 33.5);
+        ensureNpc("adventure", "모험가 길드 안내원", 12.5, 65, 43.5);
         ensureNpc("restaurant", "레스토랑 지배인", -12.5, 65, -69.5);
         ensureNpc("guild", "상단 관리인", 12.5, 65, -69.5);
         CitizensAPI.getNPCRegistry().saveToStore();

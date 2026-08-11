@@ -46,10 +46,14 @@ housing:
 
 prices:
   apple: 15
+  sweet_berries: 14
   oak_log: 20
   wheat: 12
+  carrot: 13
   wool: 18
+  honeycomb: 20
   iron_ore: 30
+  coal: 18
   cod: 16
   salmon: 22
   coral_q1: 20

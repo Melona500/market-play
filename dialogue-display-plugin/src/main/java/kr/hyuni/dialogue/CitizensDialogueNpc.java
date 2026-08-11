@@ -9,6 +9,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import java.util.ArrayList;
@@ -79,7 +80,7 @@ final class CitizensDialogueNpc implements Listener {
         player.sendMessage("NPC " + id + "번을 공용 대화문 '" + args[3] + "'에 연결했습니다.");
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onRightClick(NPCRightClickEvent event) {
         String dialogue = event.getNPC().data().get(KEY, "");
         if (dialogue.isBlank()) return;
