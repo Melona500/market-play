@@ -21,6 +21,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -134,6 +135,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         else if (market && toolId != null) purchaseTool(player, toolId);
         else if (clicked.getType() == Material.HOPPER) { player.closeInventory(); sellHand(player); }
         else if (clicked.getType() == Material.CHEST) openToolbox(player);
+    }
+
+    @EventHandler public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)) event.setCancelled(true);
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
