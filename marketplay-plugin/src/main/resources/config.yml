@@ -4,6 +4,13 @@ vitality-regeneration-per-minute: 2.0
 activity-vitality-cost: 1.0
 starter-tool-price: 100
 resource-node-cooldown-millis: 5000
+fishing-reel-window-millis: 1500
+
+bulletin:
+  - 초보자 게시판
+  - 안내인 → 생활도구 상점 → 자원 지역 → 판매대
+  - /marketplay tools 로 생활도구를 장착하세요
+  - /marketplay 로 내 진행도를 확인하세요
 
 prices:
   apple: 15

@@ -105,15 +105,15 @@ final class HubBuilder {
         if (existing == null) regions.addRegion(region);
     }
 
-    private void updateDisplays(World world) {
+    void updateDisplays(World world) {
         world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 40, 20, 40).stream()
                 .filter(TextDisplay.class::isInstance).map(TextDisplay.class::cast)
                 .filter(display -> display.getPersistentDataContainer().has(displayKey, PersistentDataType.STRING))
                 .forEach(TextDisplay::remove);
         display(world, new Location(world, -5.5, FLOOR_Y + 3.2, -16.7), "market",
-                Component.text("오늘의 시장\n사과 15원 · 참나무 20원\n밀 12원 · 양털 18원 · 철광석 30원", NamedTextColor.GOLD));
+                Component.text(MarketText.render(plugin.prices()), NamedTextColor.GOLD));
         display(world, new Location(world, 12.5, FLOOR_Y + 3.0, 8.5), "bulletin",
-                Component.text("초보자 게시판\n안내인 → 생활도구 상점 → 자원 지역 → 판매대\n/marketplay 로 내 진행도를 확인하세요", NamedTextColor.AQUA));
+                Component.text(MarketText.bulletin(plugin.getConfig().getStringList("bulletin")), NamedTextColor.AQUA));
         display(world, new Location(world, 0.5, FLOOR_Y + 3.0, 10.5), "welcome",
                 Component.text("시장놀이 중앙광장\n분수 앞에서 안내인을 만나세요", NamedTextColor.YELLOW));
     }
