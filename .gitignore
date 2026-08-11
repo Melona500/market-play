@@ -1,6 +1,10 @@
 .tools/
 dialogue-display-plugin/.gradle/
 dialogue-display-plugin/build/
+marketplay-plugin/.gradle/
+marketplay-plugin/build/
+marketplay-plugin/.tools/
+plugins/MarketPlay/
 logs/
 cache/
 versions/
