@@ -298,6 +298,7 @@ public final class ProfileStore implements AutoCloseable {
                         log.executeUpdate();
                     }
                 });
+                profile.setMoney(balance);
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -354,7 +355,6 @@ public final class ProfileStore implements AutoCloseable {
                         grant.executeUpdate();
                     }
                 });
-                profile.setMoney(balance);
                 profile.setMoney(balance);
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
