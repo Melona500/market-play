@@ -27,6 +27,7 @@ public final class ProfileStore implements AutoCloseable {
     private final Connection database;
     private final long startingMoney;
     private final double maximumVitality;
+    private final SocialBalance socialBalance;
     private final Map<UUID, PlayerProfile> loaded = new ConcurrentHashMap<>();
     private final ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "MarketPlay-SQLite");
@@ -35,9 +36,14 @@ public final class ProfileStore implements AutoCloseable {
     });
 
     public ProfileStore(Path file, long startingMoney, double maximumVitality) throws Exception {
+        this(file, startingMoney, maximumVitality, new SocialBalance(64, 32, 2000, 100, 40));
+    }
+
+    public ProfileStore(Path file, long startingMoney, double maximumVitality, SocialBalance socialBalance) throws Exception {
         Files.createDirectories(file.getParent());
         this.startingMoney = startingMoney;
         this.maximumVitality = maximumVitality;
+        this.socialBalance = socialBalance;
         database = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath());
         try (var statement = database.createStatement()) {
             statement.execute("PRAGMA journal_mode=WAL");
@@ -124,6 +130,120 @@ public final class ProfileStore implements AutoCloseable {
                       expires_at TEXT NOT NULL
                     )""");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS bulletin_posts_expiry ON bulletin_posts(expires_at, created_at)");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS social_item_intents (
+                      intent_id TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      kind TEXT NOT NULL CHECK (kind IN ('EXCHANGE','GUILD','RESTAURANT','PROJECT')),
+                      target_id TEXT NOT NULL,
+                      item BLOB NOT NULL,
+                      item_id TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity > 0),
+                      unit_price INTEGER NOT NULL DEFAULT 0 CHECK (unit_price >= 0),
+                      quality INTEGER NOT NULL DEFAULT 1 CHECK (quality BETWEEN 1 AND 5),
+                      player_name TEXT NOT NULL,
+                      state TEXT NOT NULL CHECK (state IN ('PREPARED','REMOVING','COMPLETED','CANCELLED')),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS one_active_social_intent ON social_item_intents(player_uuid) WHERE state IN ('PREPARED','REMOVING')");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exchange_listings (
+                      listing_id TEXT PRIMARY KEY,
+                      seller_uuid TEXT NOT NULL,
+                      seller_name TEXT NOT NULL,
+                      item BLOB NOT NULL,
+                      item_id TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity >= 0),
+                      unit_price INTEGER NOT NULL CHECK (unit_price > 0),
+                      quality INTEGER NOT NULL CHECK (quality BETWEEN 1 AND 5),
+                      state TEXT NOT NULL CHECK (state IN ('ACTIVE','SOLD','CANCELLED')),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE INDEX IF NOT EXISTS exchange_active ON exchange_listings(state, created_at)");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exchange_trades (
+                      trade_id TEXT PRIMARY KEY,
+                      listing_id TEXT NOT NULL,
+                      item_id TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity > 0),
+                      unit_price INTEGER NOT NULL CHECK (unit_price > 0),
+                      sold_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS market_stalls (
+                      slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 1 AND 4),
+                      owner_uuid TEXT UNIQUE NOT NULL,
+                      owner_name TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS merchant_guilds (
+                      guild_id TEXT PRIMARY KEY,
+                      name TEXT UNIQUE NOT NULL,
+                      owner_uuid TEXT NOT NULL,
+                      log_progress INTEGER NOT NULL DEFAULT 0 CHECK (log_progress >= 0),
+                      iron_progress INTEGER NOT NULL DEFAULT 0 CHECK (iron_progress >= 0),
+                      money_progress INTEGER NOT NULL DEFAULT 0 CHECK (money_progress >= 0),
+                      project_state TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (project_state IN ('ACTIVE','COMPLETE')),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS merchant_guild_members (
+                      player_uuid TEXT PRIMARY KEY,
+                      player_name TEXT NOT NULL,
+                      guild_id TEXT NOT NULL REFERENCES merchant_guilds(guild_id) ON DELETE CASCADE
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS merchant_guild_items (
+                      deposit_id TEXT PRIMARY KEY,
+                      guild_id TEXT NOT NULL REFERENCES merchant_guilds(guild_id) ON DELETE CASCADE,
+                      depositor_uuid TEXT NOT NULL,
+                      item BLOB NOT NULL,
+                      item_id TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity > 0),
+                      quality INTEGER NOT NULL CHECK (quality BETWEEN 1 AND 5),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS service_offers (
+                      offer_id TEXT PRIMARY KEY,
+                      provider_uuid TEXT NOT NULL,
+                      provider_name TEXT NOT NULL,
+                      service_type TEXT NOT NULL,
+                      price INTEGER NOT NULL CHECK (price > 0),
+                      client_uuid TEXT,
+                      state TEXT NOT NULL CHECK (state IN ('OPEN','HIRED','SUBMITTED','COMPLETED','CANCELLED')),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS restaurants (
+                      owner_uuid TEXT PRIMARY KEY,
+                      name TEXT UNIQUE NOT NULL,
+                      rating_total INTEGER NOT NULL DEFAULT 0 CHECK (rating_total >= 0),
+                      served_count INTEGER NOT NULL DEFAULT 0 CHECK (served_count >= 0),
+                      revenue INTEGER NOT NULL DEFAULT 0 CHECK (revenue >= 0)
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS restaurant_members (
+                      member_uuid TEXT PRIMARY KEY,
+                      member_name TEXT NOT NULL,
+                      owner_uuid TEXT NOT NULL REFERENCES restaurants(owner_uuid) ON DELETE CASCADE,
+                      role TEXT NOT NULL CHECK (role IN ('INGREDIENT','CHEF','SERVER'))
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS restaurant_orders (
+                      order_id TEXT PRIMARY KEY,
+                      owner_uuid TEXT UNIQUE NOT NULL REFERENCES restaurants(owner_uuid) ON DELETE CASCADE,
+                      state TEXT NOT NULL CHECK (state IN ('OPEN','COOKING','FLIPPED','READY')),
+                      crop_quality INTEGER,
+                      protein_quality INTEGER,
+                      extra_quality INTEGER,
+                      supplier_uuid TEXT,
+                      chef_uuid TEXT,
+                      server_uuid TEXT,
+                      score INTEGER NOT NULL DEFAULT 0,
+                      action_at INTEGER NOT NULL DEFAULT 0,
+                      created_at TEXT NOT NULL
+                    )""");
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS royal_gift_claims (
                       token TEXT PRIMARY KEY,
@@ -879,6 +999,521 @@ public final class ProfileStore implements AutoCloseable {
         }, writer);
     }
 
+    public CompletableFuture<Void> prepareSocialIntent(SocialIntent intent) {
+        if (intent.item() == null || intent.quantity() < 1 || intent.unitPrice() < 0 || intent.quality() < 1 || intent.quality() > 5)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid social item intent"));
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO social_item_intents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PREPARED', ?)")) {
+                insert.setString(1, intent.id()); insert.setString(2, intent.player().toString()); insert.setString(3, intent.kind()); insert.setString(4, intent.targetId());
+                insert.setBytes(5, intent.item()); insert.setString(6, intent.itemId()); insert.setInt(7, intent.quantity()); insert.setLong(8, intent.unitPrice());
+                insert.setInt(9, intent.quality()); insert.setString(10, intent.playerName()); insert.setString(11, Instant.now().toString()); insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> markSocialRemoving(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE social_item_intents SET state='REMOVING' WHERE intent_id=? AND state='PREPARED'")) {
+                update.setString(1, id); if (update.executeUpdate() != 1) throw new SQLException("Social intent is not prepared");
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<SocialIntent>> pendingSocialIntent(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT intent_id,kind,target_id,item,item_id,quantity,unit_price,quality,player_name,state FROM social_item_intents WHERE player_uuid=? AND state IN ('PREPARED','REMOVING') LIMIT 1")) {
+                query.setString(1, player.toString());
+                try (ResultSet row = query.executeQuery()) {
+                    return row.next() ? Optional.of(new SocialIntent(row.getString(1), player, row.getString(2), row.getString(3), row.getBytes(4), row.getString(5), row.getInt(6), row.getLong(7), row.getInt(8), row.getString(9), row.getString(10))) : Optional.empty();
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> cancelSocialIntent(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE social_item_intents SET state='CANCELLED' WHERE intent_id=? AND state IN ('PREPARED','REMOVING')")) {
+                update.setString(1, id); update.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<SocialCompletion> completeSocialIntent(String id) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                SocialIntent intent = socialIntent(id).orElseThrow(() -> new SQLException("Social intent missing"));
+                if (intent.state().equals("COMPLETED")) return new SocialCompletion(intent.kind(), intent.targetId());
+                if (!intent.state().equals("REMOVING")) throw new SQLException("Social intent is not removing");
+                transaction(() -> {
+                    switch (intent.kind()) {
+                        case "EXCHANGE" -> {
+                            try (PreparedStatement insert = database.prepareStatement("INSERT INTO exchange_listings VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)")) {
+                                insert.setString(1, intent.targetId()); insert.setString(2, intent.player().toString()); insert.setString(3, intent.playerName()); insert.setBytes(4, intent.item());
+                                insert.setString(5, intent.itemId()); insert.setInt(6, intent.quantity()); insert.setLong(7, intent.unitPrice()); insert.setInt(8, intent.quality()); insert.setString(9, Instant.now().toString()); insert.executeUpdate();
+                            }
+                        }
+                        case "GUILD" -> {
+                            requireGuildMember(intent.player(), intent.targetId());
+                            try (PreparedStatement insert = database.prepareStatement("INSERT INTO merchant_guild_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                                insert.setString(1, intent.id()); insert.setString(2, intent.targetId()); insert.setString(3, intent.player().toString()); insert.setBytes(4, intent.item());
+                                insert.setString(5, intent.itemId()); insert.setInt(6, intent.quantity()); insert.setInt(7, intent.quality()); insert.setString(8, Instant.now().toString()); insert.executeUpdate();
+                            }
+                        }
+                        case "RESTAURANT" -> supplyRestaurant(intent);
+                        case "PROJECT" -> contributeProjectItem(intent);
+                        default -> throw new SQLException("Unknown social intent kind");
+                    }
+                    try (PreparedStatement update = database.prepareStatement("UPDATE social_item_intents SET state='COMPLETED' WHERE intent_id=? AND state='REMOVING'")) {
+                        update.setString(1, id); if (update.executeUpdate() != 1) throw new SQLException("Social intent completion race");
+                    }
+                });
+                return new SocialCompletion(intent.kind(), intent.targetId());
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private Optional<SocialIntent> socialIntent(String id) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT player_uuid,kind,target_id,item,item_id,quantity,unit_price,quality,player_name,state FROM social_item_intents WHERE intent_id=?")) {
+            query.setString(1, id);
+            try (ResultSet row = query.executeQuery()) {
+                return row.next() ? Optional.of(new SocialIntent(id, UUID.fromString(row.getString(1)), row.getString(2), row.getString(3), row.getBytes(4), row.getString(5), row.getInt(6), row.getLong(7), row.getInt(8), row.getString(9), row.getString(10))) : Optional.empty();
+            }
+        }
+    }
+
+    public CompletableFuture<List<ExchangeListing>> exchangeListings(UUID seller, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = seller == null
+                    ? "SELECT listing_id,seller_uuid,seller_name,item,item_id,quantity,unit_price,quality FROM exchange_listings WHERE state='ACTIVE' ORDER BY created_at LIMIT ?"
+                    : "SELECT listing_id,seller_uuid,seller_name,item,item_id,quantity,unit_price,quality FROM exchange_listings WHERE state='ACTIVE' AND seller_uuid=? ORDER BY created_at LIMIT ?";
+            try (PreparedStatement query = database.prepareStatement(sql)) {
+                int index = 1; if (seller != null) query.setString(index++, seller.toString()); query.setInt(index, Math.max(1, Math.min(20, limit)));
+                try (ResultSet rows = query.executeQuery()) {
+                    java.util.ArrayList<ExchangeListing> result = new java.util.ArrayList<>();
+                    while (rows.next()) result.add(new ExchangeListing(rows.getString(1), UUID.fromString(rows.getString(2)), rows.getString(3), rows.getBytes(4), rows.getString(5), rows.getInt(6), rows.getLong(7), rows.getInt(8)));
+                    return result;
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<TradeStats> tradeStats(String itemId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT COALESCE((SELECT unit_price FROM exchange_trades WHERE item_id=? ORDER BY sold_at DESC LIMIT 1),0), COALESCE(ROUND(SUM(unit_price*quantity)*1.0/SUM(quantity)),0) FROM exchange_trades WHERE item_id=? AND sold_at>=?")) {
+                query.setString(1, itemId); query.setString(2, itemId); query.setString(3, Instant.now().minus(Duration.ofDays(7)).toString());
+                try (ResultSet row = query.executeQuery()) { row.next(); return new TradeStats(row.getLong(1), row.getLong(2)); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ExchangePurchase> buyListing(PlayerProfile buyer, String prefix, String grantId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ExchangePurchase[] result = new ExchangePurchase[1];
+                transaction(() -> {
+                    ExchangeListing listing = uniqueListing(prefix, null);
+                    if (listing.seller().equals(buyer.playerId())) throw new SQLException("Cannot buy own listing");
+                    long total = Math.multiplyExact(listing.quantity(), listing.unitPrice());
+                    long buyerBalance = wallet(buyer.playerId()), sellerBalance = wallet(listing.seller());
+                    long buyerAfter = Math.subtractExact(buyerBalance, total), sellerAfter = Math.addExact(sellerBalance, total);
+                    if (buyerAfter < 0) throw new SQLException("Insufficient balance");
+                    updateWallet(buyer.playerId(), buyerBalance, buyerAfter); updateWallet(listing.seller(), sellerBalance, sellerAfter);
+                    try (PreparedStatement close = database.prepareStatement("UPDATE exchange_listings SET quantity=0,state='SOLD' WHERE listing_id=? AND state='ACTIVE' AND quantity=?")) {
+                        close.setString(1, listing.id()); close.setInt(2, listing.quantity()); if (close.executeUpdate() != 1) throw new SQLException("Listing changed concurrently");
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, grantId); grant.setString(2, buyer.playerId().toString()); grant.setBytes(3, listing.item()); grant.setString(4, Instant.now().toString()); grant.executeUpdate();
+                    }
+                    logEconomy(buyer.playerId(), "exchange-buy:" + listing.id(), "EXCHANGE_BUY", listing.itemId(), listing.quantity(), listing.unitPrice(), total, buyerAfter);
+                    logEconomy(listing.seller(), "exchange-sell:" + listing.id(), "EXCHANGE_SELL", listing.itemId(), listing.quantity(), listing.unitPrice(), total, sellerAfter);
+                    try (PreparedStatement trade = database.prepareStatement("INSERT INTO exchange_trades VALUES (?, ?, ?, ?, ?, ?)")) {
+                        trade.setString(1, UUID.randomUUID().toString()); trade.setString(2, listing.id()); trade.setString(3, listing.itemId()); trade.setInt(4, listing.quantity()); trade.setLong(5, listing.unitPrice()); trade.setString(6, Instant.now().toString()); trade.executeUpdate();
+                    }
+                    result[0] = new ExchangePurchase(listing, buyerAfter, sellerAfter, grantId);
+                });
+                buyer.setMoney(result[0].buyerBalance());
+                PlayerProfile seller = loaded.get(result[0].listing().seller()); if (seller != null) seller.setMoney(result[0].sellerBalance());
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ItemGrant> cancelListing(UUID seller, String prefix, String grantId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                byte[][] item = new byte[1][];
+                transaction(() -> {
+                    ExchangeListing listing = uniqueListing(prefix, seller); item[0] = listing.item();
+                    try (PreparedStatement close = database.prepareStatement("UPDATE exchange_listings SET quantity=0,state='CANCELLED' WHERE listing_id=? AND state='ACTIVE'")) {
+                        close.setString(1, listing.id()); if (close.executeUpdate() != 1) throw new SQLException("Listing changed concurrently");
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, grantId); grant.setString(2, seller.toString()); grant.setBytes(3, item[0]); grant.setString(4, Instant.now().toString()); grant.executeUpdate();
+                    }
+                });
+                return new ItemGrant(grantId, item[0]);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private ExchangeListing uniqueListing(String prefix, UUID seller) throws SQLException {
+        String sql = "SELECT listing_id,seller_uuid,seller_name,item,item_id,quantity,unit_price,quality FROM exchange_listings WHERE state='ACTIVE' AND listing_id LIKE ?" + (seller == null ? "" : " AND seller_uuid=?") + " LIMIT 2";
+        try (PreparedStatement query = database.prepareStatement(sql)) {
+            query.setString(1, prefix + "%"); if (seller != null) query.setString(2, seller.toString());
+            try (ResultSet rows = query.executeQuery()) {
+                if (!rows.next()) throw new SQLException("Listing not found");
+                ExchangeListing result = new ExchangeListing(rows.getString(1), UUID.fromString(rows.getString(2)), rows.getString(3), rows.getBytes(4), rows.getString(5), rows.getInt(6), rows.getLong(7), rows.getInt(8));
+                if (rows.next()) throw new SQLException("Listing prefix is ambiguous");
+                return result;
+            }
+        }
+    }
+
+    public CompletableFuture<Void> claimStall(int slot, UUID owner, String ownerName) {
+        if (slot < 1 || slot > 4) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid stall"));
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO market_stalls VALUES (?, ?, ?) ON CONFLICT(owner_uuid) DO UPDATE SET slot=excluded.slot,owner_name=excluded.owner_name")) {
+                insert.setInt(1, slot); insert.setString(2, owner.toString()); insert.setString(3, ownerName); insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> releaseStall(UUID owner) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement delete = database.prepareStatement("DELETE FROM market_stalls WHERE owner_uuid=?")) { delete.setString(1, owner.toString()); delete.executeUpdate(); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<Stall>> stalls() {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT slot,owner_uuid,owner_name FROM market_stalls ORDER BY slot"); ResultSet rows = query.executeQuery()) {
+                java.util.ArrayList<Stall> result = new java.util.ArrayList<>(); while (rows.next()) result.add(new Stall(rows.getInt(1), UUID.fromString(rows.getString(2)), rows.getString(3))); return result;
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Guild> createGuild(UUID owner, String ownerName, String name) {
+        if (!validName(name, 16)) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid guild name"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String id = UUID.randomUUID().toString();
+                transaction(() -> {
+                    try (PreparedStatement insert = database.prepareStatement("INSERT INTO merchant_guilds(guild_id,name,owner_uuid,created_at) VALUES (?, ?, ?, ?)")) {
+                        insert.setString(1, id); insert.setString(2, name); insert.setString(3, owner.toString()); insert.setString(4, Instant.now().toString()); insert.executeUpdate();
+                    }
+                    try (PreparedStatement member = database.prepareStatement("INSERT INTO merchant_guild_members VALUES (?, ?, ?)")) { member.setString(1, owner.toString()); member.setString(2, ownerName); member.setString(3, id); member.executeUpdate(); }
+                });
+                return new Guild(id, name, owner, 0, 0, 0, "ACTIVE");
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Guild> joinGuild(UUID player, String playerName, String name) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Guild guild = guildByName(name);
+                try (PreparedStatement insert = database.prepareStatement("INSERT INTO merchant_guild_members VALUES (?, ?, ?)")) { insert.setString(1, player.toString()); insert.setString(2, playerName); insert.setString(3, guild.id()); insert.executeUpdate(); }
+                return guild;
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<Guild>> guildFor(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT g.guild_id,g.name,g.owner_uuid,g.log_progress,g.iron_progress,g.money_progress,g.project_state FROM merchant_guilds g JOIN merchant_guild_members m ON m.guild_id=g.guild_id WHERE m.player_uuid=?")) {
+                query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(guild(row)) : Optional.empty(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> leaveGuild(UUID player) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Guild guild = guildForSync(player).orElseThrow(() -> new SQLException("Guild not found"));
+                if (guild.owner().equals(player)) throw new SQLException("Guild owner cannot leave");
+                try (PreparedStatement delete = database.prepareStatement("DELETE FROM merchant_guild_members WHERE player_uuid=?")) { delete.setString(1, player.toString()); delete.executeUpdate(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<GuildItem>> guildItems(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Guild guild = guildForSync(player).orElseThrow(() -> new SQLException("Guild not found"));
+                try (PreparedStatement query = database.prepareStatement("SELECT deposit_id,item,item_id,quantity,quality FROM merchant_guild_items WHERE guild_id=? ORDER BY created_at LIMIT 20")) {
+                    query.setString(1, guild.id()); try (ResultSet rows = query.executeQuery()) { java.util.ArrayList<GuildItem> result = new java.util.ArrayList<>(); while (rows.next()) result.add(new GuildItem(rows.getString(1), rows.getBytes(2), rows.getString(3), rows.getInt(4), rows.getInt(5))); return result; }
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ItemGrant> withdrawGuildItem(UUID player, String prefix, String grantId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                byte[][] item = new byte[1][];
+                transaction(() -> {
+                    Guild guild = guildForSync(player).orElseThrow(() -> new SQLException("Guild not found"));
+                    try (PreparedStatement query = database.prepareStatement("SELECT deposit_id,item FROM merchant_guild_items WHERE guild_id=? AND deposit_id LIKE ? LIMIT 2")) {
+                        query.setString(1, guild.id()); query.setString(2, prefix + "%"); try (ResultSet rows = query.executeQuery()) {
+                            if (!rows.next()) throw new SQLException("Deposit not found"); String id = rows.getString(1); item[0] = rows.getBytes(2); if (rows.next()) throw new SQLException("Deposit prefix is ambiguous");
+                            try (PreparedStatement delete = database.prepareStatement("DELETE FROM merchant_guild_items WHERE deposit_id=?")) { delete.setString(1, id); if (delete.executeUpdate() != 1) throw new SQLException("Deposit changed concurrently"); }
+                        }
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) { grant.setString(1, grantId); grant.setString(2, player.toString()); grant.setBytes(3, item[0]); grant.setString(4, Instant.now().toString()); grant.executeUpdate(); }
+                });
+                return new ItemGrant(grantId, item[0]);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Guild> contributeGuildMoney(PlayerProfile player, long amount) {
+        if (amount < 1) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid contribution"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Guild[] result = new Guild[1]; long[] balanceAfter = new long[1];
+                transaction(() -> {
+                    Guild guild = guildForSync(player.playerId()).orElseThrow(() -> new SQLException("Guild not found"));
+                    if (guild.projectState().equals("COMPLETE") || guild.money() + amount > socialBalance.guildMoney()) throw new SQLException("Project contribution exceeds target");
+                    long balance = wallet(player.playerId()), after = Math.subtractExact(balance, amount); if (after < 0) throw new SQLException("Insufficient balance"); updateWallet(player.playerId(), balance, after); balanceAfter[0] = after;
+                    try (PreparedStatement update = database.prepareStatement("UPDATE merchant_guilds SET money_progress=money_progress+? WHERE guild_id=? AND project_state='ACTIVE'")) { update.setLong(1, amount); update.setString(2, guild.id()); if (update.executeUpdate() != 1) throw new SQLException("Guild project changed"); }
+                    finishProject(guild.id()); result[0] = guildForSync(player.playerId()).orElseThrow();
+                    logEconomy(player.playerId(), "guild-project:" + UUID.randomUUID(), "GUILD_PROJECT", guild.id(), 1, amount, amount, after);
+                });
+                player.setMoney(balanceAfter[0]);
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ServiceOffer> createService(UUID provider, String providerName, String type, long price) {
+        if (!Set.of("PAINTER","FURNITURE","INTERIOR","CHEF","RESTAURANT","GARDENER","AQUARIUM").contains(type) || price < 1)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid service"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String id = UUID.randomUUID().toString();
+                try (PreparedStatement insert = database.prepareStatement("INSERT INTO service_offers VALUES (?, ?, ?, ?, ?, NULL, 'OPEN', ?)")) { insert.setString(1, id); insert.setString(2, provider.toString()); insert.setString(3, providerName); insert.setString(4, type); insert.setLong(5, price); insert.setString(6, Instant.now().toString()); insert.executeUpdate(); }
+                return new ServiceOffer(id, provider, providerName, type, price, null, "OPEN");
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<ServiceOffer>> services() {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT offer_id,provider_uuid,provider_name,service_type,price,client_uuid,state FROM service_offers WHERE state IN ('OPEN','HIRED','SUBMITTED') ORDER BY created_at LIMIT 20"); ResultSet rows = query.executeQuery()) {
+                java.util.ArrayList<ServiceOffer> result = new java.util.ArrayList<>(); while (rows.next()) result.add(service(rows)); return result;
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ServiceOffer> hireService(PlayerProfile client, String prefix) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ServiceOffer[] result = new ServiceOffer[1]; long[] balanceAfter = new long[1];
+                transaction(() -> {
+                    ServiceOffer offer = uniqueService(prefix, "OPEN", null); if (offer.provider().equals(client.playerId())) throw new SQLException("Cannot hire own service");
+                    long balance = wallet(client.playerId()), after = Math.subtractExact(balance, offer.price()); if (after < 0) throw new SQLException("Insufficient balance"); updateWallet(client.playerId(), balance, after);
+                    try (PreparedStatement update = database.prepareStatement("UPDATE service_offers SET client_uuid=?,state='HIRED' WHERE offer_id=? AND state='OPEN'")) { update.setString(1, client.playerId().toString()); update.setString(2, offer.id()); if (update.executeUpdate() != 1) throw new SQLException("Service changed concurrently"); }
+                    logEconomy(client.playerId(), "service-escrow:" + offer.id(), "SERVICE_ESCROW", offer.type(), 1, offer.price(), offer.price(), after);
+                    result[0] = new ServiceOffer(offer.id(), offer.provider(), offer.providerName(), offer.type(), offer.price(), client.playerId(), "HIRED"); balanceAfter[0] = after;
+                });
+                client.setMoney(balanceAfter[0]);
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ServiceOffer> submitService(UUID provider, String prefix) {
+        return serviceState(prefix, "HIRED", "SUBMITTED", provider);
+    }
+
+    public CompletableFuture<ServiceOffer> approveService(PlayerProfile client, String prefix) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ServiceOffer[] result = new ServiceOffer[1]; long[] providerAfter = new long[1];
+                transaction(() -> {
+                    ServiceOffer offer = uniqueService(prefix, "SUBMITTED", null); if (!client.playerId().equals(offer.client())) throw new SQLException("Not service client");
+                    long balance = wallet(offer.provider()); providerAfter[0] = Math.addExact(balance, offer.price()); updateWallet(offer.provider(), balance, providerAfter[0]);
+                    try (PreparedStatement update = database.prepareStatement("UPDATE service_offers SET state='COMPLETED' WHERE offer_id=? AND state='SUBMITTED'")) { update.setString(1, offer.id()); if (update.executeUpdate() != 1) throw new SQLException("Service changed concurrently"); }
+                    logEconomy(offer.provider(), "service-payment:" + offer.id(), "SERVICE_PAYMENT", offer.type(), 1, offer.price(), offer.price(), providerAfter[0]);
+                    result[0] = new ServiceOffer(offer.id(), offer.provider(), offer.providerName(), offer.type(), offer.price(), offer.client(), "COMPLETED");
+                });
+                PlayerProfile provider = loaded.get(result[0].provider()); if (provider != null) provider.setMoney(providerAfter[0]); return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> cancelService(UUID provider, String prefix) {
+        return serviceState(prefix, "OPEN", "CANCELLED", provider).thenApply(ignored -> null);
+    }
+
+    private CompletableFuture<ServiceOffer> serviceState(String prefix, String from, String to, UUID actor) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ServiceOffer offer = uniqueService(prefix, from, actor);
+                try (PreparedStatement update = database.prepareStatement("UPDATE service_offers SET state=? WHERE offer_id=? AND state=?")) { update.setString(1, to); update.setString(2, offer.id()); update.setString(3, from); if (update.executeUpdate() != 1) throw new SQLException("Service changed concurrently"); }
+                return new ServiceOffer(offer.id(), offer.provider(), offer.providerName(), offer.type(), offer.price(), offer.client(), to);
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Restaurant> openRestaurant(UUID owner, String name) {
+        if (!validName(name, 20)) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid restaurant name"));
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO restaurants VALUES (?, ?, 0, 0, 0)")) { insert.setString(1, owner.toString()); insert.setString(2, name); insert.executeUpdate(); return new Restaurant(owner, name, 0, 0, 0); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> assignRestaurantRole(UUID owner, UUID member, String memberName, String role) {
+        if (!Set.of("INGREDIENT","CHEF","SERVER").contains(role)) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid role"));
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement ownerCheck = database.prepareStatement("SELECT 1 FROM restaurants WHERE owner_uuid=? AND owner_uuid<>?"); PreparedStatement insert = database.prepareStatement("INSERT INTO restaurant_members VALUES (?, ?, ?, ?) ON CONFLICT(member_uuid) DO UPDATE SET member_name=excluded.member_name,owner_uuid=excluded.owner_uuid,role=excluded.role")) {
+                requireRestaurant(owner); ownerCheck.setString(1, member.toString()); ownerCheck.setString(2, owner.toString()); try (ResultSet row = ownerCheck.executeQuery()) { if (row.next()) throw new SQLException("Restaurant owner cannot join another restaurant"); }
+                insert.setString(1, member.toString()); insert.setString(2, memberName); insert.setString(3, owner.toString()); insert.setString(4, role); insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<RestaurantOrder> createRestaurantOrder(UUID owner) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                requireRestaurant(owner); String id = UUID.randomUUID().toString();
+                try (PreparedStatement insert = database.prepareStatement("INSERT INTO restaurant_orders(order_id,owner_uuid,state,created_at) VALUES (?, ?, 'OPEN', ?)")) { insert.setString(1, id); insert.setString(2, owner.toString()); insert.setString(3, Instant.now().toString()); insert.executeUpdate(); }
+                return restaurantOrder(id);
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<RestaurantOrder>> restaurantOrderFor(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                UUID owner = restaurantOwner(player);
+                try (PreparedStatement query = database.prepareStatement("SELECT order_id,owner_uuid,state,crop_quality,protein_quality,extra_quality,supplier_uuid,chef_uuid,server_uuid,score,action_at FROM restaurant_orders WHERE owner_uuid=?")) {
+                    query.setString(1, owner.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(order(row)) : Optional.empty(); }
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<RestaurantOrder> restaurantAction(UUID player, String action, long now) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                RestaurantOrder current = restaurantOrderForSync(player).orElseThrow(() -> new SQLException("Order not found")); String role = restaurantRole(player, current.owner());
+                String next; int score = current.score();
+                if (action.equals("COOK") && current.state().equals("OPEN") && current.cropQuality() != null && current.proteinQuality() != null && current.extraQuality() != null && Set.of("CHEF", "OWNER").contains(role)) { next = "COOKING"; score = current.cropQuality() + current.proteinQuality() + current.extraQuality(); }
+                else if (action.equals("FLIP") && current.state().equals("COOKING") && Set.of("CHEF", "OWNER").contains(role)) { next = "FLIPPED"; score += timingScore(now - current.actionAt(), 4000); }
+                else if (action.equals("PLATE") && current.state().equals("FLIPPED") && Set.of("CHEF", "OWNER").contains(role)) { next = "READY"; score += timingScore(now - current.actionAt(), 2500); }
+                else throw new SQLException("Restaurant action is not available");
+                try (PreparedStatement update = database.prepareStatement("UPDATE restaurant_orders SET state=?,chef_uuid=?,score=?,action_at=? WHERE order_id=? AND state=?")) {
+                    update.setString(1, next); update.setString(2, player.toString()); update.setInt(3, score); update.setLong(4, now); update.setString(5, current.id()); update.setString(6, current.state()); if (update.executeUpdate() != 1) throw new SQLException("Order changed concurrently");
+                }
+                return restaurantOrder(current.id());
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<RestaurantResult> serveRestaurant(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                RestaurantResult[] result = new RestaurantResult[1];
+                transaction(() -> {
+                    RestaurantOrder order = restaurantOrderForSync(player).orElseThrow(() -> new SQLException("Order not found")); if (!order.state().equals("READY") || !Set.of("SERVER", "OWNER").contains(restaurantRole(player, order.owner()))) throw new SQLException("Order is not ready");
+                    int rating = Math.max(1, Math.min(5, 1 + order.score() / 5)); long reward = Math.addExact(socialBalance.restaurantBaseReward(), Math.multiplyExact(rating, socialBalance.restaurantQualityReward())); long balance = wallet(order.owner()), after = Math.addExact(balance, reward); updateWallet(order.owner(), balance, after);
+                    try (PreparedStatement update = database.prepareStatement("UPDATE restaurants SET rating_total=rating_total+?,served_count=served_count+1,revenue=revenue+? WHERE owner_uuid=?")) { update.setInt(1, rating); update.setLong(2, reward); update.setString(3, order.owner().toString()); if (update.executeUpdate() != 1) throw new SQLException("Restaurant missing"); }
+                    try (PreparedStatement delete = database.prepareStatement("DELETE FROM restaurant_orders WHERE order_id=? AND state='READY'")) { delete.setString(1, order.id()); if (delete.executeUpdate() != 1) throw new SQLException("Order changed concurrently"); }
+                    logEconomy(order.owner(), "restaurant:" + order.id(), "RESTAURANT", "market_meal", 1, reward, reward, after); result[0] = new RestaurantResult(rating, reward, after);
+                });
+                PlayerProfile owner = loaded.get(restaurantOwner(player)); if (owner != null) owner.setMoney(result[0].balance()); return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private void supplyRestaurant(SocialIntent intent) throws SQLException {
+        RestaurantOrder order = restaurantOrder(intent.targetId()); String role = restaurantRole(intent.player(), order.owner()); if (!(role.equals("INGREDIENT") || role.equals("OWNER")) || !order.state().equals("OPEN")) throw new SQLException("Ingredient role required");
+        String column = switch (intent.itemId()) { case "CROP" -> "crop_quality"; case "PROTEIN" -> "protein_quality"; case "EXTRA" -> "extra_quality"; default -> throw new SQLException("Invalid ingredient category"); };
+        try (PreparedStatement update = database.prepareStatement("UPDATE restaurant_orders SET " + column + "=?,supplier_uuid=? WHERE order_id=? AND state='OPEN' AND " + column + " IS NULL")) {
+            update.setInt(1, intent.quality()); update.setString(2, intent.player().toString()); update.setString(3, order.id()); if (update.executeUpdate() != 1) throw new SQLException("Ingredient already supplied");
+        }
+    }
+
+    private void contributeProjectItem(SocialIntent intent) throws SQLException {
+        requireGuildMember(intent.player(), intent.targetId()); String column; int target;
+        if (intent.itemId().equals("LOG")) { column = "log_progress"; target = socialBalance.guildLogs(); } else if (intent.itemId().equals("IRON")) { column = "iron_progress"; target = socialBalance.guildIron(); } else throw new SQLException("Invalid project item");
+        try (PreparedStatement update = database.prepareStatement("UPDATE merchant_guilds SET " + column + "=" + column + "+? WHERE guild_id=? AND project_state='ACTIVE' AND " + column + "+?<=?")) {
+            update.setInt(1, intent.quantity()); update.setString(2, intent.targetId()); update.setInt(3, intent.quantity()); update.setInt(4, target); if (update.executeUpdate() != 1) throw new SQLException("Project contribution exceeds target");
+        }
+        finishProject(intent.targetId());
+    }
+
+    private void finishProject(String guildId) throws SQLException {
+        try (PreparedStatement update = database.prepareStatement("UPDATE merchant_guilds SET project_state='COMPLETE' WHERE guild_id=? AND log_progress>=? AND iron_progress>=? AND money_progress>=?")) { update.setString(1, guildId); update.setInt(2, socialBalance.guildLogs()); update.setInt(3, socialBalance.guildIron()); update.setLong(4, socialBalance.guildMoney()); update.executeUpdate(); }
+    }
+
+    private long wallet(UUID player) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT money FROM players WHERE uuid=?")) { query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Player row missing"); return row.getLong(1); } }
+    }
+
+    private void updateWallet(UUID player, long expected, long balance) throws SQLException {
+        try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?,updated_at=? WHERE uuid=? AND money=?")) { update.setLong(1, balance); update.setString(2, Instant.now().toString()); update.setString(3, player.toString()); update.setLong(4, expected); if (update.executeUpdate() != 1) throw new SQLException("Wallet changed concurrently"); }
+    }
+
+    private void logEconomy(UUID player, String key, String type, String item, int quantity, long unit, long total, long balance) throws SQLException {
+        try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            log.setString(1, UUID.randomUUID().toString()); log.setString(2, key); log.setString(3, player.toString()); log.setString(4, type); log.setString(5, item); log.setInt(6, quantity); log.setLong(7, unit); log.setLong(8, total); log.setLong(9, balance); log.setString(10, Instant.now().toString()); log.executeUpdate();
+        }
+    }
+
+    private void requireGuildMember(UUID player, String guild) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT 1 FROM merchant_guild_members WHERE player_uuid=? AND guild_id=?")) { query.setString(1, player.toString()); query.setString(2, guild); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Guild membership required"); } }
+    }
+
+    private Optional<Guild> guildForSync(UUID player) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT g.guild_id,g.name,g.owner_uuid,g.log_progress,g.iron_progress,g.money_progress,g.project_state FROM merchant_guilds g JOIN merchant_guild_members m ON m.guild_id=g.guild_id WHERE m.player_uuid=?")) { query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(guild(row)) : Optional.empty(); } }
+    }
+
+    private Guild guildByName(String name) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT guild_id,name,owner_uuid,log_progress,iron_progress,money_progress,project_state FROM merchant_guilds WHERE name=?")) { query.setString(1, name); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Guild not found"); return guild(row); } }
+    }
+
+    private Guild guild(ResultSet row) throws SQLException { return new Guild(row.getString(1), row.getString(2), UUID.fromString(row.getString(3)), row.getInt(4), row.getInt(5), row.getLong(6), row.getString(7)); }
+
+    private ServiceOffer uniqueService(String prefix, String state, UUID provider) throws SQLException {
+        String sql = "SELECT offer_id,provider_uuid,provider_name,service_type,price,client_uuid,state FROM service_offers WHERE offer_id LIKE ? AND state=?" + (provider == null ? "" : " AND provider_uuid=?") + " LIMIT 2";
+        try (PreparedStatement query = database.prepareStatement(sql)) { query.setString(1, prefix + "%"); query.setString(2, state); if (provider != null) query.setString(3, provider.toString()); try (ResultSet rows = query.executeQuery()) { if (!rows.next()) throw new SQLException("Service not found"); ServiceOffer result = service(rows); if (rows.next()) throw new SQLException("Service prefix is ambiguous"); return result; } }
+    }
+
+    private ServiceOffer service(ResultSet row) throws SQLException { String client = row.getString(6); return new ServiceOffer(row.getString(1), UUID.fromString(row.getString(2)), row.getString(3), row.getString(4), row.getLong(5), client == null ? null : UUID.fromString(client), row.getString(7)); }
+
+    private void requireRestaurant(UUID owner) throws SQLException { try (PreparedStatement query = database.prepareStatement("SELECT 1 FROM restaurants WHERE owner_uuid=?")) { query.setString(1, owner.toString()); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Restaurant not found"); } } }
+
+    private UUID restaurantOwner(UUID player) throws SQLException {
+        try (PreparedStatement owned = database.prepareStatement("SELECT owner_uuid FROM restaurants WHERE owner_uuid=?")) { owned.setString(1, player.toString()); try (ResultSet row = owned.executeQuery()) { if (row.next()) return player; } }
+        try (PreparedStatement member = database.prepareStatement("SELECT owner_uuid FROM restaurant_members WHERE member_uuid=?")) { member.setString(1, player.toString()); try (ResultSet row = member.executeQuery()) { if (!row.next()) throw new SQLException("Restaurant membership required"); return UUID.fromString(row.getString(1)); } }
+    }
+
+    private String restaurantRole(UUID player, UUID owner) throws SQLException {
+        if (player.equals(owner)) return "OWNER";
+        try (PreparedStatement query = database.prepareStatement("SELECT role FROM restaurant_members WHERE member_uuid=? AND owner_uuid=?")) { query.setString(1, player.toString()); query.setString(2, owner.toString()); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Restaurant role required"); return row.getString(1); } }
+    }
+
+    private Optional<RestaurantOrder> restaurantOrderForSync(UUID player) throws SQLException {
+        UUID owner = restaurantOwner(player); try (PreparedStatement query = database.prepareStatement("SELECT order_id,owner_uuid,state,crop_quality,protein_quality,extra_quality,supplier_uuid,chef_uuid,server_uuid,score,action_at FROM restaurant_orders WHERE owner_uuid=?")) { query.setString(1, owner.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(order(row)) : Optional.empty(); } }
+    }
+
+    private RestaurantOrder restaurantOrder(String id) throws SQLException { try (PreparedStatement query = database.prepareStatement("SELECT order_id,owner_uuid,state,crop_quality,protein_quality,extra_quality,supplier_uuid,chef_uuid,server_uuid,score,action_at FROM restaurant_orders WHERE order_id=?")) { query.setString(1, id); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Restaurant order not found"); return order(row); } } }
+
+    private RestaurantOrder order(ResultSet row) throws SQLException {
+        Integer crop = integerOrNull(row, 4), protein = integerOrNull(row, 5), extra = integerOrNull(row, 6);
+        return new RestaurantOrder(row.getString(1), UUID.fromString(row.getString(2)), row.getString(3), crop, protein, extra, uuidOrNull(row.getString(7)), uuidOrNull(row.getString(8)), uuidOrNull(row.getString(9)), row.getInt(10), row.getLong(11));
+    }
+
+    private Integer integerOrNull(ResultSet row, int column) throws SQLException { int value = row.getInt(column); return row.wasNull() ? null : value; }
+    private UUID uuidOrNull(String value) { return value == null ? null : UUID.fromString(value); }
+    private int timingScore(long elapsed, long ideal) { long difference = Math.abs(elapsed - ideal); return difference <= 750 ? 5 : difference <= 1750 ? 3 : difference <= 4000 ? 1 : 0; }
+    private boolean validName(String value, int limit) { return value != null && !value.isBlank() && value.length() <= limit && value.chars().noneMatch(Character::isISOControl); }
+    SocialBalance socialBalance() { return socialBalance; }
+
     public CompletableFuture<Void> unload(UUID id) {
         PlayerProfile profile = loaded.get(id);
         if (profile == null) return CompletableFuture.completedFuture(null);
@@ -930,5 +1565,22 @@ public final class ProfileStore implements AutoCloseable {
     public record BossReward(UUID player, String grantId, byte[] item) {}
     public record BulletinPost(String id, UUID author, String authorName, String body, Instant createdAt, Instant expiresAt) {
         public String shortId() { return id.substring(0, 8); }
+    }
+    public record SocialIntent(String id, UUID player, String kind, String targetId, byte[] item, String itemId, int quantity, long unitPrice, int quality, String playerName, String state) {
+        public SocialIntent(String id, UUID player, String kind, String targetId, byte[] item, String itemId, int quantity, long unitPrice, int quality, String playerName) { this(id, player, kind, targetId, item, itemId, quantity, unitPrice, quality, playerName, "PREPARED"); }
+    }
+    public record SocialCompletion(String kind, String targetId) {}
+    public record ExchangeListing(String id, UUID seller, String sellerName, byte[] item, String itemId, int quantity, long unitPrice, int quality) { public String shortId() { return id.substring(0, 8); } }
+    public record ExchangePurchase(ExchangeListing listing, long buyerBalance, long sellerBalance, String grantId) {}
+    public record TradeStats(long recentPrice, long averagePrice) {}
+    public record Stall(int slot, UUID owner, String ownerName) {}
+    public record Guild(String id, String name, UUID owner, int logs, int iron, long money, String projectState) {}
+    public record GuildItem(String id, byte[] item, String itemId, int quantity, int quality) { public String shortId() { return id.substring(0, 8); } }
+    public record ServiceOffer(String id, UUID provider, String providerName, String type, long price, UUID client, String state) { public String shortId() { return id.substring(0, 8); } }
+    public record Restaurant(UUID owner, String name, int ratingTotal, int servedCount, long revenue) {}
+    public record RestaurantOrder(String id, UUID owner, String state, Integer cropQuality, Integer proteinQuality, Integer extraQuality, UUID supplier, UUID chef, UUID server, int score, long actionAt) {}
+    public record RestaurantResult(int rating, long reward, long balance) {}
+    public record SocialBalance(int guildLogs, int guildIron, long guildMoney, long restaurantBaseReward, long restaurantQualityReward) {
+        public SocialBalance { if (guildLogs < 1 || guildIron < 1 || guildMoney < 1 || restaurantBaseReward < 0 || restaurantQualityReward < 0) throw new IllegalArgumentException("Invalid social balance"); }
     }
 }
