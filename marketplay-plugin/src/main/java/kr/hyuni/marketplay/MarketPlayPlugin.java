@@ -2,6 +2,7 @@ package kr.hyuni.marketplay;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.citizensnpcs.api.event.NPCRightClickEvent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Bukkit;
@@ -10,6 +11,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
@@ -48,6 +50,10 @@ import java.time.ZoneId;
 public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private static final Component TOOLBOX_TITLE = Component.text("생활도구함", NamedTextColor.AQUA);
+    private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
+    private static final Component TRAVEL_TITLE = Component.text("여행 안내", NamedTextColor.AQUA);
+    private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
+    private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
     private ProfileStore profiles;
     private HousingStore housingStore;
     private HousingManager housing;
@@ -56,6 +62,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private ExplorationManager exploration;
     private SocialEconomyManager socialEconomy;
     private EndgameManager endgame;
+    private ResourceWorldManager resources;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
@@ -64,6 +71,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private NamespacedKey toolKey;
     private NamespacedKey grantKey;
     private NamespacedKey saleIntentKey;
+    private NamespacedKey hubActionKey;
     private HubBuilder hub;
     private boolean hubReady;
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
@@ -86,6 +94,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         toolKey = new NamespacedKey(this, "tool_id");
         grantKey = new NamespacedKey(this, "grant_id");
         saleIntentKey = new NamespacedKey(this, "sale_intent");
+        hubActionKey = new NamespacedKey(this, "hub_action");
         reloadRuntimeConfig();
         try {
             var database = getDataFolder().toPath().resolve("marketplay.db");
@@ -101,7 +110,9 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             return;
         }
         hub = new HubBuilder(this);
-        hubReady = hub.ensure(getServer().getWorlds().getFirst());
+        hubReady = hub.ensure();
+        resources = new ResourceWorldManager(this);
+        resources.start();
         housing = new HousingManager(this, housingStore);
         housing.start();
         exploration = new ExplorationManager(this, profiles, housing);
@@ -129,6 +140,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (profiles == null) return;
         try {
             if (housing != null) housing.stop();
+            if (resources != null) resources.stop();
             if (exploration != null) exploration.stop();
             if (socialEconomy != null) socialEconomy.stop();
             if (endgame != null) endgame.stop();
@@ -142,6 +154,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         housingStore.remember(event.getPlayer().getUniqueId(), event.getPlayer().getName());
         load(event.getPlayer());
+        if ("world".equals(event.getPlayer().getWorld().getName())) getServer().getScheduler().runTask(this, () -> hub.teleport(event.getPlayer()));
     }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         busy.remove(event.getPlayer().getUniqueId());
@@ -166,10 +179,24 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             sellHand(event.getPlayer());
             return;
         }
-        for (HubBuilder.Node node : HubBuilder.NODES) if (node.location().matches(event.getClickedBlock())) {
-            event.setCancelled(true);
-            harvest(event.getPlayer(), node);
-            return;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onHubNpc(NPCRightClickEvent event) {
+        String role = event.getNPC().data().get("marketplay_hub_role", "");
+        if (role.isBlank()) return;
+        event.setCancelled(true);
+        Player player = event.getClicker();
+        switch (role) {
+            case "market" -> openMarket(player);
+            case "board" -> openBoardMenu(player);
+            case "housing" -> openHousingMenu(player);
+            case "travel", "lobby" -> openTravelMenu(player);
+            case "resources" -> openHubMenu(player, "resources");
+            case "art" -> openHubMenu(player, "art");
+            case "restaurant" -> openHubMenu(player, "restaurant");
+            case "guild" -> openHubMenu(player, "guild");
+            default -> openHubMenu(player, "hub");
         }
     }
 
@@ -179,12 +206,16 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
         boolean market = event.getView().title().equals(MARKET_TITLE);
         boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
-        if (!market && !toolbox) return;
+        boolean hubMenu = event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
+                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE);
+        if (!market && !toolbox && !hubMenu) return;
         event.setCancelled(true);
         if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType().isAir()) return;
         String toolId = clicked.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+        String action = clicked.getPersistentDataContainer().get(hubActionKey, PersistentDataType.STRING);
+        if (hubMenu && action != null) { player.closeInventory(); runHubAction(player, action); return; }
         if (toolbox && toolId != null) player.sendActionBar(Component.text(toolId.equals("old_rod") ? "낡은 낚싯대는 손에 들고 사용합니다." : "대상과 상호작용하면 도구가 자동 사용됩니다.", NamedTextColor.AQUA));
         else if (market && toolId != null) purchaseTool(player, toolId);
         else if (clicked.getType() == Material.HOPPER) { player.closeInventory(); sellHand(player); }
@@ -193,7 +224,9 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @EventHandler public void onInventoryDrag(InventoryDragEvent event) {
         if (event.getWhoClicked() instanceof Player player && busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
-        if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)) event.setCancelled(true);
+        if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)
+                || event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
+                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)) event.setCancelled(true);
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
@@ -218,7 +251,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getState() == PlayerFishEvent.State.FISHING) {
             fishingDeadlines.remove(playerId);
             PlayerProfile profile = profiles.get(playerId);
-            if (!HubBuilder.contains(HubBuilder.RIVER, event.getPlayer().getLocation())) {
+            if (resources == null || !resources.isRiver(event.getPlayer().getLocation())) {
                 event.setCancelled(true);
                 validFishingCasts.remove(playerId);
                 event.getPlayer().sendActionBar(Component.text("낚시는 강 지역에서만 할 수 있습니다.", NamedTextColor.RED));
@@ -250,7 +283,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         Long deadline = fishingDeadlines.remove(playerId);
         PlayerProfile profile = profiles.get(playerId);
         EquipmentSlot hand = validFishingCasts.remove(playerId);
-        if (hand == null || profile == null || !HubBuilder.contains(HubBuilder.RIVER, event.getPlayer().getLocation()) || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
+        if (hand == null || profile == null || resources == null || !resources.isRiver(event.getPlayer().getLocation()) || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
             event.setCancelled(true);
             if (event.getCaught() != null) event.getCaught().remove();
             event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));
@@ -501,6 +534,91 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         return null;
     }
 
+    void openHubMenu(Player player, String section) {
+        if (section.equals("travel")) { openTravelMenu(player); return; }
+        if (section.equals("board")) { openBoardMenu(player); return; }
+        if (section.equals("housing")) { openHousingMenu(player); return; }
+        Inventory menu = Bukkit.createInventory(null, 27, HUB_TITLE);
+        menu.setItem(10, menuItem(Material.EMERALD, "생활도구 시장", "market", "도구 구매와 자원 판매"));
+        menu.setItem(11, menuItem(Material.CHEST, "생활도구함", "tools", "구매한 생활도구 확인"));
+        menu.setItem(12, menuItem(Material.WRITABLE_BOOK, "시장 게시판", "board", "시세·왕실 주문·주민 게시글"));
+        menu.setItem(13, menuItem(Material.COMPASS, "여행 안내", "travel", "채집소와 탐험 지역 이동"));
+        menu.setItem(14, menuItem(Material.RED_BED, "주택 안내", "housing", "개인 집과 우편"));
+        menu.setItem(15, menuItem(Material.FILLED_MAP, "그림과 전시", "art", "작품 제작·전시·거래"));
+        menu.setItem(16, menuItem(Material.COOKED_BEEF, "레스토랑", "restaurant", "요리와 협동 영업"));
+        menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
+        player.openInventory(menu);
+    }
+
+    private void openTravelMenu(Player player) {
+        Inventory menu = Bukkit.createInventory(null, 27, TRAVEL_TITLE);
+        menu.setItem(10, menuItem(Material.IRON_AXE, "자원 채집소", "resources", "숲·들·목장·광산·강"));
+        menu.setItem(11, menuItem(Material.REDSTONE_ORE, "조이광산", "joy", "평민부터 이용 가능"));
+        menu.setItem(12, menuItem(Material.TUBE_CORAL, "해변과 바다", "sea", "남작부터 이용 가능"));
+        menu.setItem(13, menuItem(Material.LAPIS_ORE, "반짝광산", "glitter", "자작부터 이용 가능"));
+        menu.setItem(14, menuItem(Material.AMETHYST_BLOCK, "요정광산", "fairy", "백작부터 이용 가능"));
+        menu.setItem(15, menuItem(Material.STONE_BRICKS, "왕성", "castle", "자작부터 이용 가능"));
+        menu.setItem(16, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
+        player.openInventory(menu);
+    }
+
+    private void openBoardMenu(Player player) {
+        Inventory menu = Bukkit.createInventory(null, 27, BOARD_TITLE);
+        menu.setItem(4, menuItem(Material.CLOCK, "오늘의 시장", "board-chat", marketText().replace('\n', ' ')));
+        int slot = 10;
+        for (ProfileStore.BulletinPost post : bulletinPosts) {
+            if (slot > 16) break;
+            menu.setItem(slot++, menuItem(Material.PAPER, post.authorName() + "의 글", "board-chat", "[" + post.shortId() + "] " + post.body()));
+        }
+        menu.setItem(22, menuItem(Material.WRITABLE_BOOK, "게시판 자세히 보기", "board-chat", "채팅에서 작성·삭제 명령도 확인"));
+        player.openInventory(menu);
+    }
+
+    private void openHousingMenu(Player player) {
+        Inventory menu = Bukkit.createInventory(null, 27, HOUSING_TITLE);
+        menu.setItem(10, menuItem(Material.OAK_DOOR, "내 집", "home", "내 집 상태 확인 또는 입장"));
+        menu.setItem(12, menuItem(Material.GRASS_BLOCK, "집 만들기", "home-create", "개인 하우징 월드 생성"));
+        menu.setItem(14, menuItem(Material.CHEST, "우편함", "mail", "편지·선물·초대 확인"));
+        menu.setItem(16, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
+        player.openInventory(menu);
+    }
+
+    private ItemStack menuItem(Material material, String name, String action, String description) {
+        ItemStack item = new ItemStack(material);
+        item.editMeta(meta -> {
+            meta.displayName(Component.text(name, NamedTextColor.GOLD));
+            meta.lore(List.of(Component.text(description, NamedTextColor.GRAY)));
+            meta.getPersistentDataContainer().set(hubActionKey, PersistentDataType.STRING, action);
+        });
+        return item;
+    }
+
+    private void runHubAction(Player player, String action) {
+        switch (action) {
+            case "market" -> openMarket(player);
+            case "tools" -> openToolbox(player);
+            case "sell" -> sellHand(player);
+            case "board" -> openBoardMenu(player);
+            case "board-chat" -> board(player, new String[]{"board"});
+            case "travel" -> openTravelMenu(player);
+            case "housing" -> openHousingMenu(player);
+            case "resources" -> resources.teleport(player);
+            case "lobby" -> teleportLobby(player);
+            case "joy", "sea", "glitter", "fairy", "castle" -> exploration.command(player, new String[]{"explore", action});
+            case "home" -> player.performCommand("marketplay home");
+            case "home-create" -> player.performCommand("marketplay home create");
+            case "mail" -> player.performCommand("marketplay mail");
+            case "art" -> player.performCommand("marketplay art");
+            case "restaurant" -> player.performCommand("marketplay restaurant");
+            case "guild" -> player.performCommand("marketplay guild");
+            default -> openHubMenu(player, "hub");
+        }
+    }
+
+    void teleportLobby(Player player) { if (hubReady) hub.teleport(player); }
+    Location lobbyLocation() { return hub.spawn(); }
+    World lobbyWorld() { return hub.world(); }
+
     private void openMarket(Player player) {
         if (busy.contains(player.getUniqueId()) || profiles.get(player.getUniqueId()) == null) {
             player.sendMessage(Component.text("플레이어 데이터를 확인하는 중입니다.", NamedTextColor.YELLOW));
@@ -575,30 +693,30 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 }));
     }
 
-    private void harvest(Player player, HubBuilder.Node node) {
+    void harvest(Player player, String cooldownNamespace, String itemId, String name, Material material, Skill skill, String toolId) {
         PlayerProfile profile = profiles.get(player.getUniqueId());
         if (profile == null || busy.contains(player.getUniqueId())) return;
-        if (!profile.hasTool(node.toolId())) {
-            player.sendActionBar(Component.text(node.name() + " 필요 도구: " + tools.get(node.toolId()).name(), NamedTextColor.RED));
+        if (!profile.hasTool(toolId)) {
+            player.sendActionBar(Component.text(name + " 필요 도구: " + tools.get(toolId).name(), NamedTextColor.RED));
             return;
         }
-        String cooldownKey = player.getUniqueId() + ":" + node.id();
+        String cooldownKey = player.getUniqueId() + ":" + cooldownNamespace;
         long now = System.currentTimeMillis();
         long readyAt = nodeCooldowns.getOrDefault(cooldownKey, 0L);
         if (readyAt > now) {
             player.sendActionBar(Component.text("자원이 재생 중입니다. " + ((readyAt - now + 999) / 1000) + "초", NamedTextColor.YELLOW));
             return;
         }
-        ItemStack reward = new ItemStack(node.reward());
-        tag(reward, node.id());
-        reward.editMeta(meta -> meta.displayName(Component.text(node.name() + " ★", NamedTextColor.GREEN)));
+        ItemStack reward = new ItemStack(material);
+        tag(reward, itemId);
+        reward.editMeta(meta -> meta.displayName(Component.text(name + " ★", NamedTextColor.GREEN)));
         if (!player.getInventory().addItem(reward).isEmpty()) {
             player.sendActionBar(Component.text("인벤토리 공간이 없습니다.", NamedTextColor.RED));
             return;
         }
         nodeCooldowns.put(cooldownKey, now + getConfig().getLong("resource-node-cooldown-millis", 5000));
-        rewardActivity(player, node.skill());
-        player.sendActionBar(Component.text(node.name() + " 획득 · " + node.skill().displayName() + " +1", NamedTextColor.GREEN));
+        rewardActivity(player, skill);
+        player.sendActionBar(Component.text(name + " 획득 · " + skill.displayName() + " +1", NamedTextColor.GREEN));
     }
 
     private void sellHand(Player player) {
