@@ -225,9 +225,8 @@ public final class ProfileStore implements AutoCloseable {
     public PlayerProfile get(UUID id) { return loaded.get(id); }
 
     public CompletableFuture<Void> save(PlayerProfile profile) {
-        PlayerProfile snapshot = profile.copy();
         return CompletableFuture.runAsync(() -> {
-            try { saveSync(snapshot); }
+            try { saveSync(profile.copy()); }
             catch (SQLException error) { throw new RuntimeException(error); }
         }, writer);
     }
@@ -269,7 +268,9 @@ public final class ProfileStore implements AutoCloseable {
                     try (ResultSet row = existing.executeQuery()) {
                         if (row.next()) {
                             if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Idempotency key belongs to another player");
-                            return row.getLong(2);
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
                         }
                     }
                 }
@@ -311,7 +312,9 @@ public final class ProfileStore implements AutoCloseable {
                     try (ResultSet row = existing.executeQuery()) {
                         if (row.next()) {
                             if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Purchase request belongs to another player");
-                            return row.getLong(2);
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
                         }
                     }
                 }
@@ -351,6 +354,8 @@ public final class ProfileStore implements AutoCloseable {
                         grant.executeUpdate();
                     }
                 });
+                profile.setMoney(balance);
+                profile.setMoney(balance);
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -365,7 +370,9 @@ public final class ProfileStore implements AutoCloseable {
                     try (ResultSet row = existing.executeQuery()) {
                         if (row.next()) {
                             if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Purchase request belongs to another player");
-                            return row.getLong(2);
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
                         }
                     }
                 }
@@ -399,6 +406,7 @@ public final class ProfileStore implements AutoCloseable {
                         grant.executeUpdate();
                     }
                 });
+                profile.setMoney(balance);
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -602,6 +610,10 @@ public final class ProfileStore implements AutoCloseable {
                         }
                     }
                 });
+                reputations.forEach((player, reputation) -> {
+                    PlayerProfile profile = loaded.get(player);
+                    if (profile != null) profile.setRoyalReputation(reputation);
+                });
                 return reputations;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -734,6 +746,7 @@ public final class ProfileStore implements AutoCloseable {
                     }
                     result[0] = balance;
                 });
+                profile.setMoney(result[0]);
                 return result[0];
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -867,8 +880,13 @@ public final class ProfileStore implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unload(UUID id) {
-        PlayerProfile profile = loaded.remove(id);
-        return profile == null ? CompletableFuture.completedFuture(null) : save(profile);
+        PlayerProfile profile = loaded.get(id);
+        if (profile == null) return CompletableFuture.completedFuture(null);
+        return CompletableFuture.runAsync(() -> {
+            try { saveSync(profile.copy()); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+            finally { loaded.remove(id, profile); }
+        }, writer);
     }
 
     @Override public void close() throws Exception {

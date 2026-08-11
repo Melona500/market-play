@@ -323,7 +323,12 @@ final class ExplorationManager implements Listener {
         String owner = event.getEntity().getPersistentDataContainer().get(duelOwner, PersistentDataType.STRING);
         if (owner != null && (!(event.getDamager() instanceof Player player) || !player.getUniqueId().toString().equals(owner))) { event.setCancelled(true); return; }
         if (boss == null || !event.getEntity().getUniqueId().equals(boss.body().getUniqueId())) return;
-        if (System.currentTimeMillis() >= boss.staggerUntil()) { event.setCancelled(true); if (event.getDamager() instanceof Player player) player.sendActionBar(Component.text("심해 장치 4개를 먼저 작동하세요.", NamedTextColor.RED)); }
+        Player attacker = event.getDamager() instanceof Player player ? player : null;
+        PlayerProfile profile = attacker == null ? null : plugin.profile(attacker.getUniqueId());
+        if (profile == null || !plugin.atLeast(profile, "남작") || !DEEP.contains(attacker.getLocation()) || System.currentTimeMillis() >= boss.staggerUntil()) {
+            event.setCancelled(true);
+            if (attacker != null) attacker.sendActionBar(Component.text("남작 계급과 심해 장치 4개가 필요합니다.", NamedTextColor.RED));
+        }
     }
 
     @EventHandler public void onDeath(EntityDeathEvent event) {
@@ -408,7 +413,8 @@ final class ExplorationManager implements Listener {
     }
 
     private void activateDevice(Player player, int device) {
-        if (boss == null || !DEEP.contains(player.getLocation())) { message(player, "대왕문어 전투 중에만 작동합니다.", false); return; }
+        PlayerProfile profile = plugin.profile(player.getUniqueId());
+        if (profile == null || !plugin.atLeast(profile, "남작") || boss == null || !DEEP.contains(player.getLocation())) { message(player, "남작의 대왕문어 전투 중에만 작동합니다.", false); return; }
         boss.devices().add(device);
         boss.bar().setTitle("대왕문어 · 장치 " + boss.devices().size() + "/4");
         if (boss.devices().size() < 4) return;
@@ -443,7 +449,7 @@ final class ExplorationManager implements Listener {
         if (ended.body().isValid()) ended.body().remove();
         if (!victory) return;
         List<ProfileStore.BossReward> rewards = new ArrayList<>();
-        for (Player player : world.getPlayers()) if (DEEP.contains(player.getLocation()) && plugin.profile(player.getUniqueId()) != null) {
+        for (Player player : world.getPlayers()) if (DEEP.contains(player.getLocation()) && plugin.profile(player.getUniqueId()) != null && plugin.atLeast(plugin.profile(player.getUniqueId()), "남작")) {
             String grant = UUID.randomUUID().toString();
             ItemStack pearl = tagged(Material.ENDER_PEARL, "pearl_q5", 5);
             pearl.editMeta(meta -> meta.displayName(Component.text("신비 대왕문어 진주", NamedTextColor.LIGHT_PURPLE)));

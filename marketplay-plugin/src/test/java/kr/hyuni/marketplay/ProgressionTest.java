@@ -149,6 +149,31 @@ class ProgressionTest {
         }
     }
 
+    @Test void queuedSaveAndUnloadKeepCommittedExplorationProgress(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID id = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile profile = store.load(id).join();
+            var harvest = store.harvestNode(profile, "joy:ruby", 1000, 2000, 1, Skill.MINING, 2, new byte[]{1}, "queued-node");
+            store.save(profile).join();
+            harvest.join();
+            var purchase = store.purchaseItem(profile, 100, "oxygen_device", new byte[]{2}, "queued-purchase");
+            String encounter = store.startEncounter(profile).join().id();
+            var defeat = store.defeatEncounter(encounter, List.of(new ProfileStore.BossReward(id, "queued-boss", new byte[]{3})));
+            store.unload(id).join();
+            purchase.join();
+            defeat.join();
+        }
+        try (ProfileStore reopened = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile profile = reopened.load(id).join();
+            assertEquals(900, profile.money());
+            assertEquals(1, profile.innerPower());
+            assertEquals(2, profile.experience(Skill.MINING));
+            assertEquals(20, profile.royalReputation());
+            assertEquals(3, reopened.pendingGrants(id).join().size());
+        }
+    }
+
     @Test void dailyMarketAndBulletinPersist(@TempDir Path directory) throws Exception {
         LocalDate day = LocalDate.of(2026, 8, 11);
         Map<String, Long> bases = Map.of("apple", 100L, "cod", 100L);
