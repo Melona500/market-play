@@ -3,6 +3,7 @@ package kr.hyuni.marketplay;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -16,9 +17,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -84,6 +87,7 @@ final class ArtManager implements Listener {
     }
 
     boolean command(Player player, String[] args) {
+        if (player.getGameMode() == GameMode.CREATIVE) return message(player, "작품 기능은 생존 모드에서만 사용할 수 있습니다.", false);
         if (args.length < 2) return help(player);
         return switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
             case "new" -> create(player, args);
@@ -215,6 +219,7 @@ final class ArtManager implements Listener {
 
     @EventHandler public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (player.getGameMode() == GameMode.CREATIVE && (isArt(event.getCurrentItem()) || isArt(event.getCursor()))) { event.setCancelled(true); return; }
         Editor editor = editors.get(player.getUniqueId());
         if (editor == null || event.getView().getTopInventory() != editor.inventory) {
             if (event.getView().getTopInventory().getType() == InventoryType.CARTOGRAPHY && containsArt(event.getView().getTopInventory())) event.setCancelled(true);
@@ -246,6 +251,16 @@ final class ArtManager implements Listener {
         if (Arrays.stream(event.getInventory().getMatrix()).anyMatch(this::isArt)) event.getInventory().setResult(null);
     }
 
+    @EventHandler public void onCreative(InventoryCreativeEvent event) {
+        if (isArt(event.getCursor()) || isArt(event.getCurrentItem())) event.setCancelled(true);
+    }
+
+    @EventHandler public void onGameMode(PlayerGameModeChangeEvent event) {
+        if (event.getPlayer().getGameMode() != GameMode.CREATIVE && event.getNewGameMode() != GameMode.CREATIVE) return;
+        for (int slot = 0; slot < event.getPlayer().getInventory().getSize(); slot++) if (isArt(event.getPlayer().getInventory().getItem(slot))) event.getPlayer().getInventory().setItem(slot, null);
+        if (isArt(event.getPlayer().getItemOnCursor())) event.getPlayer().setItemOnCursor(null);
+    }
+
     @EventHandler(ignoreCancelled = true) public void onFrame(PlayerInteractEntityEvent event) {
         if (!(event.getRightClicked() instanceof ItemFrame frame)) return;
         Integer gallerySlot = frame.getPersistentDataContainer().get(galleryKey, PersistentDataType.INTEGER);
@@ -253,6 +268,7 @@ final class ArtManager implements Listener {
         ItemStack held = event.getPlayer().getInventory().getItem(event.getHand());
         String id = artId(held);
         if (id == null) return;
+        if (event.getPlayer().getGameMode() == GameMode.CREATIVE) { event.setCancelled(true); message(event.getPlayer(), "Creative에서는 작품을 전시할 수 없습니다.", false); return; }
         ArtStore.Artwork artwork = artworks.get(id);
         String token = held.getPersistentDataContainer().get(artTokenKey, PersistentDataType.STRING);
         if (artwork == null || !artwork.state().equals("PUBLISHED") || !artwork.owner().equals(event.getPlayer().getUniqueId()) || !artwork.itemToken().equals(token)) {
