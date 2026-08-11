@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
+    private static final Component TOOLBOX_TITLE = Component.text("생활도구함", NamedTextColor.AQUA);
     private ProfileStore profiles;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
@@ -52,6 +53,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private boolean hubReady;
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> nodeCooldowns = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> fishingDeadlines = new ConcurrentHashMap<>();
     private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
     private final Map<String, Long> prices = new LinkedHashMap<>();
     private double maximumVitality;
@@ -89,6 +91,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onJoin(PlayerJoinEvent event) { load(event.getPlayer()); }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         busy.remove(event.getPlayer().getUniqueId());
+        fishingDeadlines.remove(event.getPlayer().getUniqueId());
         profiles.unload(event.getPlayer().getUniqueId()).exceptionally(error -> {
             getLogger().severe("플레이어 데이터 저장 실패: " + error.getMessage());
             return null;
@@ -119,14 +122,18 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
-        if (!event.getView().title().equals(MARKET_TITLE)) return;
+        boolean market = event.getView().title().equals(MARKET_TITLE);
+        boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
+        if (!market && !toolbox) return;
         event.setCancelled(true);
         if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType().isAir()) return;
         String toolId = clicked.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
-        if (toolId != null) purchaseTool(player, toolId);
+        if (toolbox && toolId != null) equipTool(player, toolId);
+        else if (market && toolId != null) purchaseTool(player, toolId);
         else if (clicked.getType() == Material.HOPPER) { player.closeInventory(); sellHand(player); }
+        else if (clicked.getType() == Material.CHEST) openToolbox(player);
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
@@ -144,7 +151,22 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     @EventHandler(ignoreCancelled = true) public void onFish(PlayerFishEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        if (event.getState() == PlayerFishEvent.State.FISHING) fishingDeadlines.remove(playerId);
+        if (event.getState() == PlayerFishEvent.State.BITE) {
+            long window = getConfig().getLong("fishing-reel-window-millis", 1500);
+            fishingDeadlines.put(playerId, System.currentTimeMillis() + window);
+            event.getPlayer().sendActionBar(Component.text("입질! 지금 낚싯대를 감으세요.", NamedTextColor.AQUA));
+            return;
+        }
         if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
+        Long deadline = fishingDeadlines.remove(playerId);
+        if (!FishingTiming.caught(deadline, System.currentTimeMillis())) {
+            event.setCancelled(true);
+            if (event.getCaught() != null) event.getCaught().remove();
+            event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));
+            return;
+        }
         if (event.getCaught() instanceof org.bukkit.entity.Item item) tag(item.getItemStack());
         rewardActivity(event.getPlayer(), Skill.FISHING);
     }
@@ -180,6 +202,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (!(sender instanceof Player player)) return true;
         if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
+        if (args.length > 0 && args[0].equalsIgnoreCase("tools")) { openToolbox(player); return true; }
         showStatus(player);
         return true;
     }
@@ -319,7 +342,40 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         ItemStack sell = new ItemStack(Material.HOPPER);
         sell.editMeta(meta -> meta.displayName(Component.text("손에 든 자원 판매", NamedTextColor.GREEN)));
         market.setItem(8, sell);
+        ItemStack toolbox = new ItemStack(Material.CHEST);
+        toolbox.editMeta(meta -> meta.displayName(Component.text("생활도구함 열기", NamedTextColor.AQUA)));
+        market.setItem(7, toolbox);
         player.openInventory(market);
+    }
+
+    private void openToolbox(Player player) {
+        if (busy.contains(player.getUniqueId())) return;
+        Inventory toolbox = Bukkit.createInventory(null, 9, TOOLBOX_TITLE);
+        int slot = 0;
+        for (ToolDefinition definition : tools.values()) {
+            ItemStack owned = findTool(player, definition.id());
+            if (owned != null) toolbox.setItem(slot, owned.clone());
+            slot++;
+        }
+        player.openInventory(toolbox);
+    }
+
+    private void equipTool(Player player, String toolId) {
+        ItemStack owned = findTool(player, toolId);
+        if (owned == null) return;
+        int slot = player.getInventory().first(owned);
+        int held = player.getInventory().getHeldItemSlot();
+        ItemStack current = player.getInventory().getItem(held);
+        player.getInventory().setItem(held, owned);
+        player.getInventory().setItem(slot, current);
+        player.closeInventory();
+        player.sendActionBar(Component.text(tools.get(toolId).name() + " 장착", NamedTextColor.GREEN));
+    }
+
+    private ItemStack findTool(Player player, String toolId) {
+        for (ItemStack item : player.getInventory().getStorageContents())
+            if (item != null && toolId.equals(item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING))) return item;
+        return null;
     }
 
     private ItemStack tool(ToolDefinition definition) {
@@ -462,6 +518,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         maximumVitality = getConfig().getDouble("maximum-vitality", 100.0);
         activityCost = getConfig().getDouble("activity-vitality-cost", 1.0);
         if (maximumVitality <= 0 || activityCost < 0) throw new IllegalArgumentException("활력 설정은 0보다 커야 합니다.");
+        if (getConfig().getLong("fishing-reel-window-millis", 1500) <= 0) throw new IllegalArgumentException("낚시 제한 시간은 0보다 커야 합니다.");
         LinkedHashMap<String, Long> rankValues = new LinkedHashMap<>();
         ConfigurationSection rankSection = getConfig().getConfigurationSection("ranks");
         if (rankSection != null) for (String key : rankSection.getKeys(false)) rankValues.put(key, rankSection.getLong(key));
@@ -488,8 +545,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             if (price <= 0) throw new IllegalArgumentException("판매 가격은 0보다 커야 합니다: " + itemId);
             prices.put(itemId, price);
         }
+        if (hub != null && hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
     }
 
+    Map<String, Long> prices() { return Map.copyOf(prices); }
     private void tag(ItemStack item) {
         tag(item, item.getType().name().toLowerCase(Locale.ROOT));
     }
