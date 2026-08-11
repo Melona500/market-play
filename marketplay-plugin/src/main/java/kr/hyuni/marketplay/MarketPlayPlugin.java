@@ -30,6 +30,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.EnumMap;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -55,6 +57,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> nodeCooldowns = new ConcurrentHashMap<>();
     private final Map<UUID, Long> fishingDeadlines = new ConcurrentHashMap<>();
+    private final Set<UUID> validFishingCasts = ConcurrentHashMap.newKeySet();
     private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
     private final Map<String, Long> prices = new LinkedHashMap<>();
     private double maximumVitality;
@@ -93,6 +96,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         busy.remove(event.getPlayer().getUniqueId());
         fishingDeadlines.remove(event.getPlayer().getUniqueId());
+        validFishingCasts.remove(event.getPlayer().getUniqueId());
         profiles.unload(event.getPlayer().getUniqueId()).exceptionally(error -> {
             getLogger().severe("플레이어 데이터 저장 실패: " + error.getMessage());
             return null;
@@ -131,7 +135,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType().isAir()) return;
         String toolId = clicked.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
-        if (toolbox && toolId != null) equipTool(player, toolId);
+        if (toolbox && toolId != null) player.sendActionBar(Component.text(toolId.equals("old_rod") ? "낡은 낚싯대는 손에 들고 사용합니다." : "대상과 상호작용하면 도구가 자동 사용됩니다.", NamedTextColor.AQUA));
         else if (market && toolId != null) purchaseTool(player, toolId);
         else if (clicked.getType() == Material.HOPPER) { player.closeInventory(); sellHand(player); }
         else if (clicked.getType() == Material.CHEST) openToolbox(player);
@@ -157,16 +161,35 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(ignoreCancelled = true) public void onFish(PlayerFishEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
-        if (event.getState() == PlayerFishEvent.State.FISHING) fishingDeadlines.remove(playerId);
+        if (event.getState() == PlayerFishEvent.State.FISHING) {
+            fishingDeadlines.remove(playerId);
+            PlayerProfile profile = profiles.get(playerId);
+            if (profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(event.getPlayer().getInventory().getItemInMainHand().getPersistentDataContainer().get(toolKey, PersistentDataType.STRING))) {
+                event.setCancelled(true);
+                validFishingCasts.remove(playerId);
+                event.getPlayer().sendActionBar(Component.text("전용 도구함의 낡은 낚싯대를 손에 들어야 합니다.", NamedTextColor.RED));
+                return;
+            }
+            validFishingCasts.add(playerId);
+            return;
+        }
         if (event.getState() == PlayerFishEvent.State.BITE) {
+            if (!validFishingCasts.contains(playerId)) return;
             long window = getConfig().getLong("fishing-reel-window-millis", 1500);
             fishingDeadlines.put(playerId, System.currentTimeMillis() + window);
             event.getPlayer().sendActionBar(Component.text("입질! 지금 낚싯대를 감으세요.", NamedTextColor.AQUA));
             return;
         }
-        if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
+        if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) {
+            if (event.getState() == PlayerFishEvent.State.CAUGHT_ENTITY || event.getState() == PlayerFishEvent.State.FAILED_ATTEMPT || event.getState() == PlayerFishEvent.State.IN_GROUND || event.getState() == PlayerFishEvent.State.REEL_IN) {
+                validFishingCasts.remove(playerId);
+                fishingDeadlines.remove(playerId);
+            }
+            return;
+        }
         Long deadline = fishingDeadlines.remove(playerId);
-        if (!FishingTiming.caught(deadline, System.currentTimeMillis())) {
+        PlayerProfile profile = profiles.get(playerId);
+        if (!validFishingCasts.remove(playerId) || profile == null || !profile.hasTool("old_rod") || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
             event.setCancelled(true);
             if (event.getCaught() != null) event.getCaught().remove();
             event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));
@@ -310,8 +333,44 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void deliverPendingGrants(Player player) {
         profiles.pendingGrants(player.getUniqueId()).whenComplete((grants, error) -> getServer().getScheduler().runTask(this, () -> {
             if (error != null) { player.kick(Component.text("구매 물품을 확인하지 못했습니다.")); return; }
-            for (ProfileStore.ItemGrant grant : grants) deliverGrant(player, grant);
-            busy.remove(player.getUniqueId());
+            if (!player.isOnline()) return;
+            PlayerProfile profile = profiles.get(player.getUniqueId());
+            if (profile == null) return;
+            Set<String> owned = new HashSet<>();
+            Set<String> absorbed = new HashSet<>();
+            ArrayList<ProfileStore.ItemGrant> remaining = new ArrayList<>();
+            try {
+                for (ProfileStore.ItemGrant grant : grants) {
+                    String toolId = ItemStack.deserializeBytes(grant.item()).getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+                    if (toolId != null && tools.containsKey(toolId)) {
+                        owned.add(toolId);
+                        if (!toolId.equals("old_rod")) { absorbed.add(grant.id()); continue; }
+                    }
+                    remaining.add(grant);
+                }
+            } catch (RuntimeException invalidItem) {
+                player.kick(Component.text("구매 물품 데이터가 손상되었습니다."));
+                return;
+            }
+            for (ItemStack item : player.getInventory().getStorageContents()) {
+                if (item == null) continue;
+                String toolId = item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+                if (toolId != null && tools.containsKey(toolId)) owned.add(toolId);
+            }
+            profiles.migrateTools(profile, owned, absorbed).whenComplete((ignored, migrationError) -> getServer().getScheduler().runTask(this, () -> {
+                if (migrationError != null) { player.kick(Component.text("생활도구 이전에 실패했습니다.")); return; }
+                if (!player.isOnline()) return;
+                owned.forEach(profile::addTool);
+                for (int slot = 0; slot < player.getInventory().getStorageContents().length; slot++) {
+                    ItemStack item = player.getInventory().getItem(slot);
+                    if (item == null) continue;
+                    String toolId = item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+                    if (toolId != null && tools.containsKey(toolId) && !toolId.equals("old_rod")) player.getInventory().setItem(slot, null);
+                }
+                player.saveData();
+                remaining.forEach(grant -> deliverGrant(player, grant));
+                busy.remove(player.getUniqueId());
+            }));
         }));
     }
 
@@ -354,33 +413,19 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     private void openToolbox(Player player) {
-        if (busy.contains(player.getUniqueId())) return;
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (busy.contains(player.getUniqueId()) || profile == null) return;
         Inventory toolbox = Bukkit.createInventory(null, 9, TOOLBOX_TITLE);
         int slot = 0;
         for (ToolDefinition definition : tools.values()) {
-            ItemStack owned = findTool(player, definition.id());
-            if (owned != null) toolbox.setItem(slot, owned.clone());
+            if (profile.hasTool(definition.id())) {
+                ItemStack owned = tool(definition);
+                owned.editMeta(meta -> meta.displayName(Component.text(definition.name() + (definition.id().equals("old_rod") ? " · 직접 사용" : " · 자동 사용"), NamedTextColor.GREEN)));
+                toolbox.setItem(slot, owned);
+            }
             slot++;
         }
         player.openInventory(toolbox);
-    }
-
-    private void equipTool(Player player, String toolId) {
-        ItemStack owned = findTool(player, toolId);
-        if (owned == null) return;
-        int slot = player.getInventory().first(owned);
-        int held = player.getInventory().getHeldItemSlot();
-        ItemStack current = player.getInventory().getItem(held);
-        player.getInventory().setItem(held, owned);
-        player.getInventory().setItem(slot, current);
-        player.closeInventory();
-        player.sendActionBar(Component.text(tools.get(toolId).name() + " 장착", NamedTextColor.GREEN));
-    }
-
-    private ItemStack findTool(Player player, String toolId) {
-        for (ItemStack item : player.getInventory().getStorageContents())
-            if (item != null && toolId.equals(item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING))) return item;
-        return null;
     }
 
     private ItemStack tool(ToolDefinition definition) {
@@ -399,19 +444,20 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         PlayerProfile profile = profiles.get(player.getUniqueId());
         if (definition == null || profile == null || !busy.add(player.getUniqueId())) return;
         player.closeInventory();
-        String grantId = UUID.randomUUID().toString();
-        ItemStack item = tool(definition);
-        item.editMeta(meta -> meta.getPersistentDataContainer().set(grantKey, PersistentDataType.STRING, grantId));
-        profiles.purchase(profile, definition.price(), "tool:" + definition.id(), item.serializeAsBytes(), grantId)
+        String requestId = UUID.randomUUID().toString();
+        ItemStack item = definition.id().equals("old_rod") ? tool(definition) : null;
+        if (item != null) item.editMeta(meta -> meta.getPersistentDataContainer().set(grantKey, PersistentDataType.STRING, requestId));
+        byte[] physicalItem = item == null ? null : item.serializeAsBytes();
+        profiles.purchaseTool(profile, definition.price(), definition.id(), physicalItem, requestId)
                 .whenComplete((balance, error) -> getServer().getScheduler().runTask(this, () -> {
                     if (error != null) {
                         busy.remove(player.getUniqueId());
                         player.sendMessage(Component.text("돈이 부족하거나 구매 처리에 실패했습니다.", NamedTextColor.RED));
                         return;
                     }
-                    synchronized (profile) { profile.setMoney(balance); }
+                    synchronized (profile) { profile.setMoney(balance); profile.addTool(definition.id()); }
                     if (player.isOnline()) {
-                        deliverGrant(player, new ProfileStore.ItemGrant(grantId, item.serializeAsBytes()));
+                        if (physicalItem != null) deliverGrant(player, new ProfileStore.ItemGrant(requestId, physicalItem));
                         player.sendMessage(Component.text(definition.name() + "을 구매했습니다. 잔액 " + balance + "원", NamedTextColor.GREEN));
                     }
                     busy.remove(player.getUniqueId());
@@ -421,9 +467,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void harvest(Player player, HubBuilder.Node node) {
         PlayerProfile profile = profiles.get(player.getUniqueId());
         if (profile == null || busy.contains(player.getUniqueId())) return;
-        ItemStack held = player.getInventory().getItemInMainHand();
-        String toolId = held.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
-        if (!node.toolId().equals(toolId)) {
+        if (!profile.hasTool(node.toolId())) {
             player.sendActionBar(Component.text(node.name() + " 필요 도구: " + tools.get(node.toolId()).name(), NamedTextColor.RED));
             return;
         }
