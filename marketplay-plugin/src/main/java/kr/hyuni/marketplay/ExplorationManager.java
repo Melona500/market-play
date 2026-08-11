@@ -6,6 +6,8 @@ import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.npc.NPC;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -22,6 +24,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -516,6 +519,10 @@ final class ExplorationManager implements Listener {
     }
 
     private void spawnNpcs() {
+        if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 왕성 NPC를 만들 수 없습니다.");
+        List<NPC> previous = new ArrayList<>();
+        CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("marketplay_role")) previous.add(npc); });
+        previous.forEach(NPC::destroy);
         world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(entityRole, PersistentDataType.STRING)).forEach(Entity::remove);
         npc("steward", "왕실 시종 · 의뢰", 22, -35);
         npc("shop", "왕실 상점", 36, -35);
@@ -525,9 +532,18 @@ final class ExplorationManager implements Listener {
     }
 
     private void npc(String role, String name, double x, double z) {
-        Villager villager = world.spawn(new Location(world, x + .5, 65, z + .5), Villager.class);
-        villager.customName(Component.text(name, NamedTextColor.GOLD)); villager.setCustomNameVisible(true); villager.setAI(false); villager.setInvulnerable(true); villager.setSilent(true); villager.setPersistent(true);
-        villager.getPersistentDataContainer().set(entityRole, PersistentDataType.STRING, role);
+        NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.VILLAGER, name);
+        npc.data().setPersistent("marketplay_role", role);
+        npc.setProtected(true);
+        if (!npc.spawn(new Location(world, x + .5, 65, z + .5))) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
+        npc.getEntity().getPersistentDataContainer().set(entityRole, PersistentDataType.STRING, role);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        Location to = event.getTo();
+        if (!event.hasChangedBlock() || to == null || !WORLD.equals(to.getWorld().getName())) return;
+        if (!ProfileStore.insideExplorationMap(to.getBlockX(), to.getBlockZ())) event.setCancelled(true);
     }
 
     private void display(Location location, String text, NamedTextColor color) {

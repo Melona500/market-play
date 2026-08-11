@@ -2069,6 +2069,8 @@ public final class ProfileStore implements AutoCloseable {
     public record RestaurantResult(int rating, long reward, long balance) {}
     public record PartySnapshot(String groupKey, List<UUID> members) {}
     static boolean allowsEndgameDamage(Set<UUID> members, UUID attacker, String sourceSession, String session, boolean victimPlayer) { return attacker != null && members.contains(attacker) || victimPlayer && session.equals(sourceSession); }
+    static boolean insideExplorationMap(int x, int z) { return x >= -65 && x <= 60 && z >= -68 && z <= 70; }
+    static boolean allowsEndgameMove(int ownSlot, int destinationSlot, boolean persistentArea) { return ownSlot >= 0 ? destinationSlot == ownSlot : destinationSlot < 0 && persistentArea; }
     public record EndgameSession(String id, UUID owner, String groupKey, String scope, String content, int slot, String stage, int progress, int aux, String state, Instant startedAt) {}
     public record EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity, String state) {
         public EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity) { this(id, player, kind, item, category, quantity, "PREPARED"); }
