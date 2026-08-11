@@ -475,4 +475,14 @@ class ProgressionTest {
         assertFalse(ProfileStore.allowsEndgameDamage(members,outsider,null,"run",true));
         assertTrue(ProfileStore.allowsEndgameDamage(members,null,"run","run",true));
     }
+
+    @Test void explorationAndEndgameMovementStayInsideBuiltContent() {
+        assertTrue(ProfileStore.insideExplorationMap(-65,70));
+        assertFalse(ProfileStore.insideExplorationMap(-66,70));
+        assertTrue(ProfileStore.allowsEndgameMove(3,3,false));
+        assertFalse(ProfileStore.allowsEndgameMove(3,-1,true));
+        assertTrue(ProfileStore.allowsEndgameMove(-1,-1,true));
+        assertFalse(ProfileStore.allowsEndgameMove(-1,-1,false));
+        assertFalse(ProfileStore.allowsEndgameMove(-1,3,true));
+    }
 }

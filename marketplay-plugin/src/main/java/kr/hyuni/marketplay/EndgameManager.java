@@ -288,7 +288,8 @@ final class EndgameManager implements Listener {
 
     @EventHandler(ignoreCancelled=true) public void onMove(PlayerMoveEvent event) {
         if (!event.hasChangedBlock() || event.getTo()==null || !event.getTo().getWorld().equals(world)) return;
-        Player player=event.getPlayer(); int slot=slotAt(event.getTo()); if(slot>=0){Run run=runs.values().stream().filter(r->r.session.slot()==slot).findFirst().orElse(null); if(run==null||!run.members.contains(player.getUniqueId())){event.setCancelled(true);player.teleport(new Location(world,.5,Y+1,.5));}}
+        Player player=event.getPlayer(); Run own=run(player); int ownSlot=own==null?-1:own.session.slot(), slot=slotAt(event.getTo());
+        if(!ProfileStore.allowsEndgameMove(ownSlot,slot,inPersistent(event.getTo()))){event.setCancelled(true);return;}
         if(inSky(event.getTo())) { int checkpoint=skyCheckpoint(event.getTo()); int current=skyCheckpoints.getOrDefault(player.getUniqueId(),0); if(checkpoint==current+1){skyCheckpoints.put(player.getUniqueId(),checkpoint); if(checkpoint>=5) claimStar(player,checkpoint);} }
     }
 
@@ -335,6 +336,7 @@ final class EndgameManager implements Listener {
     private int slotAt(Location location){if(!location.getWorld().equals(world)||location.getBlockX()<SLOT_X-SLOT_RADIUS)return-1;int slot=Math.round((location.getBlockX()-SLOT_X)/(float)SLOT_GAP);return Math.abs(location.getBlockX()-baseX(slot))<=SLOT_RADIUS&&Math.abs(location.getBlockZ())<=SLOT_RADIUS?slot:-1;}
     private boolean inside(Run run,Location location){return slotAt(location)==run.session.slot();}
     private boolean inSky(Location l){return l.getWorld().equals(world)&&l.getY()>=95&&l.getX()>=-24&&l.getX()<=24&&l.getZ()>=65&&l.getZ()<=125;}
+    private boolean inPersistent(Location l){return l.getWorld().equals(world)&&l.getX()>=-48&&l.getX()<=48&&l.getZ()>=-48&&l.getZ()<=128;}
     private int skyCheckpoint(Location l){if(!inSky(l))return 0;for(int i=1;i<=5;i++)if(l.distanceSquared(new Location(world,-15+i*6,101,74+i*8))<16)return i;return 0;}
     private boolean near(Player p,double x,double z,double distance){return p.getWorld().equals(world)&&p.getLocation().distanceSquared(new Location(world,x+.5,Y+1,z+.5))<=distance*distance;}
     private boolean hasMask(Player p){ItemStack helmet=p.getInventory().getHelmet();return helmet!=null&&helmet.getPersistentDataContainer().has(maskKey,PersistentDataType.BYTE);}

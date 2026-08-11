@@ -9,6 +9,7 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly(files("../plugins/FastAsyncWorldEdit-Paper-2.15.3.jar"))
     compileOnly(files("../plugins/worldguard-bukkit-7.0.14-dist.jar"))
+    compileOnly(files("../plugins/Citizens-2.0.40-b3957.jar"))
     implementation("org.xerial:sqlite-jdbc:3.53.1.0") {
         exclude(group = "org.slf4j", module = "slf4j-api")
     }
