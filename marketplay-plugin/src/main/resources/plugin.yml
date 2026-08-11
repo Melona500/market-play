@@ -9,7 +9,7 @@ description: 시장놀이 생활경제 RPG 핵심 시스템
 commands:
   marketplay:
     description: 시장놀이 상태와 시장 기능
-    usage: /marketplay [market|sell|tools|board|home|mail|reload|admin]
+    usage: /marketplay [market|sell|tools|board|home|mail|art|reload|admin]
     aliases: [mp]
 permissions:
   marketplay.admin:
