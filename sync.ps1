@@ -79,6 +79,14 @@ try {
     $prUrl = (& gh pr create --repo 'Melona500/market-play' --base main --head $syncBranch --title 'Automatic server shutdown sync' --body $body).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $prUrl) { throw 'Pull request creation failed. The pushed branch was preserved.' }
 
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        $mergeable = (& gh pr view $prUrl --repo 'Melona500/market-play' --json mergeable --jq '.mergeable').Trim()
+        if ($mergeable -eq 'MERGEABLE') { break }
+        if ($mergeable -eq 'CONFLICTING') { throw "Pull request conflicts; preserved for manual review: $prUrl" }
+        Start-Sleep -Seconds 2
+    }
+    if ($mergeable -ne 'MERGEABLE') { throw "GitHub did not finish mergeability checks; preserved: $prUrl" }
+
     & gh pr merge $prUrl --repo 'Melona500/market-play' --squash
     if ($LASTEXITCODE -ne 0) { throw "Pull request was preserved for manual review: $prUrl" }
 
