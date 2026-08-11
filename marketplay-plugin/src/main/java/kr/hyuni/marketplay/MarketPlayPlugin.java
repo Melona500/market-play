@@ -54,6 +54,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private ArtStore artStore;
     private ArtManager art;
     private ExplorationManager exploration;
+    private SocialEconomyManager socialEconomy;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
@@ -87,7 +88,9 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         reloadRuntimeConfig();
         try {
             var database = getDataFolder().toPath().resolve("marketplay.db");
-            profiles = new ProfileStore(database, getConfig().getLong("starting-money", 1000), maximumVitality);
+            profiles = new ProfileStore(database, getConfig().getLong("starting-money", 1000), maximumVitality,
+                    new ProfileStore.SocialBalance(getConfig().getInt("social-economy.guild-project.logs", 64), getConfig().getInt("social-economy.guild-project.iron", 32),
+                            getConfig().getLong("social-economy.guild-project.money", 2000), getConfig().getLong("social-economy.restaurant.base-reward", 100), getConfig().getLong("social-economy.restaurant.quality-reward", 40)));
             housingStore = new HousingStore(database);
             artStore = new ArtStore(database);
         }
@@ -102,6 +105,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         housing.start();
         exploration = new ExplorationManager(this, profiles, housing);
         exploration.start();
+        socialEconomy = new SocialEconomyManager(this, profiles);
+        socialEconomy.start();
         art = new ArtManager(this, artStore, housingStore);
         art.start();
         refreshMarketDay();
@@ -122,6 +127,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         try {
             if (housing != null) housing.stop();
             if (exploration != null) exploration.stop();
+            if (socialEconomy != null) socialEconomy.stop();
             if (artStore != null) artStore.close();
             if (housingStore != null) housingStore.close();
             profiles.close();
@@ -286,6 +292,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("home")) return housing.command(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("mail")) return housing.mail(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("art")) return art.command(player, args);
+        if (args.length > 0 && socialEconomy.command(player, args)) return true;
         if (args.length > 0 && exploration.command(player, args)) return true;
         showStatus(player);
         return true;
@@ -375,6 +382,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         player.sendMessage(Component.text(skills.toString(), NamedTextColor.GREEN));
         player.sendMessage(Component.text("광장 북쪽 상점에서 도구를 사고, 자원 지역에서 채집한 뒤 판매대에 파세요.", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("/mp exchange · stall · restaurant · guild · service 로 사회경제 활동을 시작하세요.", NamedTextColor.AQUA));
     }
 
     private void load(Player player) {
@@ -416,7 +424,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     private void recoverPlayerSystems(Player player) {
-        housing.recover(player, () -> exploration.recover(player, () -> deliverPendingGrants(player)));
+        housing.recover(player, () -> exploration.recover(player, () -> socialEconomy.recover(player, () -> deliverPendingGrants(player))));
     }
 
     void deliverPendingGrants(Player player) {

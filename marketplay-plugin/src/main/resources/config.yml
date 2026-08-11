@@ -8,6 +8,15 @@ fishing-reel-window-millis: 1500
 exploration:
   node-cooldown-millis: 15000
 
+social-economy:
+  guild-project:
+    logs: 64
+    iron: 32
+    money: 2000
+  restaurant:
+    base-reward: 100
+    quality-reward: 40
+
 housing:
   upgrades:
     2:

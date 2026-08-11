@@ -1,7 +1,7 @@
 plugins { java }
 
 group = "kr.hyuni.marketplay"
-version = "0.8.0"
+version = "0.9.0"
 
 repositories { maven("https://repo.papermc.io/repository/maven-public/") }
 

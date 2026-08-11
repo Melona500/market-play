@@ -208,6 +208,82 @@ class ProgressionTest {
         assertFalse(river.contains("world", 9, 61, 9));
     }
 
+    @Test void socialEconomyEscrowsPersistAndSettleAtomically(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID seller = UUID.randomUUID(), buyer = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile sellerProfile = store.load(seller).join(), buyerProfile = store.load(buyer).join();
+            ProfileStore.SocialIntent listing = new ProfileStore.SocialIntent("intent-list", seller, "EXCHANGE", "listing-one", new byte[]{1, 2}, "apple", 2, 150, 4, "Seller");
+            store.prepareSocialIntent(listing).join();
+            assertEquals("PREPARED", store.pendingSocialIntent(seller).join().orElseThrow().state());
+            store.markSocialRemoving(listing.id()).join();
+            assertEquals("EXCHANGE", store.completeSocialIntent(listing.id()).join().kind());
+            assertEquals("EXCHANGE", store.completeSocialIntent(listing.id()).join().kind());
+            assertTrue(store.pendingSocialIntent(seller).join().isEmpty());
+            assertEquals(4, store.exchangeListings(null, 10).join().getFirst().quality());
+
+            ProfileStore.ExchangePurchase purchase = store.buyListing(buyerProfile, "listing", "exchange-grant").join();
+            assertEquals(700, purchase.buyerBalance());
+            assertEquals(1300, purchase.sellerBalance());
+            assertEquals(1, store.pendingGrants(buyer).join().size());
+            assertEquals(150, store.tradeStats("apple").join().averagePrice());
+            assertThrows(Exception.class, () -> store.buyListing(buyerProfile, "listing", "duplicate-grant").join());
+            ProfileStore.SocialIntent cancelled = new ProfileStore.SocialIntent("intent-cancel", seller, "EXCHANGE", "listing-cancel", new byte[]{8}, "wheat", 3, 20, 2, "Seller");
+            store.prepareSocialIntent(cancelled).join(); store.markSocialRemoving(cancelled.id()).join(); store.completeSocialIntent(cancelled.id()).join();
+            assertArrayEquals(new byte[]{8}, store.cancelListing(seller, "listing-c", "cancel-grant").join().item());
+            store.claimStall(1, seller, "Seller").join();
+            assertEquals(seller, store.stalls().join().getFirst().owner());
+
+            ProfileStore.ServiceOffer offer = store.createService(seller, "Seller", "CHEF", 100).join();
+            store.hireService(buyerProfile, offer.shortId()).join();
+            assertEquals(600, buyerProfile.money());
+            store.submitService(seller, offer.shortId()).join();
+            store.approveService(buyerProfile, offer.shortId()).join();
+            assertEquals(1400, sellerProfile.money());
+
+            ProfileStore.Guild guild = store.createGuild(seller, "Seller", "시장상단").join();
+            ProfileStore.SocialIntent deposit = new ProfileStore.SocialIntent("warehouse", seller, "GUILD", guild.id(), new byte[]{9}, "ruby", 5, 0, 5, "Seller");
+            store.prepareSocialIntent(deposit).join(); store.markSocialRemoving(deposit.id()).join(); store.completeSocialIntent(deposit.id()).join();
+            assertEquals(5, store.guildItems(seller).join().getFirst().quantity());
+            assertArrayEquals(new byte[]{9}, store.withdrawGuildItem(seller, "ware", "warehouse-grant").join().item());
+            store.changeMoney(sellerProfile, 3000, false, "test", "social-funds").join();
+            store.contributeGuildMoney(sellerProfile, 2000).join();
+            for (var intent : List.of(
+                    new ProfileStore.SocialIntent("logs", seller, "PROJECT", guild.id(), new byte[]{3}, "LOG", 64, 0, 1, "Seller"),
+                    new ProfileStore.SocialIntent("iron", seller, "PROJECT", guild.id(), new byte[]{4}, "IRON", 32, 0, 1, "Seller"))) {
+                store.prepareSocialIntent(intent).join(); store.markSocialRemoving(intent.id()).join(); store.completeSocialIntent(intent.id()).join();
+            }
+            assertEquals("COMPLETE", store.guildFor(seller).join().orElseThrow().projectState());
+
+            store.openRestaurant(seller, "시장식당").join();
+            UUID rival = UUID.randomUUID();
+            store.openRestaurant(rival, "경쟁식당").join();
+            store.assignRestaurantRole(seller, buyer, "Buyer", "CHEF").join();
+            assertThrows(Exception.class, () -> store.assignRestaurantRole(rival, buyer, "Buyer", "SERVER").join());
+            ProfileStore.RestaurantOrder order = store.createRestaurantOrder(seller).join();
+            int index = 0;
+            for (String category : List.of("CROP", "PROTEIN", "EXTRA")) {
+                String id = "ingredient-" + index++;
+                ProfileStore.SocialIntent ingredient = new ProfileStore.SocialIntent(id, seller, "RESTAURANT", order.id(), new byte[]{5}, category, 1, 0, 3, "Seller");
+                store.prepareSocialIntent(ingredient).join(); store.markSocialRemoving(id).join(); store.completeSocialIntent(id).join();
+            }
+            store.restaurantAction(seller, "COOK", 1000).join();
+            store.restaurantAction(seller, "FLIP", 5000).join();
+            store.restaurantAction(seller, "PLATE", 7500).join();
+            ProfileStore.RestaurantResult served = store.serveRestaurant(seller).join();
+            assertEquals(4, served.rating());
+            assertEquals(260, served.reward());
+            assertTrue(store.restaurantOrderFor(seller).join().isEmpty());
+        }
+        try (ProfileStore reopened = new ProfileStore(database, 1000, 100)) {
+            assertEquals(2660, reopened.load(seller).join().money());
+            assertEquals(600, reopened.load(buyer).join().money());
+            assertEquals("COMPLETE", reopened.guildFor(seller).join().orElseThrow().projectState());
+            assertTrue(reopened.exchangeListings(null, 10).join().isEmpty());
+            assertEquals(2, reopened.pendingGrants(seller).join().size());
+        }
+    }
+
     @Test void housingPersistsPermissionsUpgradeGuestbookAndGift(@TempDir Path directory) throws Exception {
         Path database = directory.resolve("marketplay.db");
         UUID owner = UUID.randomUUID();
