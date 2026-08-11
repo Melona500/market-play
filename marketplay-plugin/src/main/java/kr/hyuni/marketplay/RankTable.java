@@ -24,4 +24,10 @@ public final class RankTable {
         }
         return rank;
     }
+
+    public boolean atLeast(long innerPower, String rank) {
+        Long threshold = thresholds.get(rank);
+        if (threshold == null) throw new IllegalArgumentException("Unknown rank: " + rank);
+        return innerPower >= threshold;
+    }
 }

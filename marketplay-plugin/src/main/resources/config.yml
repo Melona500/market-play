@@ -5,6 +5,8 @@ activity-vitality-cost: 1.0
 starter-tool-price: 100
 resource-node-cooldown-millis: 5000
 fishing-reel-window-millis: 1500
+exploration:
+  node-cooldown-millis: 15000
 
 housing:
   upgrades:
@@ -41,6 +43,46 @@ prices:
   iron_ore: 30
   cod: 16
   salmon: 22
+  coral_q1: 20
+  coral_q2: 30
+  coral_q3: 45
+  coral_q4: 70
+  coral_q5: 120
+  shell_q1: 30
+  shell_q2: 45
+  shell_q3: 70
+  shell_q4: 110
+  shell_q5: 180
+  pearl_q1: 80
+  pearl_q2: 120
+  pearl_q3: 180
+  pearl_q4: 280
+  pearl_q5: 500
+  deep_cod_q1: 24
+  deep_cod_q2: 36
+  deep_cod_q3: 54
+  deep_cod_q4: 84
+  deep_cod_q5: 140
+  ruby_q1: 50
+  ruby_q2: 75
+  ruby_q3: 115
+  ruby_q4: 180
+  ruby_q5: 300
+  sapphire_q1: 70
+  sapphire_q2: 105
+  sapphire_q3: 160
+  sapphire_q4: 250
+  sapphire_q5: 420
+  emerald_q1: 90
+  emerald_q2: 135
+  emerald_q3: 205
+  emerald_q4: 320
+  emerald_q5: 540
+  crystal_q1: 110
+  crystal_q2: 165
+  crystal_q3: 250
+  crystal_q4: 390
+  crystal_q5: 650
 
 ranks:
   평민: 0

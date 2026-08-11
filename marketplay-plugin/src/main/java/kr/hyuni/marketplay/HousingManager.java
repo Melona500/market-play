@@ -49,7 +49,8 @@ final class HousingManager implements Listener {
             "frame", new FurnitureDefinition("작품 액자", Material.ITEM_FRAME, Map.of(Material.STICK, 8, Material.LEATHER, 1)),
             "workbench", new FurnitureDefinition("작업대", Material.CRAFTING_TABLE, Map.of(Material.OAK_PLANKS, 8)),
             "fireplace", new FurnitureDefinition("벽난로", Material.CAMPFIRE, Map.of(Material.COBBLESTONE, 8, Material.COAL, 2)),
-            "aquarium", new FurnitureDefinition("수족관", Material.GLASS, Map.of(Material.GLASS, 8, Material.COD, 1)));
+            "aquarium", new FurnitureDefinition("수족관", Material.GLASS, Map.of(Material.GLASS, 8, Material.COD, 1)),
+            "royal_decor", new FurnitureDefinition("왕실 수정 장식", Material.AMETHYST_BLOCK, Map.of()));
 
     HousingManager(MarketPlayPlugin plugin, HousingStore store) {
         this.plugin = plugin;
@@ -320,6 +321,18 @@ final class HousingManager implements Listener {
         profile.addExperience(Skill.CARPENTRY, 5);
         plugin.saveProfile(profile);
         message(player, quality + " " + definition.name() + " 제작 완료", true);
+    }
+
+    ItemStack furnitureItem(String type, String quality) {
+        FurnitureDefinition definition = definitions.get(type);
+        if (definition == null) throw new IllegalArgumentException("Unknown furniture: " + type);
+        ItemStack item = new ItemStack(definition.material());
+        item.editMeta(meta -> {
+            meta.displayName(Component.text(quality + " " + definition.name(), NamedTextColor.GOLD));
+            meta.getPersistentDataContainer().set(furnitureType, PersistentDataType.STRING, type);
+            meta.getPersistentDataContainer().set(furnitureQuality, PersistentDataType.STRING, quality);
+        });
+        return item;
     }
 
     private void guestbook(Player player, String[] args) {
