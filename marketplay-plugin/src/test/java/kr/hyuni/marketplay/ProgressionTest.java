@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,6 +16,8 @@ class ProgressionTest {
         String text = MarketText.render(Map.of("apple", 99L, "oak_log", 20L, "wheat", 12L, "wool", 18L, "iron_ore", 30L, "cod", 16L, "salmon", 22L));
         assertTrue(text.contains("사과 99원"));
         assertTrue(text.contains("대구 16원 · 연어 22원"));
+        assertTrue(MarketText.bulletin(List.of()).contains("/marketplay tools"));
+        assertEquals("사용자 공지", MarketText.bulletin(List.of("사용자 공지")));
         assertTrue(FishingTiming.caught(1500L, 1500L));
         assertFalse(FishingTiming.caught(1500L, 1501L));
         assertFalse(FishingTiming.caught(null, 1000L));

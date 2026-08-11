@@ -113,7 +113,7 @@ final class HubBuilder {
         display(world, new Location(world, -5.5, FLOOR_Y + 3.2, -16.7), "market",
                 Component.text(MarketText.render(plugin.prices()), NamedTextColor.GOLD));
         display(world, new Location(world, 12.5, FLOOR_Y + 3.0, 8.5), "bulletin",
-                Component.text(String.join("\n", plugin.getConfig().getStringList("bulletin")), NamedTextColor.AQUA));
+                Component.text(MarketText.bulletin(plugin.getConfig().getStringList("bulletin")), NamedTextColor.AQUA));
         display(world, new Location(world, 0.5, FLOOR_Y + 3.0, 10.5), "welcome",
                 Component.text("시장놀이 중앙광장\n분수 앞에서 안내인을 만나세요", NamedTextColor.YELLOW));
     }
