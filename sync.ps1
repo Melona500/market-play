@@ -79,7 +79,7 @@ try {
     $prUrl = (& gh pr create --repo 'Melona500/market-play' --base main --head $syncBranch --title 'Automatic server shutdown sync' --body $body).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $prUrl) { throw 'Pull request creation failed. The pushed branch was preserved.' }
 
-    & gh pr merge $prUrl --repo 'Melona500/market-play' --auto --squash
+    & gh pr merge $prUrl --repo 'Melona500/market-play' --squash
     if ($LASTEXITCODE -ne 0) { throw "Pull request was preserved for manual review: $prUrl" }
 
     $prState = (& gh pr view $prUrl --repo 'Melona500/market-play' --json state --jq '.state').Trim()
