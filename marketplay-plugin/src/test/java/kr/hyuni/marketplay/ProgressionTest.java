@@ -373,4 +373,106 @@ class ProgressionTest {
             assertEquals(1, reopened.exhibits().join().size());
         }
     }
+
+    @Test void endgameProgressIsIsolatedIdempotentAndRestartSafe(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID(), donor = UUID.randomUUID();
+        String guildId, trashId;
+        try (ProfileStore store = new ProfileStore(database, 10_000, 100)) {
+            store.load(owner).join(); store.load(member).join(); store.load(donor).join();
+            guildId = store.createGuild(owner, "Owner", "후반상단").join().id();
+            store.joinGuild(member, "Member", "후반상단").join();
+            ProfileStore.EndgameSession trash = store.startEndgameSession(owner, "GUILD", guildId, "TRASH", List.of(owner, member)).join();
+            trashId = trash.id();
+            assertEquals(Set.of(owner, member), store.endgameMembers(trash.id()).join());
+            assertThrows(Exception.class, () -> store.startEndgameSession(owner, "SOLO", owner.toString(), "PIRATE", List.of(owner)).join());
+            store.recordEndgameObjective(trash.id(), "VERMIN", 6, "BOSS").join();
+            assertEquals(1, store.activeEndgameSession(member).join().orElseThrow().progress());
+        }
+        try (ProfileStore store = new ProfileStore(database, 10_000, 100)) {
+            PlayerProfile ownerProfile = store.load(owner).join(), donorProfile = store.load(donor).join();
+            ProfileStore.EndgameSession restored = store.activeEndgameSession(owner).join().orElseThrow();
+            assertEquals(trashId, restored.id()); assertEquals(1, restored.progress());
+            for (int i = 1; i < 6; i++) restored = store.recordEndgameObjective(trashId, "VERMIN", 6, "BOSS").join();
+            assertEquals("BOSS", restored.stage());
+            restored = store.recordEndgameObjective(trashId, "BOSS", 1, "DONE").join();
+            assertEquals("DONE", restored.stage());
+            store.completeEndgame(trashId, rewards(trashId, owner, member)).join();
+            assertTrue(store.activeEndgameSession(owner).join().isEmpty());
+
+            for (String content : List.of("PIRATE", "ANUBIS")) {
+                ProfileStore.EndgameSession session = store.startEndgameSession(owner, "GUILD", guildId, content, List.of(owner, member)).join();
+                if (content.equals("PIRATE")) {
+                    session = store.transitionEndgame(session.id(), "APPROACH", "DECK", 0).join();
+                    for (int i=0;i<6;i++) session=store.recordEndgameObjective(session.id(), "DECK", 6, "CAPTAIN").join();
+                    session=store.recordEndgameObjective(session.id(), "CAPTAIN", 1, "TREASURE").join();
+                } else {
+                    session=store.transitionEndgame(session.id(), "STORM", "GLYPHS", 0).join();
+                    for(int i=0;i<3;i++)session=store.recordEndgameObjective(session.id(), "GLYPHS", 3, "MUMMIES").join();
+                    for(int i=0;i<6;i++)session=store.recordEndgameObjective(session.id(), "MUMMIES", 6, "BOSS").join();
+                    session=store.recordEndgameObjective(session.id(), "BOSS", 1, "DONE").join();
+                }
+                store.completeEndgame(session.id(), rewards(session.id(), owner, member)).join();
+            }
+
+            completeIntent(store, new ProfileStore.EndgameIntent("hatch", owner, "HATCH", new byte[]{1}, "DRAGON_EGG", 1, "PREPARED"));
+            for (int i=0;i<12;i++) completeIntent(store, new ProfileStore.EndgameIntent("feed-"+i, owner, "FEED", new byte[]{2}, List.of("FISH","VEGETABLE","FRUIT","MEAT","MINERAL","COOKING").get(i%6), 1, "PREPARED"));
+            assertEquals("ADULT", store.dragon(owner).join().orElseThrow().stage());
+
+            for(int i=0;i<4;i++)completeIntent(store,new ProfileStore.EndgameIntent("delivery-"+i,owner,"DELIVERY",new byte[]{3},"LOG",8,"PREPARED"));
+            for(int i=0;i<2;i++)completeIntent(store,new ProfileStore.EndgameIntent("help-"+i,owner,"HELP",new byte[]{4},"BREAD",3,"PREPARED"));
+            store.donateGoodDeed(ownerProfile,500,"2026-08-12").join();
+            store.recordEscortDeed(owner,"2026-08-12-a").join(); store.recordEscortDeed(owner,"2026-08-12-b").join();
+            store.changeMoney(ownerProfile,3000,false,"test","endgame-project-funds").join();
+            store.contributeGuildMoney(ownerProfile,2000).join();
+            for (ProfileStore.SocialIntent intent : List.of(
+                    new ProfileStore.SocialIntent("endgame-logs", owner, "PROJECT", guildId, new byte[]{5}, "LOG", 64, 0, 1, "Owner"),
+                    new ProfileStore.SocialIntent("endgame-iron", owner, "PROJECT", guildId, new byte[]{6}, "IRON", 32, 0, 1, "Owner"))) {
+                store.prepareSocialIntent(intent).join(); store.markSocialRemoving(intent.id()).join(); store.completeSocialIntent(intent.id()).join();
+            }
+            store.claimPublicProjectDeed(owner).join();
+            assertTrue(store.goodDeeds(owner).join().heavenUnlocked());
+            for(int i=0;i<3;i++)store.donateGoodDeed(donorProfile,500,"2026-08-"+(10+i)).join();
+            assertFalse(store.goodDeeds(donor).join().heavenUnlocked());
+
+            assertEquals("MAGE",store.chooseWarriorPath(owner,"MAGE").join());
+            assertThrows(Exception.class,()->store.chooseWarriorPath(owner,"WARRIOR").join());
+
+            ProfileStore.EndgameSession tower=store.startEndgameSession(owner,"GUILD",guildId,"TOWER",List.of(owner,member)).join();
+            for(int floor=1;floor<=50;floor++){
+                int required=floor%10==0?1:Math.min(6,2+(floor-1)/10);
+                ProfileStore.TowerAdvance advance=null;
+                for(int kill=0;kill<required;kill++)advance=store.advanceTower(tower.id(),"2026-08-10",rewards(tower.id()+"-tower",owner,member)).join();
+                assertNotNull(advance); assertEquals(floor==50,advance.completed());
+            }
+            assertEquals(50,store.towerRecords("2026-08-10").join().getFirst().highestFloor());
+        }
+        try(ProfileStore reopened=new ProfileStore(database,10_000,100)){
+            reopened.load(owner).join();
+            assertTrue(reopened.activeEndgameSession(owner).join().isEmpty());
+            assertEquals("ADULT",reopened.dragon(owner).join().orElseThrow().stage());
+            assertTrue(reopened.goodDeeds(owner).join().heavenUnlocked());
+            assertEquals("MAGE",reopened.warriorPath(owner).join().orElseThrow());
+            assertEquals(50,reopened.towerRecords("2026-08-10").join().getFirst().highestFloor());
+            assertEquals(8,reopened.pendingGrants(owner).join().size()+reopened.pendingGrants(member).join().size());
+        }
+    }
+
+    private static void completeIntent(ProfileStore store, ProfileStore.EndgameIntent intent) {
+        store.prepareEndgameIntent(intent).join(); store.markEndgameRemoving(intent.id()).join();
+        ProfileStore.EndgameCompletion first=store.completeEndgameIntent(intent.id()).join();
+        assertEquals(first,store.completeEndgameIntent(intent.id()).join());
+    }
+
+    private static List<ProfileStore.BossReward> rewards(String prefix, UUID... players) {
+        return java.util.Arrays.stream(players).map(player -> new ProfileStore.BossReward(player,prefix+":"+player,new byte[]{9})).toList();
+    }
+
+    @Test void endgameDamageRejectsOutsidersButAllowsMembersAndSessionMobs() {
+        UUID member=UUID.randomUUID(), outsider=UUID.randomUUID(); Set<UUID> members=Set.of(member);
+        assertTrue(ProfileStore.allowsEndgameDamage(members,member,null,"run",false));
+        assertFalse(ProfileStore.allowsEndgameDamage(members,outsider,null,"run",false));
+        assertFalse(ProfileStore.allowsEndgameDamage(members,outsider,null,"run",true));
+        assertTrue(ProfileStore.allowsEndgameDamage(members,null,"run","run",true));
+    }
 }

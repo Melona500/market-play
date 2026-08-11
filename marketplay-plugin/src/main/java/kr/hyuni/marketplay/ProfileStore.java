@@ -285,6 +285,93 @@ public final class ProfileStore implements AutoCloseable {
                       player_uuid TEXT NOT NULL,
                       PRIMARY KEY (encounter_id, player_uuid)
                     )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS endgame_sessions (
+                      session_id TEXT PRIMARY KEY,
+                      owner_uuid TEXT NOT NULL,
+                      group_key TEXT NOT NULL,
+                      scope TEXT NOT NULL CHECK (scope IN ('SOLO','GUILD')),
+                      content TEXT NOT NULL CHECK (content IN ('TRASH','PIRATE','ANUBIS','TOWER')),
+                      slot INTEGER NOT NULL CHECK (slot BETWEEN 0 AND 15),
+                      stage TEXT NOT NULL,
+                      progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0),
+                      aux INTEGER NOT NULL DEFAULT 0 CHECK (aux >= 0),
+                      state TEXT NOT NULL CHECK (state IN ('ACTIVE','CLEARED','FAILED')),
+                      started_at TEXT NOT NULL,
+                      updated_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS one_active_endgame_slot ON endgame_sessions(slot) WHERE state='ACTIVE'");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS endgame_session_members (
+                      session_id TEXT NOT NULL REFERENCES endgame_sessions(session_id) ON DELETE CASCADE,
+                      player_uuid TEXT NOT NULL,
+                      PRIMARY KEY (session_id, player_uuid)
+                    )""");
+            statement.executeUpdate("CREATE INDEX IF NOT EXISTS endgame_member_lookup ON endgame_session_members(player_uuid)");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS endgame_item_intents (
+                      intent_id TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      kind TEXT NOT NULL CHECK (kind IN ('HATCH','FEED','DELIVERY','HELP')),
+                      item BLOB NOT NULL,
+                      category TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity > 0),
+                      state TEXT NOT NULL CHECK (state IN ('PREPARED','REMOVING','COMPLETED','CANCELLED')),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS one_active_endgame_intent ON endgame_item_intents(player_uuid) WHERE state IN ('PREPARED','REMOVING')");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS dragons (
+                      player_uuid TEXT PRIMARY KEY,
+                      stage TEXT NOT NULL CHECK (stage IN ('EGG','HATCHLING','ADULT')),
+                      feed_total INTEGER NOT NULL DEFAULT 0 CHECK (feed_total >= 0),
+                      fish INTEGER NOT NULL DEFAULT 0 CHECK (fish >= 0),
+                      vegetable INTEGER NOT NULL DEFAULT 0 CHECK (vegetable >= 0),
+                      fruit INTEGER NOT NULL DEFAULT 0 CHECK (fruit >= 0),
+                      meat INTEGER NOT NULL DEFAULT 0 CHECK (meat >= 0),
+                      mineral INTEGER NOT NULL DEFAULT 0 CHECK (mineral >= 0),
+                      cooking INTEGER NOT NULL DEFAULT 0 CHECK (cooking >= 0),
+                      trait TEXT NOT NULL DEFAULT 'FOREST' CHECK (trait IN ('FOREST','SEA','MINERAL','SKY')),
+                      updated_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS good_deeds (
+                      player_uuid TEXT NOT NULL,
+                      deed_type TEXT NOT NULL CHECK (deed_type IN ('DELIVERY','NPC_HELP','DONATION','ESCORT','PUBLIC_PROJECT')),
+                      deed_count INTEGER NOT NULL DEFAULT 0 CHECK (deed_count >= 0),
+                      PRIMARY KEY (player_uuid, deed_type)
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS good_deed_claims (
+                      claim_key TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      deed_type TEXT NOT NULL,
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS warrior_paths (
+                      player_uuid TEXT PRIMARY KEY,
+                      combat_class TEXT NOT NULL CHECK (combat_class IN ('WARRIOR','GLADIATOR','HUNTER','MAGE')),
+                      chosen_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS hero_tower_weekly (
+                      week_key TEXT NOT NULL,
+                      group_key TEXT NOT NULL,
+                      scope TEXT NOT NULL CHECK (scope IN ('SOLO','GUILD')),
+                      highest_floor INTEGER NOT NULL CHECK (highest_floor BETWEEN 1 AND 50),
+                      best_millis INTEGER NOT NULL CHECK (best_millis >= 0),
+                      party_size INTEGER NOT NULL CHECK (party_size > 0),
+                      updated_at TEXT NOT NULL,
+                      PRIMARY KEY (week_key, group_key)
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS heaven_star_claims (
+                      player_uuid TEXT NOT NULL,
+                      node_id INTEGER NOT NULL,
+                      week_key TEXT NOT NULL,
+                      PRIMARY KEY (player_uuid, node_id, week_key)
+                    )""");
             ensurePlayerColumn(statement, "deep_omen", "INTEGER NOT NULL DEFAULT 0 CHECK (deep_omen BETWEEN 0 AND 100)");
             ensurePlayerColumn(statement, "royal_reputation", "INTEGER NOT NULL DEFAULT 0 CHECK (royal_reputation >= 0)");
             ensurePlayerColumn(statement, "knight_state", "TEXT NOT NULL DEFAULT 'NONE' CHECK (knight_state IN ('NONE','ARCHERY','DUEL','APPRENTICE'))");
@@ -1450,6 +1537,406 @@ public final class ProfileStore implements AutoCloseable {
         try (PreparedStatement update = database.prepareStatement("UPDATE merchant_guilds SET project_state='COMPLETE' WHERE guild_id=? AND log_progress>=? AND iron_progress>=? AND money_progress>=?")) { update.setString(1, guildId); update.setInt(2, socialBalance.guildLogs()); update.setInt(3, socialBalance.guildIron()); update.setLong(4, socialBalance.guildMoney()); update.executeUpdate(); }
     }
 
+    public CompletableFuture<PartySnapshot> guildParty(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Guild guild = guildForSync(player).orElseThrow(() -> new SQLException("Guild not found"));
+                java.util.ArrayList<UUID> members = new java.util.ArrayList<>();
+                try (PreparedStatement query = database.prepareStatement("SELECT player_uuid FROM merchant_guild_members WHERE guild_id=? ORDER BY player_uuid")) {
+                    query.setString(1, guild.id()); try (ResultSet rows = query.executeQuery()) { while (rows.next()) members.add(UUID.fromString(rows.getString(1))); }
+                }
+                return new PartySnapshot(guild.id(), List.copyOf(members));
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<EndgameSession> startEndgameSession(UUID owner, String scope, String groupKey, String content, List<UUID> requestedMembers) {
+        if (!Set.of("SOLO", "GUILD").contains(scope) || !Set.of("TRASH", "PIRATE", "ANUBIS", "TOWER").contains(content))
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid endgame session"));
+        java.util.LinkedHashSet<UUID> unique = new java.util.LinkedHashSet<>(requestedMembers);
+        if (!unique.contains(owner) || unique.isEmpty() || unique.size() > 8 || (scope.equals("SOLO") && unique.size() != 1))
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid endgame members"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                EndgameSession[] result = new EndgameSession[1];
+                transaction(() -> {
+                    if (scope.equals("GUILD")) {
+                        Guild guild = guildForSync(owner).orElseThrow(() -> new SQLException("Guild not found"));
+                        if (!guild.id().equals(groupKey)) throw new SQLException("Guild changed");
+                        for (UUID member : unique) requireGuildMember(member, groupKey);
+                    } else if (!groupKey.equals(owner.toString())) throw new SQLException("Solo group key mismatch");
+                    try (PreparedStatement activeGroup = database.prepareStatement("SELECT 1 FROM endgame_sessions WHERE group_key=? AND state='ACTIVE'")) {
+                        activeGroup.setString(1, groupKey); try (ResultSet row = activeGroup.executeQuery()) { if (row.next()) throw new SQLException("Group already has an active session"); }
+                    }
+                    for (UUID member : unique) try (PreparedStatement active = database.prepareStatement("SELECT 1 FROM endgame_sessions s JOIN endgame_session_members m ON m.session_id=s.session_id WHERE m.player_uuid=? AND s.state='ACTIVE'")) {
+                        active.setString(1, member.toString()); try (ResultSet row = active.executeQuery()) { if (row.next()) throw new SQLException("Member already has an active session"); }
+                    }
+                    boolean[] used = new boolean[16];
+                    try (PreparedStatement query = database.prepareStatement("SELECT slot FROM endgame_sessions WHERE state='ACTIVE'"); ResultSet rows = query.executeQuery()) { while (rows.next()) used[rows.getInt(1)] = true; }
+                    int slot = -1; for (int i = 0; i < used.length; i++) if (!used[i]) { slot = i; break; }
+                    if (slot < 0) throw new SQLException("No free endgame slot");
+                    String id = UUID.randomUUID().toString();
+                    String stage = switch (content) { case "TRASH" -> "VERMIN"; case "PIRATE" -> "APPROACH"; case "ANUBIS" -> "STORM"; default -> "FLOOR"; };
+                    int aux = content.equals("TOWER") ? 1 : 0; String now = Instant.now().toString();
+                    try (PreparedStatement insert = database.prepareStatement("INSERT INTO endgame_sessions VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 'ACTIVE', ?, ?)")) {
+                        insert.setString(1, id); insert.setString(2, owner.toString()); insert.setString(3, groupKey); insert.setString(4, scope); insert.setString(5, content);
+                        insert.setInt(6, slot); insert.setString(7, stage); insert.setInt(8, aux); insert.setString(9, now); insert.setString(10, now); insert.executeUpdate();
+                    }
+                    try (PreparedStatement member = database.prepareStatement("INSERT INTO endgame_session_members VALUES (?, ?)")) {
+                        for (UUID idMember : unique) { member.setString(1, id); member.setString(2, idMember.toString()); member.addBatch(); } member.executeBatch();
+                    }
+                    result[0] = new EndgameSession(id, owner, groupKey, scope, content, slot, stage, 0, aux, "ACTIVE", Instant.parse(now));
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<EndgameSession>> activeEndgameSession(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT s.session_id,s.owner_uuid,s.group_key,s.scope,s.content,s.slot,s.stage,s.progress,s.aux,s.state,s.started_at FROM endgame_sessions s JOIN endgame_session_members m ON m.session_id=s.session_id WHERE m.player_uuid=? AND s.state='ACTIVE'")) {
+                query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(endgameSession(row)) : Optional.empty(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<EndgameSession>> activeEndgameSessions() {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT session_id,owner_uuid,group_key,scope,content,slot,stage,progress,aux,state,started_at FROM endgame_sessions WHERE state='ACTIVE' ORDER BY slot"); ResultSet rows = query.executeQuery()) {
+                java.util.ArrayList<EndgameSession> result = new java.util.ArrayList<>(); while (rows.next()) result.add(endgameSession(rows)); return result;
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Set<UUID>> endgameMembers(String sessionId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT player_uuid FROM endgame_session_members WHERE session_id=?")) {
+                query.setString(1, sessionId); java.util.LinkedHashSet<UUID> result = new java.util.LinkedHashSet<>();
+                try (ResultSet rows = query.executeQuery()) { while (rows.next()) result.add(UUID.fromString(rows.getString(1))); } return Set.copyOf(result);
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<EndgameSession> recordEndgameObjective(String sessionId, String expectedStage, int required, String nextStage) {
+        if (required < 1) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid objective"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                EndgameSession[] result = new EndgameSession[1];
+                transaction(() -> {
+                    EndgameSession current = endgameSessionSync(sessionId);
+                    if (!current.state().equals("ACTIVE") || !current.stage().equals(expectedStage)) throw new SQLException("Endgame stage changed");
+                    int progress = current.progress() + 1; String stage = progress >= required ? nextStage : expectedStage; if (!stage.equals(expectedStage)) progress = 0;
+                    try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET stage=?,progress=?,updated_at=? WHERE session_id=? AND state='ACTIVE' AND stage=? AND progress=?")) {
+                        update.setString(1, stage); update.setInt(2, progress); update.setString(3, Instant.now().toString()); update.setString(4, sessionId); update.setString(5, expectedStage); update.setInt(6, current.progress());
+                        if (update.executeUpdate() != 1) throw new SQLException("Endgame objective race");
+                    }
+                    result[0] = endgameSessionSync(sessionId);
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<EndgameSession> transitionEndgame(String sessionId, String expectedStage, String nextStage, int aux) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET stage=?,progress=0,aux=?,updated_at=? WHERE session_id=? AND state='ACTIVE' AND stage=?")) {
+                update.setString(1, nextStage); update.setInt(2, Math.max(0, aux)); update.setString(3, Instant.now().toString()); update.setString(4, sessionId); update.setString(5, expectedStage);
+                if (update.executeUpdate() != 1) throw new SQLException("Endgame stage changed"); return endgameSessionSync(sessionId);
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> abandonEndgame(UUID owner, String sessionId) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET state='FAILED',updated_at=? WHERE session_id=? AND owner_uuid=? AND state='ACTIVE'")) {
+                update.setString(1, Instant.now().toString()); update.setString(2, sessionId); update.setString(3, owner.toString()); if (update.executeUpdate() != 1) throw new SQLException("Active session not found");
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<EndgameSession> completeEndgame(String sessionId, List<BossReward> rewards) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                EndgameSession[] result = new EndgameSession[1];
+                transaction(() -> {
+                    EndgameSession current = endgameSessionSync(sessionId);
+                    try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET state='CLEARED',updated_at=? WHERE session_id=? AND state='ACTIVE'")) {
+                        update.setString(1, Instant.now().toString()); update.setString(2, sessionId); if (update.executeUpdate() != 1) throw new SQLException("Session already completed");
+                    }
+                    insertRewards(rewards);
+                    result[0] = new EndgameSession(current.id(), current.owner(), current.groupKey(), current.scope(), current.content(), current.slot(), current.stage(), current.progress(), current.aux(), "CLEARED", current.startedAt());
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<TowerAdvance> advanceTower(String sessionId, String weekKey, List<BossReward> finalRewards) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                TowerAdvance[] result = new TowerAdvance[1];
+                transaction(() -> {
+                    EndgameSession current = endgameSessionSync(sessionId);
+                    if (!current.content().equals("TOWER") || !current.stage().equals("FLOOR") || !current.state().equals("ACTIVE")) throw new SQLException("Tower session changed");
+                    int floor = current.aux(), required = floor % 10 == 0 ? 1 : Math.min(6, 2 + (floor - 1) / 10), progress = current.progress() + 1;
+                    if (progress < required) {
+                        try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET progress=?,updated_at=? WHERE session_id=? AND progress=? AND state='ACTIVE'")) {
+                            update.setInt(1, progress); update.setString(2, Instant.now().toString()); update.setString(3, sessionId); update.setInt(4, current.progress()); if (update.executeUpdate() != 1) throw new SQLException("Tower progress race");
+                        }
+                        result[0] = new TowerAdvance(floor, floor, progress, false);
+                        return;
+                    }
+                    long elapsed = Math.max(0, Duration.between(current.startedAt(), Instant.now()).toMillis());
+                    int partySize = endgameMemberCount(sessionId);
+                    upsertTowerRecord(weekKey, current.groupKey(), current.scope(), floor, elapsed, partySize);
+                    if (floor == 50) {
+                        try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET progress=0,state='CLEARED',updated_at=? WHERE session_id=? AND state='ACTIVE'")) {
+                            update.setString(1, Instant.now().toString()); update.setString(2, sessionId); if (update.executeUpdate() != 1) throw new SQLException("Tower completion race");
+                        }
+                        insertRewards(finalRewards); result[0] = new TowerAdvance(50, 50, 0, true);
+                    } else {
+                        try (PreparedStatement update = database.prepareStatement("UPDATE endgame_sessions SET progress=0,aux=?,updated_at=? WHERE session_id=? AND state='ACTIVE' AND aux=?")) {
+                            update.setInt(1, floor + 1); update.setString(2, Instant.now().toString()); update.setString(3, sessionId); update.setInt(4, floor); if (update.executeUpdate() != 1) throw new SQLException("Tower floor race");
+                        }
+                        result[0] = new TowerAdvance(floor, floor + 1, 0, false);
+                    }
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<TowerRecord>> towerRecords(String weekKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT group_key,scope,highest_floor,best_millis,party_size FROM hero_tower_weekly WHERE week_key=? ORDER BY highest_floor DESC,best_millis ASC LIMIT 10")) {
+                query.setString(1, weekKey); try (ResultSet rows = query.executeQuery()) { java.util.ArrayList<TowerRecord> result = new java.util.ArrayList<>(); while (rows.next()) result.add(new TowerRecord(rows.getString(1), rows.getString(2), rows.getInt(3), rows.getLong(4), rows.getInt(5))); return result; }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> prepareEndgameIntent(EndgameIntent intent) {
+        if (!Set.of("HATCH", "FEED", "DELIVERY", "HELP").contains(intent.kind()) || intent.item() == null || intent.quantity() < 1)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid endgame item intent"));
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO endgame_item_intents VALUES (?, ?, ?, ?, ?, ?, 'PREPARED', ?)")) {
+                insert.setString(1, intent.id()); insert.setString(2, intent.player().toString()); insert.setString(3, intent.kind()); insert.setBytes(4, intent.item()); insert.setString(5, intent.category()); insert.setInt(6, intent.quantity()); insert.setString(7, Instant.now().toString()); insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> markEndgameRemoving(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE endgame_item_intents SET state='REMOVING' WHERE intent_id=? AND state='PREPARED'")) {
+                update.setString(1, id); if (update.executeUpdate() != 1) throw new SQLException("Endgame intent is not prepared");
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<EndgameIntent>> pendingEndgameIntent(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT intent_id,kind,item,category,quantity,state FROM endgame_item_intents WHERE player_uuid=? AND state IN ('PREPARED','REMOVING') LIMIT 1")) {
+                query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(new EndgameIntent(row.getString(1), player, row.getString(2), row.getBytes(3), row.getString(4), row.getInt(5), row.getString(6))) : Optional.empty(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> cancelEndgameIntent(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE endgame_item_intents SET state='CANCELLED' WHERE intent_id=? AND state IN ('PREPARED','REMOVING')")) { update.setString(1, id); update.executeUpdate(); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<EndgameCompletion> completeEndgameIntent(String id) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                EndgameCompletion[] result = new EndgameCompletion[1];
+                transaction(() -> {
+                    EndgameIntent intent = endgameIntentSync(id);
+                    if (intent.state().equals("COMPLETED")) { result[0] = new EndgameCompletion(intent.kind(), Set.of("HATCH", "FEED").contains(intent.kind()) ? dragonSync(intent.player()).orElse(null) : null, deedsSync(intent.player())); return; }
+                    if (!intent.state().equals("REMOVING")) throw new SQLException("Endgame intent is not removing");
+                    Dragon dragon = null; GoodDeeds deeds = null;
+                    if (intent.kind().equals("HATCH")) {
+                        if (!intent.category().equals("DRAGON_EGG")) throw new SQLException("Dragon egg required");
+                        try (PreparedStatement insert = database.prepareStatement("INSERT INTO dragons VALUES (?, 'HATCHLING', 0, 0, 0, 0, 0, 0, 0, 'FOREST', ?)")) {
+                            insert.setString(1, intent.player().toString()); insert.setString(2, Instant.now().toString()); insert.executeUpdate();
+                        }
+                        dragon = dragonSync(intent.player()).orElseThrow();
+                    } else if (intent.kind().equals("FEED")) {
+                        Dragon current = dragonSync(intent.player()).orElseThrow(() -> new SQLException("Dragon not found"));
+                        if (!Set.of("FISH","VEGETABLE","FRUIT","MEAT","MINERAL","COOKING").contains(intent.category())) throw new SQLException("Invalid dragon food");
+                        int fish=current.fish(), vegetable=current.vegetable(), fruit=current.fruit(), meat=current.meat(), mineral=current.mineral(), cooking=current.cooking();
+                        switch (intent.category()) { case "FISH" -> fish++; case "VEGETABLE" -> vegetable++; case "FRUIT" -> fruit++; case "MEAT" -> meat++; case "MINERAL" -> mineral++; default -> cooking++; }
+                        int total = current.feedTotal() + 1; String stage = total >= 12 ? "ADULT" : "HATCHLING"; String trait = dragonTrait(fish, vegetable, fruit, meat, mineral, cooking);
+                        try (PreparedStatement update = database.prepareStatement("UPDATE dragons SET stage=?,feed_total=?,fish=?,vegetable=?,fruit=?,meat=?,mineral=?,cooking=?,trait=?,updated_at=? WHERE player_uuid=?")) {
+                            update.setString(1, stage); update.setInt(2, total); update.setInt(3, fish); update.setInt(4, vegetable); update.setInt(5, fruit); update.setInt(6, meat); update.setInt(7, mineral); update.setInt(8, cooking); update.setString(9, trait); update.setString(10, Instant.now().toString()); update.setString(11, intent.player().toString()); update.executeUpdate();
+                        }
+                        dragon = dragonSync(intent.player()).orElseThrow();
+                    } else {
+                        String type = intent.kind().equals("DELIVERY") ? "DELIVERY" : "NPC_HELP";
+                        recordDeed(intent.player(), type, "intent:" + id); deeds = deedsSync(intent.player());
+                    }
+                    try (PreparedStatement update = database.prepareStatement("UPDATE endgame_item_intents SET state='COMPLETED' WHERE intent_id=? AND state='REMOVING'")) {
+                        update.setString(1, id); if (update.executeUpdate() != 1) throw new SQLException("Endgame intent completion race");
+                    }
+                    result[0] = new EndgameCompletion(intent.kind(), dragon, deeds == null ? deedsSync(intent.player()) : deeds);
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<Dragon>> dragon(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try { return dragonSync(player); } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<GoodDeeds> donateGoodDeed(PlayerProfile profile, long amount, String dayKey) {
+        if (amount < 500) return CompletableFuture.failedFuture(new IllegalArgumentException("Donation must be at least 500"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                GoodDeeds[] result = new GoodDeeds[1]; long[] after = new long[1];
+                transaction(() -> {
+                    long balance = wallet(profile.playerId()); after[0] = Math.subtractExact(balance, amount); if (after[0] < 0) throw new SQLException("Insufficient balance");
+                    recordDeed(profile.playerId(), "DONATION", "donation:" + profile.playerId() + ":" + dayKey);
+                    updateWallet(profile.playerId(), balance, after[0]);
+                    logEconomy(profile.playerId(), "good-deed-donation:" + profile.playerId() + ":" + dayKey, "GOOD_DEED", "donation", 1, amount, amount, after[0]);
+                    result[0] = deedsSync(profile.playerId());
+                });
+                profile.setMoney(after[0]); return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<GoodDeeds> claimPublicProjectDeed(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                GoodDeeds[] result = new GoodDeeds[1];
+                transaction(() -> {
+                    Guild guild = guildForSync(player).orElseThrow(() -> new SQLException("Guild not found"));
+                    if (!guild.projectState().equals("COMPLETE")) throw new SQLException("Guild project is not complete");
+                    recordDeed(player, "PUBLIC_PROJECT", "project:" + guild.id() + ":" + player); result[0] = deedsSync(player);
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<GoodDeeds> recordEscortDeed(UUID player, String claimKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            try { transaction(() -> recordDeed(player, "ESCORT", "escort:" + player + ":" + claimKey)); return deedsSync(player); }
+            catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<GoodDeeds> goodDeeds(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try { return deedsSync(player); } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<String> chooseWarriorPath(UUID player, String combatClass) {
+        if (!Set.of("WARRIOR","GLADIATOR","HUNTER","MAGE").contains(combatClass)) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid combat class"));
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO warrior_paths VALUES (?, ?, ?)")) {
+                insert.setString(1, player.toString()); insert.setString(2, combatClass); insert.setString(3, Instant.now().toString()); insert.executeUpdate(); return combatClass;
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<String>> warriorPath(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT combat_class FROM warrior_paths WHERE player_uuid=?")) {
+                query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(row.getString(1)) : Optional.empty(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<ItemGrant> claimHeavenStar(UUID player, int node, String weekKey, String grantId, byte[] item) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                transaction(() -> {
+                    if (!deedsSync(player).heavenUnlocked()) throw new SQLException("Heaven is locked");
+                    try (PreparedStatement claim = database.prepareStatement("INSERT INTO heaven_star_claims VALUES (?, ?, ?)")) { claim.setString(1, player.toString()); claim.setInt(2, node); claim.setString(3, weekKey); claim.executeUpdate(); }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) { grant.setString(1, grantId); grant.setString(2, player.toString()); grant.setBytes(3, item); grant.setString(4, Instant.now().toString()); grant.executeUpdate(); }
+                });
+                return new ItemGrant(grantId, item);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private EndgameSession endgameSessionSync(String id) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT session_id,owner_uuid,group_key,scope,content,slot,stage,progress,aux,state,started_at FROM endgame_sessions WHERE session_id=?")) {
+            query.setString(1, id); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Endgame session missing"); return endgameSession(row); }
+        }
+    }
+
+    private EndgameSession endgameSession(ResultSet row) throws SQLException {
+        return new EndgameSession(row.getString(1), UUID.fromString(row.getString(2)), row.getString(3), row.getString(4), row.getString(5), row.getInt(6), row.getString(7), row.getInt(8), row.getInt(9), row.getString(10), Instant.parse(row.getString(11)));
+    }
+
+    private int endgameMemberCount(String sessionId) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT COUNT(*) FROM endgame_session_members WHERE session_id=?")) { query.setString(1, sessionId); try (ResultSet row = query.executeQuery()) { row.next(); return row.getInt(1); } }
+    }
+
+    private void insertRewards(List<BossReward> rewards) throws SQLException {
+        try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+            for (BossReward reward : rewards) { grant.setString(1, reward.grantId()); grant.setString(2, reward.player().toString()); grant.setBytes(3, reward.item()); grant.setString(4, Instant.now().toString()); grant.addBatch(); } grant.executeBatch();
+        }
+    }
+
+    private void upsertTowerRecord(String week, String group, String scope, int floor, long elapsed, int partySize) throws SQLException {
+        try (PreparedStatement update = database.prepareStatement("""
+                INSERT INTO hero_tower_weekly VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(week_key,group_key) DO UPDATE SET
+                  highest_floor=MAX(highest_floor,excluded.highest_floor),
+                  best_millis=CASE WHEN excluded.highest_floor>highest_floor OR (excluded.highest_floor=highest_floor AND excluded.best_millis<best_millis) THEN excluded.best_millis ELSE best_millis END,
+                  party_size=CASE WHEN excluded.highest_floor>=highest_floor THEN excluded.party_size ELSE party_size END,
+                  updated_at=excluded.updated_at""")) {
+            update.setString(1, week); update.setString(2, group); update.setString(3, scope); update.setInt(4, floor); update.setLong(5, elapsed); update.setInt(6, partySize); update.setString(7, Instant.now().toString()); update.executeUpdate();
+        }
+    }
+
+    private EndgameIntent endgameIntentSync(String id) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT player_uuid,kind,item,category,quantity,state FROM endgame_item_intents WHERE intent_id=?")) {
+            query.setString(1, id); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Endgame intent missing"); return new EndgameIntent(id, UUID.fromString(row.getString(1)), row.getString(2), row.getBytes(3), row.getString(4), row.getInt(5), row.getString(6)); }
+        }
+    }
+
+    private Optional<Dragon> dragonSync(UUID player) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT stage,feed_total,fish,vegetable,fruit,meat,mineral,cooking,trait FROM dragons WHERE player_uuid=?")) {
+            query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(new Dragon(player, row.getString(1), row.getInt(2), row.getInt(3), row.getInt(4), row.getInt(5), row.getInt(6), row.getInt(7), row.getInt(8), row.getString(9))) : Optional.empty(); }
+        }
+    }
+
+    private String dragonTrait(int fish, int vegetable, int fruit, int meat, int mineral, int cooking) {
+        int forest = vegetable + fruit, sea = fish, sky = meat + cooking;
+        if (sea > forest && sea >= mineral && sea >= sky) return "SEA";
+        if (mineral > forest && mineral > sea && mineral >= sky) return "MINERAL";
+        if (sky > forest && sky > sea && sky > mineral) return "SKY";
+        return "FOREST";
+    }
+
+    private void recordDeed(UUID player, String type, String claimKey) throws SQLException {
+        try (PreparedStatement claim = database.prepareStatement("INSERT INTO good_deed_claims VALUES (?, ?, ?, ?)")) {
+            claim.setString(1, claimKey); claim.setString(2, player.toString()); claim.setString(3, type); claim.setString(4, Instant.now().toString()); claim.executeUpdate();
+        }
+        try (PreparedStatement upsert = database.prepareStatement("INSERT INTO good_deeds VALUES (?, ?, 1) ON CONFLICT(player_uuid,deed_type) DO UPDATE SET deed_count=deed_count+1")) {
+            upsert.setString(1, player.toString()); upsert.setString(2, type); upsert.executeUpdate();
+        }
+    }
+
+    private GoodDeeds deedsSync(UUID player) throws SQLException {
+        int delivery=0, help=0, donation=0, escort=0, project=0;
+        try (PreparedStatement query = database.prepareStatement("SELECT deed_type,deed_count FROM good_deeds WHERE player_uuid=?")) {
+            query.setString(1, player.toString()); try (ResultSet rows = query.executeQuery()) { while (rows.next()) switch (rows.getString(1)) {
+                case "DELIVERY" -> delivery=rows.getInt(2); case "NPC_HELP" -> help=rows.getInt(2); case "DONATION" -> donation=rows.getInt(2); case "ESCORT" -> escort=rows.getInt(2); default -> project=rows.getInt(2);
+            } }
+        }
+        return new GoodDeeds(delivery, help, donation, escort, project);
+    }
+
     private long wallet(UUID player) throws SQLException {
         try (PreparedStatement query = database.prepareStatement("SELECT money FROM players WHERE uuid=?")) { query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Player row missing"); return row.getLong(1); } }
     }
@@ -1580,6 +2067,21 @@ public final class ProfileStore implements AutoCloseable {
     public record Restaurant(UUID owner, String name, int ratingTotal, int servedCount, long revenue) {}
     public record RestaurantOrder(String id, UUID owner, String state, Integer cropQuality, Integer proteinQuality, Integer extraQuality, UUID supplier, UUID chef, UUID server, int score, long actionAt) {}
     public record RestaurantResult(int rating, long reward, long balance) {}
+    public record PartySnapshot(String groupKey, List<UUID> members) {}
+    static boolean allowsEndgameDamage(Set<UUID> members, UUID attacker, String sourceSession, String session, boolean victimPlayer) { return attacker != null && members.contains(attacker) || victimPlayer && session.equals(sourceSession); }
+    public record EndgameSession(String id, UUID owner, String groupKey, String scope, String content, int slot, String stage, int progress, int aux, String state, Instant startedAt) {}
+    public record EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity, String state) {
+        public EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity) { this(id, player, kind, item, category, quantity, "PREPARED"); }
+    }
+    public record EndgameCompletion(String kind, Dragon dragon, GoodDeeds deeds) {}
+    public record Dragon(UUID player, String stage, int feedTotal, int fish, int vegetable, int fruit, int meat, int mineral, int cooking, String trait) {}
+    public record GoodDeeds(int delivery, int npcHelp, int donation, int escort, int publicProject) {
+        public int total() { return delivery + npcHelp + Math.min(3, donation) + escort + publicProject; }
+        public int categories() { int count=0; if(delivery>0)count++; if(npcHelp>0)count++; if(donation>0)count++; if(escort>0)count++; if(publicProject>0)count++; return count; }
+        public boolean heavenUnlocked() { return total() >= 10 && categories() >= 3; }
+    }
+    public record TowerAdvance(int clearedFloor, int nextFloor, int progress, boolean completed) {}
+    public record TowerRecord(String groupKey, String scope, int highestFloor, long bestMillis, int partySize) {}
     public record SocialBalance(int guildLogs, int guildIron, long guildMoney, long restaurantBaseReward, long restaurantQualityReward) {
         public SocialBalance { if (guildLogs < 1 || guildIron < 1 || guildMoney < 1 || restaurantBaseReward < 0 || restaurantQualityReward < 0) throw new IllegalArgumentException("Invalid social balance"); }
     }
