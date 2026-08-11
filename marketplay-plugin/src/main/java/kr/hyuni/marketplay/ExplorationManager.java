@@ -18,6 +18,7 @@ import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -131,7 +132,7 @@ final class ExplorationManager implements Listener {
             case "glitter" -> gate(profile, "자작", player, "반짝광산은 자작부터 입장할 수 있습니다.") ? new Location(world, -38.5, 65, 6.5) : null;
             case "fairy" -> gate(profile, "백작", player, "요정광산은 백작부터 입장할 수 있습니다.") ? new Location(world, -18.5, 65, 6.5) : null;
             case "castle" -> gate(profile, "자작", player, "왕성은 자작부터 입장할 수 있습니다.") ? new Location(world, 29.5, 65, -24.5) : null;
-            case "plaza" -> new Location(Bukkit.getWorlds().getFirst(), .5, HubBuilder.FLOOR_Y + 1, 10.5);
+            case "plaza" -> plugin.lobbyLocation();
             default -> null;
         };
         if (destination == null) return true;
@@ -288,13 +289,13 @@ final class ExplorationManager implements Listener {
         return true;
     }
 
-    @EventHandler(ignoreCancelled = true) public void onInteract(PlayerInteractEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false) public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || event.getClickedBlock() == null || !WORLD.equals(event.getClickedBlock().getWorld().getName())) return;
         for (Node node : NODES) if (node.location().matches(event.getClickedBlock())) { event.setCancelled(true); harvest(event.getPlayer(), node); return; }
         for (int i = 0; i < DEVICES.size(); i++) if (DEVICES.get(i).matches(event.getClickedBlock())) { event.setCancelled(true); activateDevice(event.getPlayer(), i); return; }
     }
 
-    @EventHandler(ignoreCancelled = true) public void onNpc(PlayerInteractEntityEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false) public void onNpc(PlayerInteractEntityEvent event) {
         String role = event.getRightClicked().getPersistentDataContainer().get(entityRole, PersistentDataType.STRING);
         if (role == null) return;
         event.setCancelled(true);
@@ -591,6 +592,7 @@ final class ExplorationManager implements Listener {
         if (regions == null) throw new IllegalStateException("탐험 WorldGuard region manager를 열 수 없습니다.");
         GlobalProtectedRegion global = regions.getRegion("__global__") instanceof GlobalProtectedRegion found ? found : new GlobalProtectedRegion("__global__");
         global.setFlag(Flags.BLOCK_BREAK, StateFlag.State.DENY); global.setFlag(Flags.BLOCK_PLACE, StateFlag.State.DENY);
+        global.setFlag(Flags.USE, StateFlag.State.ALLOW); global.setFlag(Flags.INTERACT, StateFlag.State.ALLOW); global.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
         for (String name : List.of("sit", "playersit", "pose", "crawl")) {
             Object flag = WorldGuard.getInstance().getFlagRegistry().get(name);
             if (flag instanceof StateFlag state) global.setFlag(state, StateFlag.State.DENY);
@@ -610,6 +612,7 @@ final class ExplorationManager implements Listener {
         npc("alchemist", "왕실 연금술사", 22, -50);
         npc("jeweler", "왕실 보석세공사", 36, -50);
         npc("knight", "기사단 교관", 14, -43);
+        CitizensAPI.getNPCRegistry().saveToStore();
     }
 
     private void npc(String role, String name, double x, double z) {

@@ -123,6 +123,18 @@ final class EndgameManager implements Listener {
         };
     }
 
+    void teleport(Player player, String destination) {
+        Location target = switch (destination) {
+            case "dungeon-gate" -> new Location(world, 32.5, Y + 1, -18.5);
+            case "tower-gate" -> new Location(world, .5, Y + 1, -18.5);
+            default -> new Location(world, .5, Y + 1, .5);
+        };
+        player.teleport(target);
+        if (destination.equals("dungeon-gate")) msg(player, "/mp dungeon start trash|pirate|anubis solo|guild", true);
+        else if (destination.equals("tower-gate")) msg(player, "/mp tower start solo|guild", true);
+        else msg(player, "후반 마을 입장 · 안내 시설과 NPC를 확인하세요.", true);
+    }
+
     private boolean endgame(Player player, String[] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("enter")) {
             player.teleport(new Location(world, .5, Y + 1, .5));
