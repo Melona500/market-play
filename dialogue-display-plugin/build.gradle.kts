@@ -1,7 +1,7 @@
 plugins { java }
 
 group = "kr.hyuni.dialogue"
-version = "1.1.3"
+version = "1.1.4"
 
 repositories { maven("https://repo.papermc.io/repository/maven-public/") }
 
@@ -15,10 +15,12 @@ dependencies {
 }
 
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(21)) }
+tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8" }
 
 tasks.test { useJUnitPlatform() }
 
 tasks.processResources {
+    filteringCharset = "UTF-8"
     filesMatching("plugin.yml") { expand("version" to project.version) }
     from("../dialogue-resource-pack/rpgmaker-character-manifest.json") {
         into("")

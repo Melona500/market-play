@@ -2,6 +2,17 @@ starting-money: 1000
 maximum-vitality: 100.0
 vitality-regeneration-per-minute: 2.0
 activity-vitality-cost: 1.0
+starter-tool-price: 100
+resource-node-cooldown-millis: 5000
+
+prices:
+  apple: 15
+  oak_log: 20
+  wheat: 12
+  wool: 18
+  iron_ore: 30
+  cod: 16
+  salmon: 22
 
 ranks:
   평민: 0

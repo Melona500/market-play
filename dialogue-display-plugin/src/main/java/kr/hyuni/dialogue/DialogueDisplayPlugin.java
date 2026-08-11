@@ -2630,13 +2630,17 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
     }
 
     private void installPublicGuideDialogue() {
-        String destination = "public-dialogues." + sanitizeName("초보_상점_이용법");
-        if (getConfig().contains(destination)) return;
-        String source = "example-templates.shop-final";
-        if (!getConfig().contains(source)) return;
-        copySection(source, destination);
-        getConfig().set(destination + ".public-owner", SYSTEM_PUBLIC_OWNER.toString());
-        getConfig().set(destination + ".public-by", "RPGMaker");
+        for (var entry : Map.of("초보_상점_이용법", "shop-final", "시장놀이_첫걸음", "marketplay-intro").entrySet()) {
+            String destination = "public-dialogues." + sanitizeName(entry.getKey());
+            String source = "example-templates." + entry.getValue();
+            int version = getConfig().getInt(source + ".example-version", 1);
+            boolean upgrade = "RPGMaker".equals(getConfig().getString(destination + ".public-by"))
+                    && getConfig().getInt(destination + ".example-version", 0) < version;
+            if (getConfig().contains(destination) && !upgrade || !getConfig().contains(source)) continue;
+            copySection(source, destination);
+            getConfig().set(destination + ".public-owner", SYSTEM_PUBLIC_OWNER.toString());
+            getConfig().set(destination + ".public-by", "RPGMaker");
+        }
         saveConfig();
     }
 

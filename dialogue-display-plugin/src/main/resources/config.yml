@@ -109,7 +109,7 @@ web-api:
     - http://localhost:5173
     - http://127.0.0.1:5173
   max-request-bytes: 1048576
-examples-version: 5
+examples-version: 6
 example-item-templates:
   moon_letter:
     example-version: 3
@@ -861,6 +861,46 @@ example-templates:
         response-pages-2:
         - 테스트를 종료합니다.
         end-2: true
+  marketplay-intro:
+    example-version: 1
+    built-in-example: true
+    title: 시장놀이 첫걸음
+    speaker: '#FFD966:bold:광장 안내인'
+    portrait: MALE_INNKEEPER
+    expression: HAPPY
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      #FFD966:시장놀이 중앙광장에 오신 것을 환영합니다!
+      이곳에서 일하고, 팔고, 성장하며
+      다른 주민들과 생활하게 됩니다.
+    - |-
+      북쪽 #55FF55:생활도구 상점에서
+      첫 도구를 100원에 구매하세요.
+      분수 주변 길은 각 생활지역으로 이어집니다.
+    - |-
+      서쪽은 숲, 동쪽은 들,
+      남쪽은 강과 목장, 북서쪽은 광산입니다.
+      자원을 얻으면 북쪽 판매대에 가져오세요.
+    page-expressions:
+      '0': HAPPY
+      '1': NEUTRAL
+      '2': HAPPY
+    page-choices:
+      '2':
+        choice-count: 2
+        choice-1: 첫 생활을 시작한다
+        response-pages-1:
+        - 북쪽 상점의 통을 눌러 도구를 골라 보세요!
+        end-1: true
+        choice-2: 동선을 다시 듣는다
+        response-pages-2:
+        - 분수 → 북쪽 상점 → 자원지역 → 북쪽 판매대 순서입니다.
+        response-effects-2:
+          '0':
+            return-mode: TARGET
+            return-target: PAGE:p1
+        end-2: false
   shop-final:
     example-version: 4
     built-in-example: true
