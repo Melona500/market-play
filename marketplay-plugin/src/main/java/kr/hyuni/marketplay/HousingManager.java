@@ -147,12 +147,13 @@ final class HousingManager implements Listener {
                 .whenComplete((session, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
                     if (error != null) { if (visitor != null) message(visitor, "집 권한을 불러오지 못했습니다.", false); return; }
                     if (visitor != null && !canVisit(session, visitor)) { message(visitor, "이 집은 방문할 수 없습니다.", false); return; }
-                    boolean needsBuild = house.state().equals("CREATING") || !java.nio.file.Files.isRegularFile(Bukkit.getWorldContainer().toPath().resolve(house.worldName()).resolve("level.dat"));
+                    boolean newWorld = !java.nio.file.Files.isRegularFile(Bukkit.getWorldContainer().toPath().resolve(house.worldName()).resolve("level.dat"));
                     World world = loadWorld(session.house());
                     if (world == null) { if (visitor != null) message(visitor, "집 월드를 열지 못했습니다.", false); return; }
                     sessions.put(world.getName(), session);
                     cancelUnload(world.getName());
-                    if (needsBuild) buildAll(world, house.level());
+                    if (newWorld) buildAll(world, house.level());
+                    else if (house.state().equals("CREATING")) buildLevel(world, house.level());
                     protectGsit(world);
                     if (house.state().equals("CREATING")) {
                         store.markReady(house.owner());
