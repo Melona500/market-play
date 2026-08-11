@@ -57,7 +57,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> nodeCooldowns = new ConcurrentHashMap<>();
     private final Map<UUID, Long> fishingDeadlines = new ConcurrentHashMap<>();
-    private final Set<UUID> validFishingCasts = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, EquipmentSlot> validFishingCasts = new ConcurrentHashMap<>();
     private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
     private final Map<String, Long> prices = new LinkedHashMap<>();
     private double maximumVitality;
@@ -164,17 +164,17 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getState() == PlayerFishEvent.State.FISHING) {
             fishingDeadlines.remove(playerId);
             PlayerProfile profile = profiles.get(playerId);
-            if (profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(event.getPlayer().getInventory().getItemInMainHand().getPersistentDataContainer().get(toolKey, PersistentDataType.STRING))) {
+            if (profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), event.getHand()))) {
                 event.setCancelled(true);
                 validFishingCasts.remove(playerId);
                 event.getPlayer().sendActionBar(Component.text("전용 도구함의 낡은 낚싯대를 손에 들어야 합니다.", NamedTextColor.RED));
                 return;
             }
-            validFishingCasts.add(playerId);
+            validFishingCasts.put(playerId, event.getHand());
             return;
         }
         if (event.getState() == PlayerFishEvent.State.BITE) {
-            if (!validFishingCasts.contains(playerId)) return;
+            if (!validFishingCasts.containsKey(playerId)) return;
             long window = getConfig().getLong("fishing-reel-window-millis", 1500);
             fishingDeadlines.put(playerId, System.currentTimeMillis() + window);
             event.getPlayer().sendActionBar(Component.text("입질! 지금 낚싯대를 감으세요.", NamedTextColor.AQUA));
@@ -189,7 +189,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         Long deadline = fishingDeadlines.remove(playerId);
         PlayerProfile profile = profiles.get(playerId);
-        if (!validFishingCasts.remove(playerId) || profile == null || !profile.hasTool("old_rod") || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
+        EquipmentSlot hand = validFishingCasts.remove(playerId);
+        if (hand == null || profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
             event.setCancelled(true);
             if (event.getCaught() != null) event.getCaught().remove();
             event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));
@@ -357,6 +358,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 String toolId = item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
                 if (toolId != null && tools.containsKey(toolId)) owned.add(toolId);
             }
+            String offHandTool = player.getInventory().getItemInOffHand().getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+            if (offHandTool != null && tools.containsKey(offHandTool)) owned.add(offHandTool);
             profiles.migrateTools(profile, owned, absorbed).whenComplete((ignored, migrationError) -> getServer().getScheduler().runTask(this, () -> {
                 if (migrationError != null) { player.kick(Component.text("생활도구 이전에 실패했습니다.")); return; }
                 if (!player.isOnline()) return;
@@ -367,6 +370,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                     String toolId = item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
                     if (toolId != null && tools.containsKey(toolId) && !toolId.equals("old_rod")) player.getInventory().setItem(slot, null);
                 }
+                String migratedOffHand = player.getInventory().getItemInOffHand().getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+                if (migratedOffHand != null && tools.containsKey(migratedOffHand) && !migratedOffHand.equals("old_rod")) player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
                 player.saveData();
                 remaining.forEach(grant -> deliverGrant(player, grant));
                 busy.remove(player.getUniqueId());
@@ -437,6 +442,11 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             meta.getPersistentDataContainer().set(itemSchemaKey, PersistentDataType.INTEGER, 1);
         });
         return item;
+    }
+
+    private String toolInHand(Player player, EquipmentSlot hand) {
+        ItemStack item = hand == EquipmentSlot.OFF_HAND ? player.getInventory().getItemInOffHand() : player.getInventory().getItemInMainHand();
+        return item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
     }
 
     private void purchaseTool(Player player, String toolId) {
