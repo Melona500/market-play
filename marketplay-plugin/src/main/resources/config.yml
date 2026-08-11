@@ -6,6 +6,33 @@ starter-tool-price: 100
 resource-node-cooldown-millis: 5000
 fishing-reel-window-millis: 1500
 
+housing:
+  upgrades:
+    2:
+      price: 5000
+      inner-power: 100
+      carpentry-xp: 25
+      furniture-types: 1
+      materials: {OAK_PLANKS: 32, GLASS: 8}
+    3:
+      price: 20000
+      inner-power: 500
+      carpentry-xp: 100
+      furniture-types: 2
+      materials: {OAK_PLANKS: 64, GLASS: 16, IRON_INGOT: 8}
+    4:
+      price: 50000
+      inner-power: 1000
+      carpentry-xp: 250
+      furniture-types: 4
+      materials: {DARK_OAK_PLANKS: 96, GLASS: 32, IRON_INGOT: 16}
+    5:
+      price: 120000
+      inner-power: 2500
+      carpentry-xp: 500
+      furniture-types: 6
+      materials: {QUARTZ_BLOCK: 64, GLASS: 64, GOLD_INGOT: 16}
+
 prices:
   apple: 15
   oak_log: 20

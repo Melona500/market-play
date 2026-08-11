@@ -134,4 +134,53 @@ class ProgressionTest {
         assertFalse(river.contains("world_nether", 9, 62, 9));
         assertFalse(river.contains("world", 9, 61, 9));
     }
+
+    @Test void housingPersistsPermissionsUpgradeGuestbookAndGift(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID owner = UUID.randomUUID();
+        UUID visitor = UUID.randomUUID();
+        try (ProfileStore profiles = new ProfileStore(database, 1000, 100);
+             HousingStore housing = new HousingStore(database)) {
+            PlayerProfile profile = profiles.load(owner).join();
+            profiles.load(visitor).join();
+            housing.remember(owner, "Owner").join();
+            housing.remember(visitor, "Visitor").join();
+            HousingStore.House house = housing.ensureHouse(owner, "Owner").join();
+            assertEquals("CREATING", house.state());
+            housing.markReady(owner).join();
+            assertEquals("public", housing.visibility(owner, "public").join().visibility());
+            assertEquals(HousePermission.VISIT.bit, housing.permission(owner, visitor, HousePermission.VISIT, true).join());
+            assertEquals(HousePermission.VISIT.bit, housing.permissions(owner).join().get(visitor));
+
+            String upgradeId = UUID.randomUUID().toString();
+            HousingStore.UpgradeIntent intent = housing.prepareUpgrade(owner, 2, upgradeId, List.of(new HousingStore.RefundItem(UUID.randomUUID().toString(), new byte[]{9}))).join();
+            housing.markUpgradeRemoving(intent.id()).join();
+            HousingStore.UpgradeResult upgrade = housing.upgrade(profile, 1, 100, 0, 0, 0, intent.id()).join();
+            housing.finishUpgrade(intent.id()).join();
+            assertEquals(2, upgrade.level());
+            assertEquals(900, upgrade.balance());
+            profile.setMoney(upgrade.balance());
+            assertEquals(upgrade, housing.upgrade(profile, 1, 100, 0, 0, 0, intent.id()).join());
+            assertTrue(housing.activeUpgrade(owner).join().isEmpty());
+
+            HousingStore.GuestbookEntry entry = housing.writeGuestbook(owner, visitor, "Visitor", "좋은 집입니다").join();
+            assertTrue(housing.reportGuestbook(owner, entry.shortId()).join());
+            assertTrue(housing.deleteGuestbook(owner, entry.shortId()).join());
+            housing.blockGuest(owner, visitor).join();
+            assertThrows(Exception.class, () -> housing.writeGuestbook(owner, visitor, "Visitor", "차단 우회").join());
+
+            String grantId = UUID.randomUUID().toString();
+            byte[] item = new byte[]{1, 2, 3};
+            HousingStore.GiftIntent gift = housing.prepareGift(owner, "Owner", visitor, "선물", grantId, item).join();
+            housing.markGiftRemoving(gift.id()).join();
+            HousingStore.Mail mail = housing.completeGift(gift.id()).join();
+            assertEquals("GIFT", mail.kind());
+            assertEquals(1, profiles.pendingGrants(visitor).join().size());
+            assertEquals(mail, housing.completeGift(gift.id()).join());
+        }
+        try (HousingStore reopened = new HousingStore(database)) {
+            assertEquals(2, reopened.houseByOwner(owner).join().orElseThrow().level());
+            assertEquals(1, reopened.mail(visitor).join().size());
+        }
+    }
 }

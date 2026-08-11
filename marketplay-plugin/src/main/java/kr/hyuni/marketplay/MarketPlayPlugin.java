@@ -49,6 +49,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private static final Component TOOLBOX_TITLE = Component.text("생활도구함", NamedTextColor.AQUA);
     private ProfileStore profiles;
+    private HousingStore housingStore;
+    private HousingManager housing;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
@@ -80,7 +82,11 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         grantKey = new NamespacedKey(this, "grant_id");
         saleIntentKey = new NamespacedKey(this, "sale_intent");
         reloadRuntimeConfig();
-        try { profiles = new ProfileStore(getDataFolder().toPath().resolve("marketplay.db"), getConfig().getLong("starting-money", 1000), maximumVitality); }
+        try {
+            var database = getDataFolder().toPath().resolve("marketplay.db");
+            profiles = new ProfileStore(database, getConfig().getLong("starting-money", 1000), maximumVitality);
+            housingStore = new HousingStore(database);
+        }
         catch (Exception error) {
             getLogger().severe("데이터베이스 시작 실패: " + error.getMessage());
             getServer().getPluginManager().disablePlugin(this);
@@ -88,10 +94,15 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         hub = new HubBuilder(this);
         hubReady = hub.ensure(getServer().getWorlds().getFirst());
+        housing = new HousingManager(this, housingStore);
+        housing.start();
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
-        for (Player player : getServer().getOnlinePlayers()) load(player);
+        for (Player player : getServer().getOnlinePlayers()) {
+            housingStore.remember(player.getUniqueId(), player.getName());
+            load(player);
+        }
         long period = 20L * 60L;
         getServer().getScheduler().runTaskTimer(this, this::regenerateVitality, period, period);
         getServer().getScheduler().runTaskTimer(this, this::refreshMarketDay, period, period);
@@ -100,11 +111,18 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @Override public void onDisable() {
         if (profiles == null) return;
-        try { profiles.close(); }
+        try {
+            if (housing != null) housing.stop();
+            if (housingStore != null) housingStore.close();
+            profiles.close();
+        }
         catch (Exception error) { getLogger().severe("플레이어 데이터 저장 실패: " + error.getMessage()); }
     }
 
-    @EventHandler public void onJoin(PlayerJoinEvent event) { load(event.getPlayer()); }
+    @EventHandler public void onJoin(PlayerJoinEvent event) {
+        housingStore.remember(event.getPlayer().getUniqueId(), event.getPlayer().getName());
+        load(event.getPlayer());
+    }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
         busy.remove(event.getPlayer().getUniqueId());
         fishingDeadlines.remove(event.getPlayer().getUniqueId());
@@ -162,11 +180,13 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onHeld(PlayerItemHeldEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
 
     @EventHandler(ignoreCancelled = true) public void onBlockBreak(BlockBreakEvent event) {
+        if (event.getBlock().getWorld().getName().startsWith("mp_house_")) return;
         Skill skill = activityBlocks.get(event.getBlock().getType());
         if (skill != null) rewardActivity(event.getPlayer(), skill);
     }
 
     @EventHandler(ignoreCancelled = true) public void onBlockDrop(BlockDropItemEvent event) {
+        if (event.getBlock().getWorld().getName().startsWith("mp_house_")) return;
         if (!activityBlocks.containsKey(event.getBlockState().getType())) return;
         event.getItems().forEach(item -> tag(item.getItemStack()));
     }
@@ -251,6 +271,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("tools")) { openToolbox(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("board")) return board(player, args);
+        if (args.length > 0 && args[0].equalsIgnoreCase("home")) return housing.command(player, args);
+        if (args.length > 0 && args[0].equalsIgnoreCase("mail")) return housing.mail(player, args);
         showStatus(player);
         return true;
     }
@@ -356,7 +378,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void recoverSale(Player player, PlayerProfile profile) {
         profiles.pendingSale(player.getUniqueId()).whenComplete((pending, error) -> getServer().getScheduler().runTask(this, () -> {
             if (error != null) { player.kick(Component.text("판매 정산 상태를 확인하지 못했습니다.")); return; }
-            if (pending.isEmpty()) { deliverPendingGrants(player); return; }
+            if (pending.isEmpty()) { housing.recover(player, () -> deliverPendingGrants(player)); return; }
             ProfileStore.SaleIntent sale = pending.get();
             ItemStack marked = findMarked(player, saleIntentKey, sale.id());
             if (sale.state().equals("PREPARED") || marked != null) {
@@ -366,7 +388,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 }
                 profiles.cancelSale(sale.id()).whenComplete((ignored, cancelError) -> getServer().getScheduler().runTask(this, () -> {
                     if (cancelError != null) player.kick(Component.text("판매 취소 복구에 실패했습니다."));
-                    else deliverPendingGrants(player);
+                    else housing.recover(player, () -> deliverPendingGrants(player));
                 }));
                 return;
             }
@@ -374,12 +396,12 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 if (completeError != null) { player.kick(Component.text("판매 정산 복구에 실패했습니다.")); return; }
                 synchronized (profile) { profile.setMoney(balance); }
                 player.sendMessage(Component.text("중단됐던 판매 대금이 정산되었습니다.", NamedTextColor.GREEN));
-                deliverPendingGrants(player);
+                housing.recover(player, () -> deliverPendingGrants(player));
             }));
         }));
     }
 
-    private void deliverPendingGrants(Player player) {
+    void deliverPendingGrants(Player player) {
         profiles.pendingGrants(player.getUniqueId()).whenComplete((grants, error) -> getServer().getScheduler().runTask(this, () -> {
             if (error != null) { player.kick(Component.text("구매 물품을 확인하지 못했습니다.")); return; }
             if (!player.isOnline()) return;
@@ -693,6 +715,13 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     private boolean message(Player player, String text, NamedTextColor color) { player.sendMessage(Component.text(text, color)); return true; }
+
+    PlayerProfile profile(UUID playerId) { return profiles.get(playerId); }
+    void saveProfile(PlayerProfile profile) { profiles.save(profile).exceptionally(error -> { getLogger().severe("플레이어 저장 실패: " + error.getMessage()); return null; }); }
+    NamespacedKey grantKey() { return grantKey; }
+    double maximumVitality() { return maximumVitality; }
+    void lock(UUID playerId) { busy.add(playerId); }
+    void unlock(UUID playerId) { busy.remove(playerId); }
 
     private record ToolDefinition(String id, String name, Material material, long price) {}
 }
