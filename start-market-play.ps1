@@ -40,6 +40,15 @@ function Assert-MainBranch {
     if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
         throw "Automatic shutdown sync requires the main branch; current branch: $branch"
     }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $SyncScript -CheckClean
+    if ($LASTEXITCODE -ne 0) { throw 'Automatic sync targets must be clean before server startup.' }
+}
+
+function Assert-ServerJava {
+    $version = (& $ServerJava -version 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "25(?:\.|")') {
+        throw "Paper requires Java 25. Current java.exe: $ServerJava"
+    }
 }
 
 function Assert-PortsAvailable {
@@ -288,6 +297,7 @@ function Deploy-RpgMakerPlugin {
 
 try {
     if (-not $BuildOnly -and -not $SkipMerge) { Assert-MainBranch }
+    if (-not $BuildOnly) { Assert-ServerJava }
     if (-not $BuildOnly) { Assert-PortsAvailable }
 
     if (-not (Test-Path -LiteralPath $PluginProjectPath)) {

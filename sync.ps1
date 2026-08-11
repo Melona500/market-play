@@ -1,4 +1,4 @@
-param([switch]$SelfTest)
+param([switch]$SelfTest, [switch]$CheckClean)
 
 $ErrorActionPreference = 'Stop'
 $RepoPath = $PSScriptRoot
@@ -50,6 +50,12 @@ Push-Location $RepoPath
 try {
     $branch = (& git branch --show-current).Trim()
     if ($branch -ne 'main') { throw "Automatic merge requires main. Current branch: $branch" }
+    if ($CheckClean) {
+        $existing = @(Get-ChangedPaths | Where-Object { Test-SyncPath $_ })
+        if ($existing) { throw "Automatic sync targets are already changed: $($existing -join ', ')" }
+        Write-Host 'Automatic sync targets are clean.'
+        exit 0
+    }
     if (& git diff --cached --name-only) { throw 'Automatic merge refused because the index already contains staged changes.' }
 
     $paths = @(Get-ChangedPaths | Where-Object { Test-SyncPath $_ })
