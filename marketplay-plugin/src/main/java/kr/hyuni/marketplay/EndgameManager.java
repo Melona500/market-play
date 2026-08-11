@@ -22,6 +22,7 @@ import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.CaveSpider;
 import org.bukkit.entity.Drowned;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Husk;
 import org.bukkit.entity.LivingEntity;
@@ -30,6 +31,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Silverfish;
 import org.bukkit.entity.Skeleton;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.WitherSkeleton;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
@@ -62,6 +64,7 @@ import java.util.concurrent.ConcurrentHashMap;
 final class EndgameManager implements Listener {
     static final String WORLD = "mp_endgame";
     private static final int Y = 64, SLOT_X = 512, SLOT_GAP = 96, SLOT_RADIUS = 30;
+    private static final Material MAP_VERSION = Material.CHISELED_DEEPSLATE;
     private final MarketPlayPlugin plugin;
     private final ProfileStore profiles;
     private final NamespacedKey sessionKey, roleKey, intentKey, maskKey, sprayerKey, wingsKey;
@@ -88,8 +91,8 @@ final class EndgameManager implements Listener {
         Block marker = world.getBlockAt(0, Y - 1, 0);
         if (marker.getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 후반 콘텐츠 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
-            buildPersistent(); marker.setType(Material.LODESTONE);
-        }
+            buildPersistent();
+        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION) buildPersistent();
         protect(); Bukkit.getPluginManager().registerEvents(this, plugin);
         for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) world.setChunkForceLoaded(x, z, true);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
@@ -109,7 +112,7 @@ final class EndgameManager implements Listener {
 
     boolean command(Player player, String[] args) {
         return switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "endgame" -> gear(player, args);
+            case "endgame" -> endgame(player, args);
             case "dungeon" -> dungeon(player, args, false);
             case "tower" -> dungeon(player, args, true);
             case "dragon" -> dragon(player, args);
@@ -118,6 +121,15 @@ final class EndgameManager implements Listener {
             case "warrior" -> warrior(player, args);
             default -> false;
         };
+    }
+
+    private boolean endgame(Player player, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("enter")) {
+            player.teleport(new Location(world, .5, Y + 1, .5));
+            return msg(player, "후반 마을 입장 · 안내 표식을 따라 이동하세요.", true);
+        }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("gear")) return gear(player, args);
+        return msg(player, "/mp endgame enter|gear mask|sprayer", true);
     }
 
     void recover(Player player, Runnable done) {
@@ -147,6 +159,7 @@ final class EndgameManager implements Listener {
 
     private boolean gear(Player player, String[] args) {
         if (args.length < 3 || !args[1].equalsIgnoreCase("gear")) return msg(player, "/mp endgame gear mask|sprayer", true);
+        if (!near(player, -32, -18, 10)) return msg(player, "후반 마을 장비 공방에서 구매하세요. /mp endgame enter", false);
         PlayerProfile profile = plugin.profile(player.getUniqueId());
         if (profile == null || !plugin.tryLock(player.getUniqueId())) return msg(player, "다른 작업이 진행 중입니다.", false);
         String kind = args[2].toLowerCase(Locale.ROOT); ItemStack item; long price;
@@ -171,6 +184,7 @@ final class EndgameManager implements Listener {
         if (!args[1].equalsIgnoreCase("start") || args.length <= modeIndex) return msg(player, "/mp " + base + " start " + (tower ? "solo|guild" : "trash|pirate|anubis solo|guild"), false);
         String content = tower ? "TOWER" : args[2].toUpperCase(Locale.ROOT), scope = args[modeIndex].toUpperCase(Locale.ROOT);
         if (!Set.of("TRASH", "PIRATE", "ANUBIS", "TOWER").contains(content) || !Set.of("SOLO", "GUILD").contains(scope)) return msg(player, "콘텐츠 또는 모드가 올바르지 않습니다.", false);
+        if (!near(player, tower ? 0 : 32, -18, 10)) return msg(player, tower ? "영웅의 탑 접수소에서 시작하세요." : "던전 원정소에서 시작하세요.", false);
         if (run(player) != null) return msg(player, "이미 진행 중인 인스턴스가 있습니다.", false);
         if (scope.equals("SOLO")) startSession(player, scope, player.getUniqueId().toString(), content, List.of(player.getUniqueId()));
         else profiles.guildParty(player.getUniqueId()).whenComplete((party, error) -> main(() -> {
@@ -192,6 +206,7 @@ final class EndgameManager implements Listener {
 
     private boolean dragon(Player player, String[] args) {
         if (args.length < 2 || args[1].equalsIgnoreCase("status")) { profiles.dragon(player.getUniqueId()).whenComplete((dragon, error) -> main(() -> msg(player, error == null ? dragon.map(d -> d.stage() + " · " + d.trait() + " · 먹이 " + d.feedTotal() + "/12").orElse("용 없음") : "용 조회 실패", error == null))); return true; }
+        if (!near(player, 0, 18, 10)) return msg(player, "용 부화장에서 이용하세요. /mp endgame enter", false);
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (args[1].equalsIgnoreCase("hatch")) {
             if (hand.getType() != Material.DRAGON_EGG) return msg(player, "용의 알을 주 손에 드세요.", false);
@@ -204,6 +219,7 @@ final class EndgameManager implements Listener {
 
     private boolean deeds(Player player, String[] args) {
         if (args.length < 2 || args[1].equalsIgnoreCase("status")) { profiles.goodDeeds(player.getUniqueId()).whenComplete((d, e) -> main(() -> msg(player, e == null ? deedsText(d) : "선행 조회 실패", e == null))); return true; }
+        if (Set.of("delivery", "help", "donate", "project").contains(args[1].toLowerCase(Locale.ROOT)) && !near(player, -32, 18, 10)) return msg(player, "선행 관리소에서 이용하세요. /mp endgame enter", false);
         if (args[1].equalsIgnoreCase("delivery")) { ItemStack hand = player.getInventory().getItemInMainHand(); if (!Set.of(Material.OAK_LOG, Material.SPRUCE_LOG, Material.BIRCH_LOG, Material.COBBLESTONE).contains(hand.getType())) return msg(player, "원목 또는 조약돌 8개를 주 손에 드세요.", false); return consume(player, "DELIVERY", hand.getType().name(), hand, 8, "공동 납품 완료"); }
         if (args[1].equalsIgnoreCase("help")) { ItemStack hand = player.getInventory().getItemInMainHand(); if (hand.getType() != Material.BREAD) return msg(player, "빵 3개를 주 손에 드세요.", false); return consume(player, "HELP", "BREAD", hand, 3, "NPC 도움 완료"); }
         if (args[1].equalsIgnoreCase("donate") && args.length == 3) { long amount; try { amount = Long.parseLong(args[2]); } catch (NumberFormatException e) { return msg(player, "금액은 정수여야 합니다.", false); } PlayerProfile profile = plugin.profile(player.getUniqueId()); if (profile == null) return true; profiles.donateGoodDeed(profile, amount, LocalDate.now().toString()).whenComplete((d, e) -> main(() -> msg(player, e == null ? "기부 선행 완료 · " + deedsText(d) : "하루 1회, 최소 500원이 필요합니다.", e == null))); return true; }
@@ -214,6 +230,7 @@ final class EndgameManager implements Listener {
 
     private boolean heaven(Player player, String[] args) {
         if (args.length < 2 || !args[1].equalsIgnoreCase("enter")) return msg(player, "/mp heaven enter", true);
+        if (!near(player, 0, 52, 10)) return msg(player, "하늘문에서 입장하세요. /mp endgame enter", false);
         profiles.goodDeeds(player.getUniqueId()).whenComplete((deeds, error) -> main(() -> {
             if (error != null || !deeds.heavenUnlocked()) { msg(player, "서로 다른 선행 3종 이상, 총 10회가 필요합니다. 돈만으로는 열리지 않습니다.", false); return; }
             ItemStack wings = new ItemStack(Material.ELYTRA); wings.editMeta(meta -> { meta.displayName(Component.text("하늘나라 날개", NamedTextColor.AQUA)); meta.getPersistentDataContainer().set(wingsKey, PersistentDataType.BYTE, (byte) 1); });
@@ -227,6 +244,7 @@ final class EndgameManager implements Listener {
 
     private boolean warrior(Player player, String[] args) {
         if (args.length < 2 || args[1].equalsIgnoreCase("status")) { profiles.warriorPath(player.getUniqueId()).whenComplete((path, e) -> main(() -> msg(player, e == null ? path.orElse("전투 직업 미선택") : "직업 조회 실패", e == null))); return true; }
+        if (!near(player, 32, 18, 10)) return msg(player, "전사의 회관에서 전직하세요. /mp endgame enter", false);
         if (!args[1].equalsIgnoreCase("choose") || args.length != 3) return msg(player, "/mp warrior choose warrior|gladiator|hunter|mage", true);
         String path = args[2].toUpperCase(Locale.ROOT); profiles.chooseWarriorPath(player.getUniqueId(), path).whenComplete((v, e) -> main(() -> { if (e == null) warriorPaths.put(player.getUniqueId(), path); msg(player, e == null ? "전투 직업 선택: " + path : "직업은 한 번만 선택할 수 있습니다.", e == null); })); return true;
     }
@@ -256,12 +274,11 @@ final class EndgameManager implements Listener {
         despawn(run); int bx = baseX(run.session.slot());
         for (int x = bx - SLOT_RADIUS; x <= bx + SLOT_RADIUS; x++) for (int z = -SLOT_RADIUS; z <= SLOT_RADIUS; z++) for (int y = Y; y <= Y + 14; y++) world.getBlockAt(x, y, z).setType(Material.AIR, false);
         Material floor = switch (run.session.content()) { case "TRASH" -> Material.MOSS_BLOCK; case "PIRATE" -> Material.DARK_OAK_PLANKS; case "ANUBIS" -> Material.SANDSTONE; default -> towerFloor(run.session.aux()); };
-        for (int x = bx - 20; x <= bx + 20; x++) for (int z = -20; z <= 20; z++) world.getBlockAt(x, Y, z).setType(floor, false);
-        for (int i = -20; i <= 20; i++) { world.getBlockAt(bx + i, Y + 1, -20).setType(Material.BARRIER, false); world.getBlockAt(bx + i, Y + 1, 20).setType(Material.BARRIER, false); world.getBlockAt(bx - 20, Y + 1, i).setType(Material.BARRIER, false); world.getBlockAt(bx + 20, Y + 1, i).setType(Material.BARRIER, false); }
+        buildDungeonLayout(run, bx, floor);
         decorate(run, bx);
         String stage = run.session.stage(); int remaining;
         if (run.session.content().equals("TRASH")) { if (stage.equals("VERMIN")) { remaining = 6 - run.session.progress(); for (int i=0;i<remaining;i++) mob(run, i%2==0 ? Silverfish.class : CaveSpider.class, "해충", 24); } else mob(run, Zombie.class, "쓰레기 군주", 100); }
-        else if (run.session.content().equals("PIRATE")) { if (stage.equals("DECK")) { remaining=6-run.session.progress(); for(int i=0;i<remaining;i++) mob(run, Drowned.class,"해적 선원",30); } else if(stage.equals("CAPTAIN")) mob(run, WitherSkeleton.class,"해적 선장",120); else if(stage.equals("TREASURE")) world.getBlockAt(bx, Y+1, 8).setType(Material.CHEST); }
+        else if (run.session.content().equals("PIRATE")) { if (stage.equals("DECK")) { remaining=6-run.session.progress(); for(int i=0;i<remaining;i++) mob(run, Drowned.class,"해적 선원",30); } else if(stage.equals("CAPTAIN")) mob(run, WitherSkeleton.class,"해적 선장",120); else if(stage.equals("TREASURE")) world.getBlockAt(bx, Y+1, 20).setType(Material.CHEST); }
         else if (run.session.content().equals("ANUBIS")) { if (stage.equals("GLYPHS")) { for(int i=0;i<3;i++) world.getBlockAt(bx-6+i*6,Y+1,8).setType(i==run.session.progress()?Material.CHISELED_SANDSTONE:Material.SANDSTONE); for(int z=-4;z<=4;z++)for(int y=Y+1+run.session.progress()*2;y<=Y+6;y++)world.getBlockAt(bx+12,y,z).setType(Material.IRON_BARS); } else if(stage.equals("MUMMIES")) { remaining=6-run.session.progress(); for(int i=0;i<remaining;i++) mob(run,Husk.class,"미라",36); } else if(stage.equals("BOSS")) mob(run,Husk.class,"아누비스",150); }
         else { int floorNumber=run.session.aux(), required=floorNumber%10==0?1:Math.min(6,2+(floorNumber-1)/10), left=required-run.session.progress(); for(int i=0;i<left;i++) mob(run, floorNumber%10==0?WitherSkeleton.class:floorNumber>40?Phantom.class:floorNumber>30?Husk.class:floorNumber>20?Skeleton.class:Zombie.class, floorNumber%10==0?floorNumber+"층 수호자":floorNumber+"층 적", floorNumber%10==0?120:24+floorNumber); }
         run.phaseSince = System.currentTimeMillis();
@@ -289,7 +306,7 @@ final class EndgameManager implements Listener {
     @EventHandler(ignoreCancelled=true) public void onMove(PlayerMoveEvent event) {
         if (!event.hasChangedBlock() || event.getTo()==null || !event.getTo().getWorld().equals(world)) return;
         Player player=event.getPlayer(); Run own=run(player); int ownSlot=own==null?-1:own.session.slot(), slot=slotAt(event.getTo());
-        if(!ProfileStore.allowsEndgameMove(ownSlot,slot,inPersistent(event.getTo()))){event.setCancelled(true);return;}
+        if(!ProfileStore.allowsEndgameMove(ownSlot,slot,inPersistent(event.getTo()))||own!=null&&!ProfileStore.insideEndgameInstance(event.getTo().getBlockX()-baseX(ownSlot),event.getTo().getBlockY(),event.getTo().getBlockZ())){event.setCancelled(true);return;}
         if(inSky(event.getTo())) { int checkpoint=skyCheckpoint(event.getTo()); int current=skyCheckpoints.getOrDefault(player.getUniqueId(),0); if(checkpoint==current+1){skyCheckpoints.put(player.getUniqueId(),checkpoint); if(checkpoint>=5) claimStar(player,checkpoint);} }
     }
 
@@ -303,7 +320,7 @@ final class EndgameManager implements Listener {
 
     @EventHandler public void onDeath(EntityDeathEvent event) {
         String id=event.getEntity().getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING); if(id==null)return; event.getDrops().clear();event.setDroppedExp(0);Run run=runs.get(id);if(run==null)return;run.entities.remove(event.getEntity().getUniqueId());
-        String stage=run.session.stage(); if(run.session.content().equals("TOWER")){profiles.advanceTower(id,week(),rewards(run,"영웅의 별",Material.NETHER_STAR)).whenComplete((advance,error)->main(()->{if(error!=null)return; if(advance.completed()){run.members.forEach(m->Optional.ofNullable(Bukkit.getPlayer(m)).ifPresent(plugin::deliverPendingGrants));close(run,false);}else{run.session=new ProfileStore.EndgameSession(run.session.id(),run.session.owner(),run.session.groupKey(),run.session.scope(),run.session.content(),run.session.slot(),"FLOOR",advance.progress(),advance.nextFloor(),"ACTIVE",run.session.startedAt());buildStage(run);}}));return;}
+        String stage=run.session.stage(); if(run.session.content().equals("TOWER")){profiles.advanceTower(id,week(),rewards(run,"영웅의 별",Material.NETHER_STAR)).whenComplete((advance,error)->main(()->{if(error!=null)return; if(advance.completed()){run.members.forEach(m->Optional.ofNullable(Bukkit.getPlayer(m)).ifPresent(plugin::deliverPendingGrants));close(run,true);}else{run.session=new ProfileStore.EndgameSession(run.session.id(),run.session.owner(),run.session.groupKey(),run.session.scope(),run.session.content(),run.session.slot(),"FLOOR",advance.progress(),advance.nextFloor(),"ACTIVE",run.session.startedAt());buildStage(run);}}));return;}
         int required=stage.equals("VERMIN")||stage.equals("DECK")||stage.equals("MUMMIES")?6:1;String next=switch(stage){case"VERMIN"->"BOSS";case"DECK"->"CAPTAIN";case"CAPTAIN"->"TREASURE";case"MUMMIES"->"BOSS";default->"DONE";};profiles.recordEndgameObjective(id,stage,required,next).whenComplete((updated,error)->main(()->{if(error!=null)return;run.session=updated;if(updated.stage().equals("DONE"))complete(run);else if(!updated.stage().equals(stage))buildStage(run);}));
     }
 
@@ -313,17 +330,51 @@ final class EndgameManager implements Listener {
         if(run.session.stage().equals("GLYPHS")&&event.getClickedBlock().getType()==Material.CHISELED_SANDSTONE){profiles.recordEndgameObjective(run.session.id(),"GLYPHS",3,"MUMMIES").whenComplete((updated,error)->main(()->{if(error!=null)return;run.session=updated;buildStage(run);}));}
     }
 
-    private void complete(Run run) { profiles.completeEndgame(run.session.id(),rewards(run,run.session.content()+" 전리품",Material.DIAMOND)).whenComplete((done,error)->main(()->{if(error!=null)return;run.members.forEach(id->Optional.ofNullable(Bukkit.getPlayer(id)).ifPresent(plugin::deliverPendingGrants));close(run,false);})); }
+    private void complete(Run run) { profiles.completeEndgame(run.session.id(),rewards(run,run.session.content()+" 전리품",Material.DIAMOND)).whenComplete((done,error)->main(()->{if(error!=null)return;run.members.forEach(id->Optional.ofNullable(Bukkit.getPlayer(id)).ifPresent(plugin::deliverPendingGrants));close(run,true);})); }
     private List<ProfileStore.BossReward> rewards(Run run,String name,Material material){List<ProfileStore.BossReward> result=new ArrayList<>();for(UUID id:run.members){String grant=run.session.id()+":"+id+":"+material;ItemStack item=new ItemStack(material);item.editMeta(meta->meta.displayName(Component.text(name,NamedTextColor.GOLD)));item.editPersistentDataContainer(data->data.set(plugin.grantKey(),PersistentDataType.STRING,grant));result.add(new ProfileStore.BossReward(id,grant,item.serializeAsBytes()));}return result;}
     private void transition(Run run,String expected,String next,int aux){profiles.transitionEndgame(run.session.id(),expected,next,aux).whenComplete((updated,error)->main(()->{if(error==null){run.session=updated;buildStage(run);}}));}
     private void close(Run run,boolean teleport){despawn(run);runs.remove(run.session.id());run.members.forEach(id->{playerRuns.remove(id,run.session.id());Player p=Bukkit.getPlayer(id);if(p!=null&&teleport)p.teleport(new Location(world,.5,Y+1,.5));});int chunk=baseX(run.session.slot())>>4;for(int x=chunk-2;x<=chunk+2;x++)for(int z=-2;z<=2;z++)world.setChunkForceLoaded(x,z,false);}
     private void despawn(Run run){run.entities.forEach(id->{Entity entity=Bukkit.getEntity(id);if(entity!=null)entity.remove();});run.entities.clear();}
-    private void mob(Run run,Class<? extends LivingEntity> type,String name,double health){int bx=baseX(run.session.slot());LivingEntity mob=world.spawn(new Location(world,bx-10+Math.random()*20,Y+1,-10+Math.random()*20),type);mob.customName(Component.text(name,NamedTextColor.RED));mob.setCustomNameVisible(true);mob.setPersistent(true);mob.getPersistentDataContainer().set(sessionKey,PersistentDataType.STRING,run.session.id());mob.getPersistentDataContainer().set(roleKey,PersistentDataType.STRING,name);if(mob.getAttribute(Attribute.MAX_HEALTH)!=null)mob.getAttribute(Attribute.MAX_HEALTH).setBaseValue(health);mob.setHealth(Math.min(health,mob.getAttribute(Attribute.MAX_HEALTH).getValue()));run.entities.add(mob.getUniqueId());}
+    private void mob(Run run,Class<? extends LivingEntity> type,String name,double health){int bx=baseX(run.session.slot()),z=encounterZ(run);LivingEntity mob=world.spawn(new Location(world,bx-8+Math.random()*16,Y+1,z-6+Math.random()*12),type);mob.customName(Component.text(name,NamedTextColor.RED));mob.setCustomNameVisible(true);mob.setPersistent(true);mob.getPersistentDataContainer().set(sessionKey,PersistentDataType.STRING,run.session.id());mob.getPersistentDataContainer().set(roleKey,PersistentDataType.STRING,name);if(mob.getAttribute(Attribute.MAX_HEALTH)!=null)mob.getAttribute(Attribute.MAX_HEALTH).setBaseValue(health);mob.setHealth(Math.min(health,mob.getAttribute(Attribute.MAX_HEALTH).getValue()));run.entities.add(mob.getUniqueId());}
 
-    private void buildPersistent(){for(int x=-48;x<=48;x++)for(int z=-48;z<=128;z++)world.getBlockAt(x,Y,z).setType(z>=60?Material.QUARTZ_BLOCK:z>=-30?Material.STONE_BRICKS:Material.SPRUCE_PLANKS,false);for(int x=-20;x<=20;x++)for(int z=70;z<=120;z++)world.getBlockAt(x,100,z).setType(Material.QUARTZ_BLOCK,false);for(int i=0;i<5;i++){world.getBlockAt(-12+i*6,101,82+i*8).setType(Material.SEA_LANTERN);world.getBlockAt(-9+i*5,103+i*2,86+i*7).setType(Material.IRON_BARS);}for(int x:new int[]{-32,0,32})for(int z:new int[]{-18,18})hut(x,z);world.getBlockAt(42,Y+1,8).setType(Material.BELL);world.getBlockAt(24,Y+1,12).setType(Material.GOLD_BLOCK);}
-    private void decorate(Run run,int bx){switch(run.session.content()){case"TRASH"->{for(int x=-14;x<=14;x+=7)for(int z=-14;z<=14;z+=7){world.getBlockAt(bx+x,Y+1,z).setType((x+z)%2==0?Material.COMPOSTER:Material.COBWEB);world.getBlockAt(bx+x,Y+2,z).setType(Material.BROWN_MUSHROOM_BLOCK);}}case"PIRATE"->{for(int i=-18;i<=18;i++){world.getBlockAt(bx+i,Y+1,-18).setType(Material.DARK_OAK_FENCE);world.getBlockAt(bx+i,Y+1,18).setType(Material.DARK_OAK_FENCE);}for(int y=Y+1;y<=Y+12;y++)world.getBlockAt(bx,y,0).setType(Material.STRIPPED_DARK_OAK_LOG);for(int z=-12;z<=12;z+=8){world.getBlockAt(bx-17,Y+1,z).setType(Material.DISPENSER);world.getBlockAt(bx+17,Y+1,z).setType(Material.DISPENSER);}}case"ANUBIS"->{for(int z=-16;z<=16;z+=4)for(int x=-16;x<=16;x++)if((x+z/4)%5!=0)world.getBlockAt(bx+x,Y+1,z).setType(Material.CUT_SANDSTONE);for(int x=-14;x<=14;x+=7)world.getBlockAt(bx+x,Y,trapZ(x)).setType(Material.MAGMA_BLOCK);}default->{for(int y=Y+1;y<=Y+6;y++)for(int i=-20;i<=20;i+=40){world.getBlockAt(bx+i,y,-20).setType(Material.POLISHED_BLACKSTONE_BRICKS);world.getBlockAt(bx+i,y,20).setType(Material.POLISHED_BLACKSTONE_BRICKS);}}}}
+    private void buildPersistent(){
+        world.getEntitiesByClass(TextDisplay.class).forEach(Entity::remove);
+        fill(-48,Y,-48,48,Y+10,128,Material.AIR); fill(-24,100,65,24,112,125,Material.AIR);
+        fill(-48,Y,-48,48,Y,-30,Material.SPRUCE_PLANKS); fill(-48,Y,-29,48,Y,60,Material.GRASS_BLOCK);
+        fill(-2,Y,-48,2,Y,52,Material.STONE_BRICKS); fill(-48,Y,-2,48,Y,2,Material.STONE_BRICKS);
+        fill(-6,Y,-6,6,Y,6,Material.POLISHED_ANDESITE); fill(-2,Y+1,-2,2,Y+1,2,Material.STONE_BRICKS); fill(-1,Y+1,-1,1,Y+1,1,Material.WATER); world.getBlockAt(0,Y+2,0).setType(Material.SEA_LANTERN);
+        hut(-32,-18,Material.BLAST_FURNACE,"장비 공방\n방독면 / 살충기");
+        hut(0,-18,Material.LODESTONE,"영웅의 탑 접수소\n50층 주간 기록");
+        hut(32,-18,Material.CARTOGRAPHY_TABLE,"던전 원정소\n쓰레기장 / 해적선 / 미궁");
+        hut(-32,18,Material.LECTERN,"선행 관리소\n납품 / 도움 / 기부 / 공공");
+        hut(0,18,Material.DRAGON_EGG,"용 부화장\n부화 / 먹이 / 성장");
+        hut(32,18,Material.SMITHING_TABLE,"전사의 회관\n전투 진로 선택");
+        fill(-4,Y,48,4,Y,57,Material.QUARTZ_BLOCK); fill(-3,Y+1,52,3,Y+7,52,Material.OBSIDIAN); fill(-2,Y+2,52,2,Y+6,52,Material.CRYING_OBSIDIAN);
+        display(new Location(world,.5,Y+4,48.5),"하늘문\n선행 3종 · 총 10회",NamedTextColor.AQUA);
+        skyIsland(0,76,7); for(int i=1;i<=5;i++)skyIsland(-15+i*6,74+i*8,4);
+        for(int i=1;i<=5;i++){int x=-15+i*6,z=74+i*8;world.getBlockAt(x,101,z).setType(Material.SEA_LANTERN);for(int y=103;y<=103+i*2;y++)world.getBlockAt(x+2,y,z).setType(Material.IRON_BARS);}
+        world.getBlockAt(42,Y+1,8).setType(Material.BELL); world.getBlockAt(24,Y+1,12).setType(Material.GOLD_BLOCK);
+        world.getBlockAt(0,Y-1,0).setType(Material.LODESTONE); world.getBlockAt(1,Y-1,0).setType(MAP_VERSION);
+        world.setSpawnLocation(new Location(world,.5,Y+1,.5));
+    }
+    private void decorate(Run run,int bx){switch(run.session.content()){case"TRASH"->{for(int x=-9;x<=9;x+=6)for(int z=-6;z<=6;z+=6){world.getBlockAt(bx+x,Y+1,z).setType((x+z)%2==0?Material.COMPOSTER:Material.COBWEB);world.getBlockAt(bx+x,Y+2,z).setType(Material.BROWN_MUSHROOM_BLOCK);}for(int x=-8;x<=8;x+=4)world.getBlockAt(bx+x,Y+1,20).setType(Material.SLIME_BLOCK);}case"PIRATE"->{for(int y=Y+1;y<=Y+9;y++)world.getBlockAt(bx,y,0).setType(Material.STRIPPED_DARK_OAK_LOG);for(int z=-6;z<=6;z+=6){world.getBlockAt(bx-10,Y+1,z).setType(Material.DISPENSER);world.getBlockAt(bx+10,Y+1,z).setType(Material.DISPENSER);}fill(bx-9,Y+1,16,bx+9,Y+1,24,Material.RED_CARPET);}case"ANUBIS"->{for(int z=-6;z<=6;z+=4)for(int x=-9;x<=9;x++)if((x+z/4)%5!=0)world.getBlockAt(bx+x,Y+1,z).setType(Material.CUT_SANDSTONE);for(int x=-8;x<=8;x+=4)world.getBlockAt(bx+x,Y,trapZ(x)).setType(Material.MAGMA_BLOCK);for(int x=-8;x<=8;x+=8)fill(bx+x,Y+1,16,bx+x,Y+6,16,Material.CHISELED_SANDSTONE);}default->{for(int y=Y+1;y<=Y+6;y++){world.getBlockAt(bx-10,y,20).setType(Material.POLISHED_BLACKSTONE_BRICKS);world.getBlockAt(bx+10,y,20).setType(Material.POLISHED_BLACKSTONE_BRICKS);}}}}
+    private void buildDungeonLayout(Run run,int bx,Material floor){
+        Material wall=switch(run.session.content()){case"TRASH"->Material.MUD_BRICKS;case"PIRATE"->Material.DARK_OAK_LOG;case"ANUBIS"->Material.CUT_SANDSTONE;default->Material.POLISHED_BLACKSTONE_BRICKS;};
+        room(bx,-20,floor,wall);room(bx,0,floor,wall);room(bx,20,floor,wall);
+        fill(bx-3,Y,-12,bx+3,Y,-8,floor);fill(bx-3,Y,-12,bx+3,Y+5,-12,wall);fill(bx-3,Y,-8,bx+3,Y+5,-8,wall);fill(bx-3,Y+1,-12,bx-3,Y+5,-8,wall);fill(bx+3,Y+1,-12,bx+3,Y+5,-8,wall);fill(bx-3,Y+6,-12,bx+3,Y+6,-8,wall);
+        fill(bx-3,Y,8,bx+3,Y,12,floor);fill(bx-3,Y,8,bx+3,Y+5,8,wall);fill(bx-3,Y,12,bx+3,Y+5,12,wall);fill(bx-3,Y+1,8,bx-3,Y+5,12,wall);fill(bx+3,Y+1,8,bx+3,Y+5,12,wall);fill(bx-3,Y+6,8,bx+3,Y+6,12,wall);
+        fill(bx-2,Y+1,-12,bx+2,Y+4,-12,Material.AIR);fill(bx-2,Y+1,-8,bx+2,Y+4,-8,Material.AIR);fill(bx-2,Y+1,8,bx+2,Y+4,8,Material.AIR);fill(bx-2,Y+1,12,bx+2,Y+4,12,Material.AIR);
+        gate(bx,-10,ProfileStore.endgameGateOpen(run.session.content(),run.session.stage(),1));
+        gate(bx,10,ProfileStore.endgameGateOpen(run.session.content(),run.session.stage(),2));
+    }
+    private void room(int bx,int cz,Material floor,Material wall){fill(bx-12,Y,cz-8,bx+12,Y,cz+8,floor);fill(bx-12,Y+1,cz-8,bx-12,Y+6,cz+8,wall);fill(bx+12,Y+1,cz-8,bx+12,Y+6,cz+8,wall);fill(bx-12,Y+1,cz-8,bx+12,Y+6,cz-8,wall);fill(bx-12,Y+1,cz+8,bx+12,Y+6,cz+8,wall);fill(bx-12,Y+7,cz-8,bx+12,Y+7,cz+8,wall);}
+    private void gate(int bx,int z,boolean open){fill(bx-2,Y+1,z,bx+2,Y+4,z,open?Material.AIR:Material.IRON_BARS);}
+    private int encounterZ(Run run){return switch(run.session.content()){case"TRASH"->run.session.stage().equals("BOSS")?20:0;case"PIRATE"->Set.of("CAPTAIN","TREASURE").contains(run.session.stage())?20:0;case"ANUBIS"->run.session.stage().equals("BOSS")?20:0;default->20;};}
     private int trapZ(int x){return x%2==0?6:-6;}
-    private void hut(int cx,int cz){for(int x=cx-6;x<=cx+6;x++)for(int z=cz-5;z<=cz+5;z++)for(int y=Y+1;y<=Y+5;y++)if(x==cx-6||x==cx+6||z==cz-5||z==cz+5||y==Y+5)world.getBlockAt(x,y,z).setType(y==Y+5?Material.DARK_OAK_PLANKS:Material.STONE_BRICKS,false);world.getBlockAt(cx,Y+1,cz-5).setType(Material.AIR);world.getBlockAt(cx,Y+2,cz-5).setType(Material.AIR);}
+    private void hut(int cx,int cz,Material station,String label){fill(cx-6,Y,cz-5,cx+6,Y,cz+5,Material.OAK_PLANKS);for(int x=cx-6;x<=cx+6;x++)for(int z=cz-5;z<=cz+5;z++)for(int y=Y+1;y<=Y+5;y++)if(x==cx-6||x==cx+6||z==cz-5||z==cz+5||y==Y+5)world.getBlockAt(x,y,z).setType(y==Y+5?Material.DARK_OAK_PLANKS:Material.STONE_BRICKS,false);fill(cx-1,Y+1,cz-5,cx+1,Y+3,cz-5,Material.AIR);world.getBlockAt(cx,Y+1,cz+2).setType(station);world.getBlockAt(cx-4,Y+2,cz).setType(Material.GLASS_PANE);world.getBlockAt(cx+4,Y+2,cz).setType(Material.GLASS_PANE);world.getBlockAt(cx,Y+4,cz).setType(Material.LANTERN);display(new Location(world,cx+.5,Y+3,cz-4.5),label,NamedTextColor.GOLD);}
+    private void skyIsland(int cx,int cz,int radius){for(int x=-radius;x<=radius;x++)for(int z=-radius;z<=radius;z++)if(x*x+z*z<=radius*radius){world.getBlockAt(cx+x,100,cz+z).setType(Material.QUARTZ_BLOCK,false);if(x*x+z*z<(radius-1)*(radius-1))world.getBlockAt(cx+x,99,cz+z).setType(Material.CALCITE,false);}}
+    private void display(Location location,String text,NamedTextColor color){TextDisplay display=world.spawn(location,TextDisplay.class);display.text(Component.text(text,color));display.setBillboard(Display.Billboard.VERTICAL);display.setShadowed(true);display.getPersistentDataContainer().set(roleKey,PersistentDataType.STRING,"persistent_display");}
+    private void fill(int x1,int y1,int z1,int x2,int y2,int z2,Material material){for(int x=x1;x<=x2;x++)for(int y=y1;y<=y2;y++)for(int z=z1;z<=z2;z++)world.getBlockAt(x,y,z).setType(material,false);}
     private void protect(){RegionManager regions=WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));if(regions==null)throw new IllegalStateException("후반 콘텐츠 WorldGuard를 열 수 없습니다.");GlobalProtectedRegion global=regions.getRegion("__global__") instanceof GlobalProtectedRegion found?found:new GlobalProtectedRegion("__global__");global.setFlag(Flags.BLOCK_BREAK,StateFlag.State.DENY);global.setFlag(Flags.BLOCK_PLACE,StateFlag.State.DENY);for(String name:List.of("sit","playersit","pose","crawl")){Object flag=WorldGuard.getInstance().getFlagRegistry().get(name);if(flag instanceof StateFlag state)global.setFlag(state,StateFlag.State.DENY);}regions.addRegion(global);try{regions.save();}catch(Exception e){throw new IllegalStateException("후반 콘텐츠 보호 저장 실패",e);}}
     private void claimStar(Player player,int node){Material type=node==5?Material.AMETHYST_SHARD:Material.NETHER_STAR;ItemStack item=new ItemStack(type);String grant="heaven:"+week()+":"+node+":"+player.getUniqueId();item.editMeta(meta->meta.displayName(Component.text(node==5?"희귀 별조각":"하늘 별",NamedTextColor.LIGHT_PURPLE)));item.editPersistentDataContainer(data->data.set(plugin.grantKey(),PersistentDataType.STRING,grant));profiles.claimHeavenStar(player.getUniqueId(),node,week(),grant,item.serializeAsBytes()).whenComplete((v,e)->main(()->{if(e==null){plugin.deliverPendingGrants(player);msg(player,"공중 장애물 보상 획득",true);}}));}
     private void dragonEffect(Player player){ProfileStore.Dragon dragon=dragons.get(player.getUniqueId());if(dragon==null||!dragon.stage().equals("ADULT"))return;switch(dragon.trait()){case"SEA"->player.addPotionEffect(new PotionEffect(PotionEffectType.WATER_BREATHING,60,0,true,false));case"MINERAL"->player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION,240,0,true,false));case"SKY"->player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING,60,0,true,false));default->player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED,60,0,true,false));}}
@@ -331,12 +382,12 @@ final class EndgameManager implements Listener {
     private void main(Runnable task){Bukkit.getScheduler().runTask(plugin,task);}
     private Run run(Player player){String id=playerRuns.get(player.getUniqueId());return id==null?null:runs.get(id);}
     private Run runAt(Location location){int slot=slotAt(location);return slot<0?null:runs.values().stream().filter(run->run.session.slot()==slot).findFirst().orElse(null);}
-    private Location spawn(ProfileStore.EndgameSession session){return new Location(world,baseX(session.slot())+.5,Y+1,.5);}
+    private Location spawn(ProfileStore.EndgameSession session){return new Location(world,baseX(session.slot())+.5,Y+1,-24.5);}
     private int baseX(int slot){return SLOT_X+slot*SLOT_GAP;}
     private int slotAt(Location location){if(!location.getWorld().equals(world)||location.getBlockX()<SLOT_X-SLOT_RADIUS)return-1;int slot=Math.round((location.getBlockX()-SLOT_X)/(float)SLOT_GAP);return Math.abs(location.getBlockX()-baseX(slot))<=SLOT_RADIUS&&Math.abs(location.getBlockZ())<=SLOT_RADIUS?slot:-1;}
     private boolean inside(Run run,Location location){return slotAt(location)==run.session.slot();}
     private boolean inSky(Location l){return l.getWorld().equals(world)&&l.getY()>=95&&l.getX()>=-24&&l.getX()<=24&&l.getZ()>=65&&l.getZ()<=125;}
-    private boolean inPersistent(Location l){return l.getWorld().equals(world)&&l.getX()>=-48&&l.getX()<=48&&l.getZ()>=-48&&l.getZ()<=128;}
+    private boolean inPersistent(Location l){return l.getWorld().equals(world)&&(l.getX()>=-48&&l.getX()<=48&&l.getZ()>=-48&&l.getZ()<=60||inSky(l));}
     private int skyCheckpoint(Location l){if(!inSky(l))return 0;for(int i=1;i<=5;i++)if(l.distanceSquared(new Location(world,-15+i*6,101,74+i*8))<16)return i;return 0;}
     private boolean near(Player p,double x,double z,double distance){return p.getWorld().equals(world)&&p.getLocation().distanceSquared(new Location(world,x+.5,Y+1,z+.5))<=distance*distance;}
     private boolean hasMask(Player p){ItemStack helmet=p.getInventory().getHelmet();return helmet!=null&&helmet.getPersistentDataContainer().has(maskKey,PersistentDataType.BYTE);}

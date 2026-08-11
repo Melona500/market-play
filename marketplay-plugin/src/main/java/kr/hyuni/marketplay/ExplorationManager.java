@@ -41,6 +41,7 @@ import java.util.concurrent.ThreadLocalRandom;
 final class ExplorationManager implements Listener {
     static final String WORLD = "mp_exploration";
     static final int Y = 64;
+    private static final Material MAP_VERSION = Material.CHISELED_STONE_BRICKS;
     private static final Box SEA = new Box(0, 58, 8, 55, 76, 66);
     private static final Box DEEP = new Box(4, 58, 34, 51, 66, 64);
     private static final Box CASTLE = new Box(4, 63, -62, 54, 82, -20);
@@ -92,10 +93,9 @@ final class ExplorationManager implements Listener {
         if (world == null) throw new IllegalStateException("탐험 월드를 만들 수 없습니다.");
         Block marker = world.getBlockAt(0, Y - 1, 0);
         if (marker.getType() != Material.LODESTONE) {
-            if (!existed) build();
-            else if (isLegacyWorld()) marker.setType(Material.LODESTONE);
+            if (!existed || isLegacyWorld()) build();
             else throw new IllegalStateException("기존 탐험 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
-        }
+        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION) build();
         protect();
         spawnNpcs();
         for (int x = -5; x <= 4; x++) for (int z = -4; z <= 4; z++) world.setChunkForceLoaded(x, z, true);
@@ -470,25 +470,30 @@ final class ExplorationManager implements Listener {
     }
 
     private void build() {
-        for (int x = -65; x <= 60; x++) for (int z = -68; z <= 70; z++) for (int y = 63; y <= 78; y++) world.getBlockAt(x, y, z).setType(Material.AIR);
-        for (int x = -65; x <= 60; x++) for (int z = -68; z <= 70; z++) world.getBlockAt(x, 63, z).setType(Material.STONE);
+        world.getEntitiesByClass(TextDisplay.class).forEach(Entity::remove);
+        fill(-65, 63, -68, 60, 82, 70, Material.AIR);
+        fill(-65, 63, -68, 60, 63, 70, Material.GRASS_BLOCK);
         for (int x = 0; x <= 55; x++) for (int z = 8; z <= 66; z++) {
             world.getBlockAt(x, 60, z).setType(z < 18 ? Material.SAND : Material.PRISMARINE);
             for (int y = 61; y <= 64; y++) world.getBlockAt(x, y, z).setType(z < 18 ? (y == 64 ? Material.SAND : Material.SANDSTONE) : Material.WATER);
         }
+        buildBoundary();
+        path(-64, -8, 8, true);
+        path(-8, 29, 7, true);
+        path(-18, 7, 29, false);
+        tree(-55, -22); tree(-39, -18); tree(-21, -24); tree(-6, -8);
+        mound(-50, -43, 5); mound(-23, -47, 4); mound(-3, -55, 5);
         NODES.forEach(node -> node.location().block(world).setType(node.block()));
         DEVICES.forEach(device -> device.block(world).setType(Material.RESPAWN_ANCHOR));
         buildMine(-60, Material.REDSTONE_BLOCK, "조이광산 · 평민");
         buildMine(-40, Material.LAPIS_BLOCK, "반짝광산 · 자작");
         buildMine(-20, Material.AMETHYST_BLOCK, "요정광산 · 백작");
-        for (int x = 4; x <= 54; x++) for (int z = -62; z <= -20; z++) world.getBlockAt(x, 64, z).setType(Material.STONE_BRICKS);
-        for (int x = 4; x <= 54; x++) for (int y = 65; y <= 72; y++) for (int z : List.of(-62, -20)) world.getBlockAt(x, y, z).setType(Material.STONE_BRICKS);
-        for (int z = -62; z <= -20; z++) for (int y = 65; y <= 72; y++) for (int x : List.of(4, 54)) world.getBlockAt(x, y, z).setType(Material.STONE_BRICKS);
-        for (int x = 26; x <= 32; x++) for (int y = 65; y <= 70; y++) world.getBlockAt(x, y, -20).setType(Material.AIR);
-        world.getBlockAt(9, 68, -45).setType(Material.TARGET);
+        buildCastle();
+        lighthouse();
         display(new Location(world, 27.5, 68, 11.5), "해변과 바다 · 남작\n배낚시 / 그물 / 잠수 / 심해", NamedTextColor.AQUA);
         display(new Location(world, 29.5, 69, -24.5), "왕성 · 자작\n왕실 / 기사단 / 상점 / 의뢰", NamedTextColor.GOLD);
         world.getBlockAt(0, Y - 1, 0).setType(Material.LODESTONE);
+        world.getBlockAt(1, Y - 1, 0).setType(MAP_VERSION);
         world.setSpawnLocation(new Location(world, -58.5, 65, 8.5));
     }
 
@@ -499,10 +504,86 @@ final class ExplorationManager implements Listener {
     }
 
     private void buildMine(int x, Material accent, String name) {
-        for (int dx = -7; dx <= 7; dx++) for (int dz = -7; dz <= 7; dz++) world.getBlockAt(x + dx, 64, dz).setType(Material.DEEPSLATE_TILES);
-        for (int dx = -7; dx <= 7; dx++) for (int y = 65; y <= 70; y++) for (int dz : List.of(-7, 7)) world.getBlockAt(x + dx, y, dz).setType(Material.DEEPSLATE_BRICKS);
+        fill(x - 7, 64, -7, x + 7, 64, 7, Material.DEEPSLATE_TILES);
+        fill(x - 7, 65, -7, x + 7, 70, -7, Material.DEEPSLATE_BRICKS);
+        fill(x - 7, 65, 7, x + 7, 70, 7, Material.DEEPSLATE_BRICKS);
+        fill(x - 7, 65, -7, x - 7, 70, 7, Material.DEEPSLATE_BRICKS);
+        fill(x + 7, 65, -7, x + 7, 70, 7, Material.DEEPSLATE_BRICKS);
+        fill(x - 7, 71, -7, x + 7, 71, 7, Material.DEEPSLATE_TILES);
+        fill(x - 2, 65, 7, x + 2, 68, 7, Material.AIR);
+        for (int z = -4; z <= 4; z += 4) {
+            world.getBlockAt(x - 5, 65, z).setType(Material.OAK_LOG);
+            world.getBlockAt(x + 5, 65, z).setType(Material.OAK_LOG);
+            world.getBlockAt(x, 70, z).setType(Material.LANTERN);
+        }
         world.getBlockAt(x, 64, 6).setType(accent);
         display(new Location(world, x + .5, 68, 6.5), name, NamedTextColor.GRAY);
+    }
+
+    private void buildCastle() {
+        fill(4, 64, -62, 54, 64, -20, Material.STONE_BRICKS);
+        fill(4, 65, -62, 54, 72, -62, Material.STONE_BRICKS);
+        fill(4, 65, -20, 54, 72, -20, Material.STONE_BRICKS);
+        fill(4, 65, -62, 4, 72, -20, Material.STONE_BRICKS);
+        fill(54, 65, -62, 54, 72, -20, Material.STONE_BRICKS);
+        fill(4, 73, -62, 54, 73, -20, Material.STONE_BRICK_SLAB);
+        for (int x : List.of(4, 49)) for (int z : List.of(-62, -25)) {
+            fill(x, 65, z, x + 5, 78, z + 5, Material.STONE_BRICKS);
+            fill(x + 1, 66, z + 1, x + 4, 76, z + 4, Material.AIR);
+            fill(x, 79, z, x + 5, 79, z + 5, Material.POLISHED_ANDESITE);
+        }
+        fill(26, 65, -20, 32, 70, -20, Material.AIR);
+        fill(18, 65, -58, 18, 70, -24, Material.POLISHED_ANDESITE);
+        fill(18, 65, -46, 18, 68, -40, Material.AIR);
+        fill(19, 65, -43, 50, 70, -43, Material.POLISHED_ANDESITE);
+        fill(27, 65, -43, 31, 68, -43, Material.AIR);
+        for (int z = -58; z <= -24; z++) world.getBlockAt(29, 64, z).setType(Material.RED_CARPET);
+        world.getBlockAt(22, 65, -33).setType(Material.LECTERN);
+        world.getBlockAt(36, 65, -33).setType(Material.BARREL);
+        world.getBlockAt(22, 65, -52).setType(Material.BREWING_STAND);
+        world.getBlockAt(36, 65, -52).setType(Material.SMITHING_TABLE);
+        world.getBlockAt(9, 68, -45).setType(Material.TARGET);
+        for (int z = -55; z <= -31; z += 4) world.getBlockAt(12, 65, z).setType(Material.OAK_FENCE);
+    }
+
+    private void buildBoundary() {
+        for (int x = -65; x <= 60; x++) for (int y = 64; y <= 66 + Math.floorMod(x, 3); y++) world.getBlockAt(x, y, -68).setType(y == 64 ? Material.STONE : Material.ANDESITE);
+        for (int z = -67; z <= 7; z++) for (int y = 64; y <= 66 + Math.floorMod(z, 2); y++) {
+            world.getBlockAt(-65, y, z).setType(Material.MOSSY_COBBLESTONE);
+            world.getBlockAt(60, y, z).setType(Material.STONE);
+        }
+        for (int z = 12; z <= 70; z++) for (int y = 64; y <= 69 + Math.floorMod(z, 3); y++) world.getBlockAt(-5, y, z).setType(y < 67 ? Material.STONE : Material.DIRT);
+        fill(0, 60, 67, 55, 64, 70, Material.PRISMARINE_BRICKS);
+    }
+
+    private void path(int from, int to, int fixed, boolean xAxis) {
+        for (int value = from; value <= to; value++) for (int side = -1; side <= 1; side++)
+            world.getBlockAt(xAxis ? value : fixed + side, 63, xAxis ? fixed + side : value).setType(Material.DIRT_PATH);
+    }
+
+    private void tree(int x, int z) {
+        fill(x, 64, z, x, 69, z, Material.OAK_LOG);
+        fill(x - 2, 68, z - 2, x + 2, 70, z + 2, Material.OAK_LEAVES);
+        world.getBlockAt(x, 71, z).setType(Material.OAK_LEAVES);
+    }
+
+    private void mound(int x, int z, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            int height = Math.max(0, radius - (Math.abs(dx) + Math.abs(dz)) / 2);
+            for (int y = 64; y <= 64 + height; y++) world.getBlockAt(x + dx, y, z + dz).setType(y == 64 + height ? Material.GRASS_BLOCK : Material.STONE);
+        }
+    }
+
+    private void lighthouse() {
+        for (int y = 64; y <= 76; y++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++)
+            if (Math.abs(dx) == 2 || Math.abs(dz) == 2) world.getBlockAt(57 + dx, y, 12 + dz).setType(y % 4 < 2 ? Material.WHITE_CONCRETE : Material.RED_CONCRETE);
+        fill(55, 77, 10, 59, 77, 14, Material.GLASS);
+        world.getBlockAt(57, 78, 12).setType(Material.SEA_LANTERN);
+        fill(55, 65, 10, 55, 67, 12, Material.AIR);
+    }
+
+    private void fill(int x1, int y1, int z1, int x2, int y2, int z2, Material material) {
+        for (int x = x1; x <= x2; x++) for (int y = y1; y <= y2; y++) for (int z = z1; z <= z2; z++) world.getBlockAt(x, y, z).setType(material, false);
     }
 
     private void protect() {
