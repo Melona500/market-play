@@ -11,6 +11,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,6 +28,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapCanvas;
 import org.bukkit.map.MapRenderer;
@@ -219,7 +222,7 @@ final class ArtManager implements Listener {
 
     @EventHandler public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (player.getGameMode() == GameMode.CREATIVE && (isArt(event.getCurrentItem()) || isArt(event.getCursor()))) { event.setCancelled(true); return; }
+        if (player.getGameMode() == GameMode.CREATIVE && (containsArt(event.getCurrentItem(), 0) || containsArt(event.getCursor(), 0))) { event.setCancelled(true); return; }
         Editor editor = editors.get(player.getUniqueId());
         if (editor == null || event.getView().getTopInventory() != editor.inventory) {
             if (event.getView().getTopInventory().getType() == InventoryType.CARTOGRAPHY && containsArt(event.getView().getTopInventory())) event.setCancelled(true);
@@ -252,13 +255,15 @@ final class ArtManager implements Listener {
     }
 
     @EventHandler public void onCreative(InventoryCreativeEvent event) {
-        if (isArt(event.getCursor()) || isArt(event.getCurrentItem())) event.setCancelled(true);
+        if (containsArt(event.getCursor(), 0) || containsArt(event.getCurrentItem(), 0)) event.setCancelled(true);
     }
 
     @EventHandler public void onGameMode(PlayerGameModeChangeEvent event) {
         if (event.getPlayer().getGameMode() != GameMode.CREATIVE && event.getNewGameMode() != GameMode.CREATIVE) return;
-        for (int slot = 0; slot < event.getPlayer().getInventory().getSize(); slot++) if (isArt(event.getPlayer().getInventory().getItem(slot))) event.getPlayer().getInventory().setItem(slot, null);
-        if (isArt(event.getPlayer().getItemOnCursor())) event.getPlayer().setItemOnCursor(null);
+        if (Arrays.stream(event.getPlayer().getInventory().getContents()).anyMatch(item -> containsArt(item, 0)) || containsArt(event.getPlayer().getItemOnCursor(), 0)) {
+            event.setCancelled(true);
+            message(event.getPlayer(), "작품 또는 작품이 든 셜커·번들을 비운 뒤 Creative 모드를 바꾸세요.", false);
+        }
     }
 
     @EventHandler(ignoreCancelled = true) public void onFrame(PlayerInteractEntityEvent event) {
@@ -372,7 +377,16 @@ final class ArtManager implements Listener {
     private boolean ownedDraft(ArtStore.Artwork artwork, Player player) { return artwork != null && artwork.owner().equals(player.getUniqueId()) && artwork.state().equals("DRAFT"); }
     private String artId(ItemStack item) { return item == null ? null : item.getPersistentDataContainer().get(artKey, PersistentDataType.STRING); }
     private boolean isArt(ItemStack item) { return artId(item) != null; }
-    private boolean containsArt(Inventory inventory) { return Arrays.stream(inventory.getContents()).anyMatch(this::isArt); }
+    private boolean containsArt(Inventory inventory) { return Arrays.stream(inventory.getContents()).anyMatch(item -> containsArt(item, 0)); }
+    private boolean containsArt(ItemStack item, int depth) {
+        if (item == null || depth > 8) return false;
+        if (isArt(item)) return true;
+        ItemMeta meta = item.getItemMeta();
+        if (meta instanceof BlockStateMeta block && block.getBlockState() instanceof ShulkerBox shulker)
+            return Arrays.stream(shulker.getInventory().getContents()).anyMatch(nested -> containsArt(nested, depth + 1));
+        if (meta instanceof BundleMeta bundle) return bundle.getItems().stream().anyMatch(nested -> containsArt(nested, depth + 1));
+        return false;
+    }
     private void giveItem(Player player, ItemStack item) { if (!player.getInventory().addItem(item).isEmpty()) message(player, "인벤토리를 비우고 /mp art get으로 다시 받으세요.", false); }
 
     private void updateMoney(UUID playerId, long balance) {
