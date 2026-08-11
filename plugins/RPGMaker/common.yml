@@ -445,3 +445,130 @@ public-dialogues:
         end-2: false
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
+  시장놀이_시장안내:
+    title: 생활도구 시장 안내
+    speaker: '#55FF55:bold:생활도구 상인'
+    portrait: MALE_VILLAGER
+    message-pages:
+    - |-
+      채집을 시작하려면 알맞은 생활도구가 필요합니다.
+      필요한 도구를 고르고, 모은 자원도 이곳에서 판매하세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 시장 메뉴 열기
+        response-pages-1:
+        - 상품 목록을 보여 드리겠습니다.
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay market, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [필요할 때 다시 찾아오세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker
+  시장놀이_게시판안내:
+    title: 시장 게시판 안내
+    speaker: '#FFDD55:bold:게시판 관리인'
+    portrait: FEMALE_VILLAGER
+    message-pages:
+    - |-
+      오늘의 시세와 주민 소식이 모이는 게시판입니다.
+      왕실 주문과 다른 주민의 글도 확인해 보세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 게시판 열기
+        response-pages-1: [게시판을 펼쳐 드리겠습니다.]
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay menu board, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [새 소식이 궁금할 때 다시 오세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker
+  시장놀이_주택안내:
+    title: 주택 안내
+    speaker: '#55FFAA:bold:주택 안내원'
+    portrait: FEMALE_INNKEEPER
+    message-pages:
+    - |-
+      내 집을 만들고 확장하면 가구, 우편, 방문 기능을 이용할 수 있습니다.
+      집에서 쉬며 생활을 정리해 보세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 주택 메뉴 열기
+        response-pages-1: [주택 업무를 안내하겠습니다.]
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay menu housing, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [필요할 때 다시 찾아오세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker
+  시장놀이_여행안내:
+    title: 여행 안내
+    speaker: '#55FFFF:bold:여행 안내원'
+    portrait: MALE_VILLAGER
+    message-pages:
+    - |-
+      자원 채집소와 계급별 탐험 지역으로 이동할 수 있습니다.
+      로비로 돌아오는 길도 이 메뉴에서 찾을 수 있어요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 여행 메뉴 열기
+        response-pages-1: [목적지를 골라 주세요.]
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay menu travel, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [안전한 여행 되세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker
+  시장놀이_모험안내:
+    title: 모험가 길드 안내
+    speaker: '#FF5555:bold:모험가 길드 안내원'
+    portrait: MALE_WARRIOR
+    message-pages:
+    - |-
+      왕성 기사 시험부터 사냥 던전, 무한 탑, 후반 마을까지 안내합니다.
+      위험한 지역은 장비와 계급 조건을 먼저 확인하세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 모험 메뉴 열기
+        response-pages-1: [도전할 콘텐츠를 선택하세요.]
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay menu adventure, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [준비가 끝나면 다시 찾아오세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker
+  시장놀이_시설안내:
+    title: 시장놀이 시설 안내
+    speaker: '#FFD966:bold:시설 안내인'
+    portrait: FEMALE_VILLAGER
+    message-pages:
+    - |-
+      생활, 문화, 식당, 상단과 내 상태를 한 메뉴에서 확인할 수 있습니다.
+      필요한 시설을 선택해 주세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 종합 메뉴 열기
+        response-pages-1: [안내 메뉴를 열겠습니다.]
+        response-effects-1:
+          '0': {return-mode: NONE, command: marketplay menu hub, command-target: PLAYER}
+        end-1: true
+        choice-2: 다음에 보기
+        response-pages-2: [필요할 때 다시 불러 주세요.]
+        end-2: true
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: RPGMaker

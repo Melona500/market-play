@@ -57,6 +57,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component ADVENTURE_TITLE = Component.text("모험과 사냥", NamedTextColor.RED);
     private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
     private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
+    private static final Component STATUS_TITLE = Component.text("내 상태와 인벤토리", NamedTextColor.GREEN);
     private ProfileStore profiles;
     private HousingStore housingStore;
     private HousingManager housing;
@@ -186,6 +187,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHubNpc(NPCRightClickEvent event) {
+        if (event.getNPC().data().has("rpgmaker-guide-dialogue")) return;
         String role = event.getNPC().data().get("marketplay_hub_role", "");
         if (role.isBlank()) return;
         event.setCancelled(true);
@@ -212,7 +214,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
         boolean hubMenu = event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
                 || event.getView().title().equals(ADVENTURE_TITLE)
-                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE);
+                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
+                || event.getView().title().equals(STATUS_TITLE);
         if (!market && !toolbox && !hubMenu) return;
         event.setCancelled(true);
         if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
@@ -232,7 +235,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)
                 || event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
                 || event.getView().title().equals(ADVENTURE_TITLE)
-                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)) event.setCancelled(true);
+                || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
+                || event.getView().title().equals(STATUS_TITLE)) event.setCancelled(true);
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
@@ -546,6 +550,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (section.equals("adventure")) { openAdventureMenu(player); return; }
         if (section.equals("board")) { openBoardMenu(player); return; }
         if (section.equals("housing")) { openHousingMenu(player); return; }
+        if (section.equals("status")) { openStatusMenu(player); return; }
         Inventory menu = Bukkit.createInventory(null, 27, HUB_TITLE);
         menu.setItem(10, menuItem(Material.EMERALD, "생활도구 시장", "market", "도구 구매와 자원 판매"));
         menu.setItem(11, menuItem(Material.CHEST, "생활도구함", "tools", "구매한 생활도구 확인"));
@@ -556,6 +561,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(16, menuItem(Material.COOKED_BEEF, "레스토랑", "restaurant", "요리와 협동 영업"));
         menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
         menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
+        menu.setItem(20, menuItem(Material.PLAYER_HEAD, "내 상태·인벤토리", "status", "돈·계급·활력·숙련도·보유 아이템"));
         player.openInventory(menu);
     }
 
@@ -603,6 +609,22 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         player.openInventory(menu);
     }
 
+    private void openStatusMenu(Player player) {
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (profile == null) { message(player, "플레이어 데이터를 불러오는 중입니다.", NamedTextColor.RED); return; }
+        Inventory menu = Bukkit.createInventory(null, 54, STATUS_TITLE);
+        menu.setItem(0, menuItem(Material.EMERALD, "보유 금액", "status", profile.money() + "원"));
+        menu.setItem(2, menuItem(Material.NETHER_STAR, "계급", "status", ranks.rankFor(profile.innerPower())));
+        menu.setItem(4, menuItem(Material.BLAZE_POWDER, "내공", "status", String.valueOf(profile.innerPower())));
+        menu.setItem(6, menuItem(Material.RED_DYE, "활력", "status", String.format(Locale.ROOT, "%.1f / %.1f", profile.vitality(), maximumVitality)));
+        ItemStack skills = menuItem(Material.EXPERIENCE_BOTTLE, "생활 숙련도", "status", "아래 항목을 확인하세요");
+        skills.editMeta(meta -> meta.lore(Arrays.stream(Skill.values()).map(skill -> Component.text(skill.displayName() + " " + profile.level(skill), NamedTextColor.GRAY)).toList()));
+        menu.setItem(8, skills);
+        ItemStack[] contents = player.getInventory().getStorageContents();
+        for (int slot = 0; slot < contents.length; slot++) if (contents[slot] != null) menu.setItem(18 + slot, contents[slot].clone());
+        player.openInventory(menu);
+    }
+
     private ItemStack menuItem(Material material, String name, String action, String description) {
         ItemStack item = new ItemStack(material);
         item.editMeta(meta -> {
@@ -623,6 +645,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "travel" -> openTravelMenu(player);
             case "adventure" -> openAdventureMenu(player);
             case "housing" -> openHousingMenu(player);
+            case "status" -> openStatusMenu(player);
             case "resources" -> resources.teleport(player);
             case "lobby" -> teleportLobby(player);
             case "joy", "sea", "glitter", "fairy", "castle" -> exploration.command(player, new String[]{"explore", action});

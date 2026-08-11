@@ -272,6 +272,7 @@ final class HubBuilder {
             Location target = new Location(world, .5, 65, 8.5, 180, 0);
             if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
             else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
+            guide.getEntity().setPersistent(false);
         }
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
@@ -290,10 +291,19 @@ final class HubBuilder {
         NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.VILLAGER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
         npc.data().setPersistent(NPC_KEY, role);
+        npc.data().setPersistent("rpgmaker-guide-dialogue", switch (role) {
+            case "market" -> "시장놀이_시장안내";
+            case "board" -> "시장놀이_게시판안내";
+            case "housing" -> "시장놀이_주택안내";
+            case "travel" -> "시장놀이_여행안내";
+            case "adventure" -> "시장놀이_모험안내";
+            default -> "시장놀이_시설안내";
+        });
         npc.setProtected(true);
         Location target = new Location(world, x, y, z);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
+        npc.getEntity().setPersistent(false);
     }
 
     void updateDisplays(World world) {
