@@ -1,0 +1,110 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "dialog:font/rpg_expressions.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": [
+        "\uE010\uE011\uE012\uE013\uE014",
+        "\uE015\uE016\uE017\uE018\uE019",
+        "\uE01A\uE01B\uE01C\uE01D\uE01E",
+        "\uE01F\uE020\uE021\uE022\uE023",
+        "\uE024\uE025\uE026\uE027\uE028",
+        "\uE029\uE02A\uE02B\uE02C\uE02D"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/rpg_expressions_2.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": [
+        "\uE030\uE031\uE032\uE033\uE034",
+        "\uE035\uE036\uE037\uE038\uE039",
+        "\uE03A\uE03B\uE03C\uE03D\uE03E",
+        "\uE03F\uE040\uE041\uE042\uE043",
+        "\uE044\uE045\uE046\uE047\uE048",
+        "\uE049\uE04A\uE04B\uE04C\uE04D"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/neutral_monsters.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": [
+        "\uE060\uE061\uE062\uE063",
+        "\uE064\uE065\uE066\uE067",
+        "\uE068\uE069\uE06A\uE06B",
+        "\uE06C\uE06D\uE06E\uE06F"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/village_characters.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": [
+        "\uE080\uE081\uE082\uE083\uE084",
+        "\uE085\uE086\uE087\uE088\uE089",
+        "\uE08A\uE08B\uE08C\uE08D\uE08E",
+        "\uE08F\uE090\uE091\uE092\uE093",
+        "\uE094\uE095\uE096\uE097\uE098",
+        "\uE099\uE09A\uE09B\uE09C\uE09D"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/village_neutral.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": [
+        "\uE0A0\uE0A1\uE0A2",
+        "\uE0A3\uE0A4\uE0A5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/sentinel.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE001"]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/warrior.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE002"]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/king.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE003"]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/mage.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE004"]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/demon.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE005"]
+    },
+    {
+      "type": "bitmap",
+      "file": "dialog:font/archer.png",
+      "ascent": 250,
+      "height": 256,
+      "chars": ["\uE006"]
+    }
+  ]
+}

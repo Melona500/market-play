@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "expressionColumns": { "HAPPY": 0, "SAD": 1, "ANGRY": 2, "SURPRISED": 3, "EMBARRASSED": 4 },
+  "expressionLabels": {
+    "NEUTRAL": "무표정",
+    "HAPPY": "기쁨",
+    "SAD": "슬픔",
+    "ANGRY": "화남",
+    "SURPRISED": "당황",
+    "EMBARRASSED": "부끄러움"
+  },
+  "sheets": {
+    "rpg-a": { "file": "rpg_expressions.png", "columns": 5, "rows": 6 },
+    "rpg-b": { "file": "rpg_expressions_2.png", "columns": 5, "rows": 6 },
+    "neutral": { "file": "neutral_monsters.png", "columns": 4, "rows": 4 },
+    "village": { "file": "village_characters.png", "columns": 5, "rows": 6 },
+    "village-neutral": { "file": "village_neutral.png", "columns": 3, "rows": 2 },
+    "sentinel": { "file": "sentinel.png", "columns": 1, "rows": 1 },
+    "warrior": { "file": "warrior.png", "columns": 1, "rows": 1 },
+    "king": { "file": "king.png", "columns": 1, "rows": 1 },
+    "mage": { "file": "mage.png", "columns": 1, "rows": 1 },
+    "demon": { "file": "demon.png", "columns": 1, "rows": 1 },
+    "archer": { "file": "archer.png", "columns": 1, "rows": 1 }
+  },
+  "families": {
+    "rpg": { "neutralSheet": "neutral", "neutralGlyphStart": "E060", "emotionSheets": ["rpg-a", "rpg-b"], "emotionGlyphStarts": ["E010", "E030"], "rowsPerEmotionSheet": 6 },
+    "village": { "neutralSheet": "village-neutral", "neutralGlyphStart": "E0A0", "emotionSheets": ["village"], "emotionGlyphStarts": ["E080"], "rowsPerEmotionSheet": 6 },
+    "monster": { "neutralSheet": "neutral", "neutralGlyphStart": "E060" },
+    "fixed": {}
+  },
+  "legacyPortraits": {
+    "SENTINEL": { "sheet": "sentinel", "glyph": "E001" },
+    "WARRIOR": { "sheet": "warrior", "glyph": "E002" },
+    "KING": { "sheet": "king", "glyph": "E003" },
+    "MAGE": { "sheet": "mage", "glyph": "E004" },
+    "DEMON": { "sheet": "demon", "glyph": "E005" },
+    "ARCHER": { "sheet": "archer", "glyph": "E006" }
+  },
+  "characters": [
+    { "id": "SENTINEL", "label": "수호자", "family": "fixed", "portrait": "SENTINEL", "sheet": "sentinel", "glyph": "E001", "genders": ["NONE"], "expressions": ["NEUTRAL"] },
+    { "id": "WARRIOR", "label": "전사", "family": "rpg", "suffix": "WARRIOR", "rows": { "MALE": 0, "FEMALE": 1 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "KING", "label": "왕", "family": "rpg", "suffix": "KING", "rows": { "MALE": 10, "FEMALE": 11 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "MAGE", "label": "마법사", "family": "rpg", "suffix": "WIZARD", "rows": { "MALE": 2, "FEMALE": 3 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "ARCHER", "label": "궁수", "family": "rpg", "suffix": "ARCHER", "rows": { "MALE": 4, "FEMALE": 5 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "DEMON", "label": "악마", "family": "fixed", "portrait": "DEMON", "sheet": "demon", "glyph": "E005", "genders": ["NONE"], "expressions": ["NEUTRAL"] },
+    { "id": "KNIGHT", "label": "기사", "family": "rpg", "suffix": "KNIGHT", "rows": { "MALE": 0, "FEMALE": 1 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "MAGE_CLASS", "label": "마도사", "family": "rpg", "suffix": "MAGE", "rows": { "MALE": 2, "FEMALE": 3 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "RANGER", "label": "레인저", "family": "rpg", "suffix": "RANGER", "rows": { "MALE": 4, "FEMALE": 5 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "CLERIC", "label": "성직자", "family": "rpg", "suffix": "CLERIC", "rows": { "MALE": 6, "FEMALE": 7 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "ROGUE", "label": "도적", "family": "rpg", "suffix": "ROGUE", "rows": { "MALE": 8, "FEMALE": 9 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "NOBLE", "label": "귀족", "family": "rpg", "suffix": "NOBLE", "rows": { "MALE": 10, "FEMALE": 11 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "VILLAGER", "label": "마을 주민", "family": "village", "suffix": "VILLAGER", "rows": { "MALE": 0, "FEMALE": 1 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "BLACKSMITH", "label": "대장장이", "family": "village", "suffix": "BLACKSMITH", "rows": { "MALE": 2, "FEMALE": 3 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "INNKEEPER", "label": "여관주인", "family": "village", "suffix": "INNKEEPER", "rows": { "MALE": 4, "FEMALE": 5 }, "genders": ["MALE", "FEMALE"] },
+    { "id": "SLIME", "label": "슬라임", "family": "monster", "portrait": "SLIME", "neutralIndex": 12, "glyph": "E06C", "genders": ["NONE"], "expressions": ["NEUTRAL"] },
+    { "id": "GOBLIN", "label": "고블린", "family": "monster", "portrait": "GOBLIN", "neutralIndex": 13, "glyph": "E06D", "genders": ["NONE"], "expressions": ["NEUTRAL"] },
+    { "id": "ORC", "label": "오크", "family": "monster", "portrait": "ORC", "neutralIndex": 14, "glyph": "E06E", "genders": ["NONE"], "expressions": ["NEUTRAL"] },
+    { "id": "DRAGONKIN", "label": "용인", "family": "monster", "portrait": "DRAGONKIN", "neutralIndex": 15, "glyph": "E06F", "genders": ["NONE"], "expressions": ["NEUTRAL"] }
+  ]
+}

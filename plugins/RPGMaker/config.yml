@@ -17,7 +17,7 @@ choice-x-offset: 2.9399999999999955
 text-vertical-offset: 0.5900000000000003
 choice-vertical-offset: 1.600000000000001
 pack-server-port: 25566
-pack-file: RPGMaker-Pack-20260809-122924.zip
+pack-file: MarketPlay-Pack-20260811-184148.zip
 content:
   speaker: ?⑷툑 湲곕줉愿???섑샇??
   message: ?ш린源뚯? ???멸컙? ?ㅻ옖留뚯씠援? 遊됱씤??湲곕줉???쎌쓣 ?먭꺽???덈뒗吏 ?듯빐??
@@ -1079,3 +1079,14 @@ example-item-templates:
     - '#FFAAAA'
     - '#FFD966'
 text-line-1-scale: 0.68
+web-api:
+  enabled: true
+  bind: 127.0.0.1
+  port: 25567
+  editor-url: http://localhost:5173/
+  session-ttl-minutes: 15
+  token: dev-local-token-change-me
+  allowed-origins:
+  - http://localhost:5173
+  - http://127.0.0.1:5173
+  max-request-bytes: 1048576
