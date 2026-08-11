@@ -19,6 +19,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -55,6 +56,7 @@ final class ArtManager implements Listener {
     private final ArtStore store;
     private final HousingStore housing;
     private final NamespacedKey artKey;
+    private final NamespacedKey artTokenKey;
     private final NamespacedKey galleryKey;
     private final Map<String, ArtStore.Artwork> artworks = new ConcurrentHashMap<>();
     private final Map<UUID, Editor> editors = new ConcurrentHashMap<>();
@@ -66,6 +68,7 @@ final class ArtManager implements Listener {
         this.store = store;
         this.housing = housing;
         artKey = new NamespacedKey(plugin, "artwork_id");
+        artTokenKey = new NamespacedKey(plugin, "artwork_token");
         galleryKey = new NamespacedKey(plugin, "art_gallery_slot");
     }
 
@@ -131,7 +134,11 @@ final class ArtManager implements Listener {
     private boolean give(Player player, String[] args) {
         ArtStore.Artwork artwork = args.length < 3 ? null : resolve(args[2]);
         if (artwork == null || !artwork.owner().equals(player.getUniqueId())) return message(player, "소유한 작품을 찾지 못했습니다.", false);
-        giveItem(player, item(artwork, null));
+        String token = UUID.randomUUID().toString();
+        store.rotateToken(artwork.id(), player.getUniqueId(), token).whenComplete((rotated, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (error != null) message(player, "작품 재발급에 실패했습니다.", false);
+            else { cache(rotated); giveItem(player, item(rotated, null)); }
+        }));
         return true;
     }
 
@@ -159,8 +166,9 @@ final class ArtManager implements Listener {
         ArtStore.Artwork artwork = args.length < 3 ? null : resolve(args[2]);
         if (artwork == null || artwork.price() == null) return message(player, "판매 중인 작품을 찾지 못했습니다.", false);
         String grantId = "art-buy-" + UUID.randomUUID();
-        ItemStack delivered = item(copy(artwork, player.getUniqueId(), null), grantId);
-        store.buy(artwork.id(), player.getUniqueId(), grantId, delivered.serializeAsBytes()).whenComplete((result, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        String token = UUID.randomUUID().toString();
+        ItemStack delivered = item(copy(artwork, player.getUniqueId(), null, token), grantId);
+        store.buy(artwork.id(), player.getUniqueId(), token, grantId, delivered.serializeAsBytes()).whenComplete((result, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (error != null) { message(player, "잔액이 부족하거나 작품이 이미 판매되었습니다.", false); return; }
             cache(result.artwork());
             updateMoney(player.getUniqueId(), result.buyerBalance());
@@ -177,8 +185,9 @@ final class ArtManager implements Listener {
         OfflinePlayer target = Bukkit.getOfflinePlayerIfCached(args[3]);
         if (target == null) return message(player, "접속 기록이 있는 플레이어를 찾지 못했습니다.", false);
         String grantId = "art-gift-" + UUID.randomUUID();
-        ItemStack delivered = item(copy(artwork, target.getUniqueId(), null), grantId);
-        store.gift(artwork.id(), player.getUniqueId(), player.getName(), target.getUniqueId(), grantId, delivered.serializeAsBytes())
+        String token = UUID.randomUUID().toString();
+        ItemStack delivered = item(copy(artwork, target.getUniqueId(), null, token), grantId);
+        store.gift(artwork.id(), player.getUniqueId(), player.getName(), target.getUniqueId(), token, grantId, delivered.serializeAsBytes())
                 .whenComplete((moved, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
                     if (error != null) message(player, "작품 선물에 실패했습니다.", false);
                     else { cache(moved); Player online = target.getPlayer(); if (online != null) plugin.deliverPendingGrants(online); message(player, target.getName() + "에게 작품을 보냈습니다.", true); }
@@ -229,7 +238,7 @@ final class ArtManager implements Listener {
         save.whenComplete((ignored, error) -> Bukkit.getScheduler().runTask(plugin, () -> {
             saves.remove(editor.artwork.id(), save);
             if (error != null) plugin.getLogger().severe("작품 초안 저장 실패: " + error.getMessage());
-            else cache(new ArtStore.Artwork(editor.artwork.id(), editor.artwork.author(), editor.artwork.authorName(), editor.artwork.title(), editor.artwork.createdAt(), editor.artwork.width(), editor.artwork.height(), editor.pixels.clone(), editor.artwork.mapId(), editor.artwork.state(), editor.artwork.owner(), editor.artwork.price()));
+            else cache(new ArtStore.Artwork(editor.artwork.id(), editor.artwork.author(), editor.artwork.authorName(), editor.artwork.title(), editor.artwork.createdAt(), editor.artwork.width(), editor.artwork.height(), editor.pixels.clone(), editor.artwork.mapId(), editor.artwork.state(), editor.artwork.owner(), editor.artwork.price(), editor.artwork.itemToken()));
         }));
     }
 
@@ -245,11 +254,14 @@ final class ArtManager implements Listener {
         String id = artId(held);
         if (id == null) return;
         ArtStore.Artwork artwork = artworks.get(id);
-        if (artwork == null || !artwork.state().equals("PUBLISHED") || !artwork.owner().equals(event.getPlayer().getUniqueId())) {
+        String token = held.getPersistentDataContainer().get(artTokenKey, PersistentDataType.STRING);
+        if (artwork == null || !artwork.state().equals("PUBLISHED") || !artwork.owner().equals(event.getPlayer().getUniqueId()) || !artwork.itemToken().equals(token)) {
             event.setCancelled(true);
             message(event.getPlayer(), "현재 소유한 완성 작품만 전시할 수 있습니다.", false);
         }
     }
+
+    @EventHandler public void onWorldLoad(WorldLoadEvent event) { validateFrames(event.getWorld()); }
 
     private void buildGallery(List<ArtStore.Exhibit> exhibits) {
         World world = Bukkit.getWorlds().getFirst();
@@ -274,6 +286,7 @@ final class ArtManager implements Listener {
 
     private void cache(ArtStore.Artwork artwork) {
         artworks.put(artwork.id(), artwork);
+        Bukkit.getWorlds().forEach(this::validateFrames);
         MapView view = Bukkit.getMap(artwork.mapId());
         if (view == null) {
             int replacement = Bukkit.createMap(Bukkit.getWorlds().getFirst()).getId();
@@ -290,6 +303,18 @@ final class ArtManager implements Listener {
         gallery.values().stream().filter(frame -> artwork.id().equals(artId(frame.getItem()))).forEach(frame -> frame.setItem(item(artwork, null), false));
     }
 
+    private void validateFrames(World world) {
+        for (ItemFrame frame : world.getEntitiesByClass(ItemFrame.class)) {
+            String id = artId(frame.getItem());
+            if (id == null) continue;
+            ArtStore.Artwork artwork = artworks.get(id);
+            String token = frame.getItem().getPersistentDataContainer().get(artTokenKey, PersistentDataType.STRING);
+            if (artwork != null && artwork.itemToken().equals(token)) continue;
+            if (frame.getPersistentDataContainer().has(galleryKey, PersistentDataType.INTEGER) && artwork != null) frame.setItem(item(artwork, null), false);
+            else frame.setItem(null, false);
+        }
+    }
+
     private ItemStack item(ArtStore.Artwork artwork, String grantId) {
         MapView view = Bukkit.getMap(artwork.mapId());
         ItemStack item = new ItemStack(Material.FILLED_MAP);
@@ -298,6 +323,7 @@ final class ArtManager implements Listener {
             meta.displayName(Component.text(artwork.title(), NamedTextColor.LIGHT_PURPLE));
             meta.lore(List.of(Component.text("작가 " + artwork.authorName(), NamedTextColor.GRAY), Component.text(DATE.format(artwork.createdAt()) + " · " + artwork.width() + "×" + artwork.height(), NamedTextColor.DARK_GRAY)));
             meta.getPersistentDataContainer().set(artKey, PersistentDataType.STRING, artwork.id());
+            meta.getPersistentDataContainer().set(artTokenKey, PersistentDataType.STRING, artwork.itemToken());
             if (grantId != null) meta.getPersistentDataContainer().set(plugin.grantKey(), PersistentDataType.STRING, grantId);
         });
         return item;
@@ -340,8 +366,9 @@ final class ArtManager implements Listener {
         plugin.saveProfile(profile);
     }
 
-    private ArtStore.Artwork copy(ArtStore.Artwork artwork, UUID owner, Long price) {
-        return new ArtStore.Artwork(artwork.id(), artwork.author(), artwork.authorName(), artwork.title(), artwork.createdAt(), artwork.width(), artwork.height(), artwork.pixels(), artwork.mapId(), artwork.state(), owner, price);
+    private ArtStore.Artwork copy(ArtStore.Artwork artwork, UUID owner, Long price) { return copy(artwork, owner, price, artwork.itemToken()); }
+    private ArtStore.Artwork copy(ArtStore.Artwork artwork, UUID owner, Long price, String token) {
+        return new ArtStore.Artwork(artwork.id(), artwork.author(), artwork.authorName(), artwork.title(), artwork.createdAt(), artwork.width(), artwork.height(), artwork.pixels(), artwork.mapId(), artwork.state(), owner, price, token);
     }
 
     private boolean help(Player player) {

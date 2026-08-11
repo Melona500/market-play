@@ -203,14 +203,16 @@ class ProgressionTest {
             assertEquals(0, art.exhibit(draft.id(), artist).join());
 
             art.listForSale(draft.id(), artist, 250).join();
-            ArtStore.BuyResult bought = art.buy(draft.id(), buyer, "buy-grant", new byte[]{1, 2, 3}).join();
+            ArtStore.Artwork rotated = art.rotateToken(draft.id(), artist, "seller-token").join();
+            assertNotEquals(published.itemToken(), rotated.itemToken());
+            ArtStore.BuyResult bought = art.buy(draft.id(), buyer, "buyer-token", "buy-grant", new byte[]{1, 2, 3}).join();
             assertEquals(buyer, bought.artwork().owner());
             assertEquals(750, bought.buyerBalance());
             assertEquals(1250, bought.sellerBalance());
             assertEquals(1, profiles.pendingGrants(buyer).join().size());
-            assertThrows(Exception.class, () -> art.buy(draft.id(), buyer, "duplicate", new byte[]{1}).join());
+            assertThrows(Exception.class, () -> art.buy(draft.id(), buyer, "duplicate-token", "duplicate", new byte[]{1}).join());
 
-            ArtStore.Artwork gifted = art.gift(draft.id(), buyer, "Buyer", artist, "gift-grant", new byte[]{4, 5, 6}).join();
+            ArtStore.Artwork gifted = art.gift(draft.id(), buyer, "Buyer", artist, "gift-token", "gift-grant", new byte[]{4, 5, 6}).join();
             assertEquals(artist, gifted.owner());
             assertEquals(1, housing.mail(artist).join().size());
             assertEquals(1, profiles.pendingGrants(artist).join().size());

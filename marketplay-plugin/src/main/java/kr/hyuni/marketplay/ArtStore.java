@@ -46,8 +46,16 @@ final class ArtStore implements AutoCloseable {
                       artwork_id TEXT PRIMARY KEY REFERENCES artworks(artwork_id) ON DELETE CASCADE,
                       owner_uuid TEXT NOT NULL,
                       price INTEGER CHECK (price > 0),
-                      updated_at TEXT NOT NULL
+                      updated_at TEXT NOT NULL,
+                      item_token TEXT
                     )""");
+            boolean hasToken = false;
+            try (ResultSet columns = statement.executeQuery("PRAGMA table_info(artwork_ownership)")) {
+                while (columns.next()) if (columns.getString("name").equals("item_token")) hasToken = true;
+            }
+            if (!hasToken) statement.executeUpdate("ALTER TABLE artwork_ownership ADD COLUMN item_token TEXT");
+            statement.executeUpdate("UPDATE artwork_ownership SET item_token=lower(hex(randomblob(16))) WHERE item_token IS NULL");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS unique_artwork_item_token ON artwork_ownership(item_token)");
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS artwork_exhibits (
                       slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 0 AND 7),
@@ -59,13 +67,13 @@ final class ArtStore implements AutoCloseable {
 
     CompletableFuture<Artwork> create(UUID author, String authorName, String title, int mapId) {
         return supply(() -> transaction(() -> {
-            Artwork artwork = new Artwork(UUID.randomUUID().toString(), author, authorName, title, Instant.now(), 9, 5, new byte[45], mapId, "DRAFT", author, null);
+            Artwork artwork = new Artwork(UUID.randomUUID().toString(), author, authorName, title, Instant.now(), 9, 5, new byte[45], mapId, "DRAFT", author, null, UUID.randomUUID().toString());
             try (PreparedStatement insert = database.prepareStatement("INSERT INTO artworks VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                 PreparedStatement owner = database.prepareStatement("INSERT INTO artwork_ownership VALUES (?, ?, NULL, ?)")) {
+                 PreparedStatement owner = database.prepareStatement("INSERT INTO artwork_ownership VALUES (?, ?, NULL, ?, ?)")) {
                 insert.setString(1, artwork.id()); insert.setString(2, author.toString()); insert.setString(3, authorName); insert.setString(4, title);
                 insert.setString(5, artwork.createdAt().toString()); insert.setInt(6, artwork.width()); insert.setInt(7, artwork.height());
                 insert.setBytes(8, artwork.pixels()); insert.setInt(9, mapId); insert.setString(10, artwork.state()); insert.executeUpdate();
-                owner.setString(1, artwork.id()); owner.setString(2, author.toString()); owner.setString(3, artwork.createdAt().toString()); owner.executeUpdate();
+                owner.setString(1, artwork.id()); owner.setString(2, author.toString()); owner.setString(3, artwork.createdAt().toString()); owner.setString(4, artwork.itemToken()); owner.executeUpdate();
             }
             return artwork;
         }));
@@ -118,22 +126,32 @@ final class ArtStore implements AutoCloseable {
         });
     }
 
-    CompletableFuture<Artwork> gift(String id, UUID sender, String senderName, UUID recipient, String grantId, byte[] item) {
+    CompletableFuture<Artwork> rotateToken(String id, UUID owner, String token) {
+        return supply(() -> transaction(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE artwork_ownership SET item_token=?, updated_at=? WHERE artwork_id=? AND owner_uuid=?")) {
+                update.setString(1, token); update.setString(2, Instant.now().toString()); update.setString(3, id); update.setString(4, owner.toString());
+                if (update.executeUpdate() != 1) throw new SQLException("Artwork ownership changed");
+            }
+            return artwork(id).orElseThrow();
+        }));
+    }
+
+    CompletableFuture<Artwork> gift(String id, UUID sender, String senderName, UUID recipient, String token, String grantId, byte[] item) {
         return supply(() -> transaction(() -> {
             Artwork artwork = artwork(id).orElseThrow();
             if (!artwork.state().equals("PUBLISHED") || !artwork.owner().equals(sender) || sender.equals(recipient)) throw new SQLException("Artwork not giftable");
             Instant now = Instant.now();
-            transfer(id, sender, recipient, now);
+            transfer(id, sender, recipient, token, now);
             grant(grantId, recipient, item, now);
             try (PreparedStatement mail = database.prepareStatement("INSERT INTO housing_mail VALUES (?, ?, ?, ?, 'GIFT', ?, ?, NULL, ?)")) {
                 mail.setString(1, "art-gift-" + grantId); mail.setString(2, sender.toString()); mail.setString(3, senderName); mail.setString(4, recipient.toString());
                 mail.setString(5, "작품 선물: " + artwork.title()); mail.setString(6, grantId); mail.setString(7, now.toString()); mail.executeUpdate();
             }
-            return withOwner(artwork, recipient, null);
+            return withOwner(artwork, recipient, null, token);
         }));
     }
 
-    CompletableFuture<BuyResult> buy(String id, UUID buyer, String grantId, byte[] item) {
+    CompletableFuture<BuyResult> buy(String id, UUID buyer, String token, String grantId, byte[] item) {
         return supply(() -> transaction(() -> {
             Artwork artwork = artwork(id).orElseThrow();
             if (!artwork.state().equals("PUBLISHED") || artwork.price() == null || artwork.owner().equals(buyer)) throw new SQLException("Artwork not purchasable");
@@ -143,11 +161,11 @@ final class ArtStore implements AutoCloseable {
             updateBalance(buyer, buyerMoney, buyerAfter);
             updateBalance(artwork.owner(), sellerMoney, sellerAfter);
             Instant now = Instant.now();
-            transfer(id, artwork.owner(), buyer, now);
+            transfer(id, artwork.owner(), buyer, token, now);
             grant(grantId, buyer, item, now);
             economy(grantId + "-buyer", buyer, "ART_BUY", id, price, buyerAfter, now);
             economy(grantId + "-seller", artwork.owner(), "ART_SELL", id, price, sellerAfter, now);
-            return new BuyResult(withOwner(artwork, buyer, null), buyerAfter, artwork.owner(), sellerAfter);
+            return new BuyResult(withOwner(artwork, buyer, null, token), buyerAfter, artwork.owner(), sellerAfter);
         }));
     }
 
@@ -184,14 +202,14 @@ final class ArtStore implements AutoCloseable {
     private List<Artwork> allSync() throws SQLException {
         ArrayList<Artwork> result = new ArrayList<>();
         try (PreparedStatement query = database.prepareStatement("""
-                SELECT a.*, o.owner_uuid, o.price FROM artworks a JOIN artwork_ownership o USING(artwork_id) ORDER BY a.created_at"""); ResultSet rows = query.executeQuery()) {
+                SELECT a.*, o.owner_uuid, o.price, o.item_token FROM artworks a JOIN artwork_ownership o USING(artwork_id) ORDER BY a.created_at"""); ResultSet rows = query.executeQuery()) {
             while (rows.next()) result.add(read(rows));
         }
         return result;
     }
 
     private Optional<Artwork> artwork(String id) throws SQLException {
-        try (PreparedStatement query = database.prepareStatement("SELECT a.*, o.owner_uuid, o.price FROM artworks a JOIN artwork_ownership o USING(artwork_id) WHERE artwork_id=?")) {
+        try (PreparedStatement query = database.prepareStatement("SELECT a.*, o.owner_uuid, o.price, o.item_token FROM artworks a JOIN artwork_ownership o USING(artwork_id) WHERE artwork_id=?")) {
             query.setString(1, id);
             try (ResultSet rows = query.executeQuery()) { return rows.next() ? Optional.of(read(rows)) : Optional.empty(); }
         }
@@ -202,12 +220,12 @@ final class ArtStore implements AutoCloseable {
         boolean unlisted = row.wasNull();
         return new Artwork(row.getString("artwork_id"), UUID.fromString(row.getString("author_uuid")), row.getString("author_name"), row.getString("title"),
                 Instant.parse(row.getString("created_at")), row.getInt("width"), row.getInt("height"), row.getBytes("pixels"), row.getInt("map_id"), row.getString("state"),
-                UUID.fromString(row.getString("owner_uuid")), unlisted ? null : price);
+                UUID.fromString(row.getString("owner_uuid")), unlisted ? null : price, row.getString("item_token"));
     }
 
-    private void transfer(String id, UUID from, UUID to, Instant now) throws SQLException {
-        try (PreparedStatement update = database.prepareStatement("UPDATE artwork_ownership SET owner_uuid=?, price=NULL, updated_at=? WHERE artwork_id=? AND owner_uuid=?")) {
-            update.setString(1, to.toString()); update.setString(2, now.toString()); update.setString(3, id); update.setString(4, from.toString());
+    private void transfer(String id, UUID from, UUID to, String token, Instant now) throws SQLException {
+        try (PreparedStatement update = database.prepareStatement("UPDATE artwork_ownership SET owner_uuid=?, price=NULL, updated_at=?, item_token=? WHERE artwork_id=? AND owner_uuid=?")) {
+            update.setString(1, to.toString()); update.setString(2, now.toString()); update.setString(3, token); update.setString(4, id); update.setString(5, from.toString());
             if (update.executeUpdate() != 1) throw new SQLException("Artwork ownership changed");
         }
     }
@@ -240,8 +258,8 @@ final class ArtStore implements AutoCloseable {
         }
     }
 
-    private Artwork withOwner(Artwork artwork, UUID owner, Long price) {
-        return new Artwork(artwork.id(), artwork.author(), artwork.authorName(), artwork.title(), artwork.createdAt(), artwork.width(), artwork.height(), artwork.pixels(), artwork.mapId(), artwork.state(), owner, price);
+    private Artwork withOwner(Artwork artwork, UUID owner, Long price, String token) {
+        return new Artwork(artwork.id(), artwork.author(), artwork.authorName(), artwork.title(), artwork.createdAt(), artwork.width(), artwork.height(), artwork.pixels(), artwork.mapId(), artwork.state(), owner, price, token);
     }
 
     private <T> CompletableFuture<T> supply(SqlSupplier<T> action) {
@@ -259,7 +277,7 @@ final class ArtStore implements AutoCloseable {
 
     @Override public void close() throws Exception { writer.shutdown(); writer.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS); database.close(); }
 
-    record Artwork(String id, UUID author, String authorName, String title, Instant createdAt, int width, int height, byte[] pixels, int mapId, String state, UUID owner, Long price) {}
+    record Artwork(String id, UUID author, String authorName, String title, Instant createdAt, int width, int height, byte[] pixels, int mapId, String state, UUID owner, Long price, String itemToken) {}
     record BuyResult(Artwork artwork, long buyerBalance, UUID seller, long sellerBalance) {}
     record Exhibit(int slot, String artworkId) {}
     @FunctionalInterface private interface SqlSupplier<T> { T get() throws Exception; }
