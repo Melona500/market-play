@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "dialog:font/frame.png",
+      "ascent": 126,
+      "height": 128,
+      "chars": ["\uE000"]
+    }
+  ]
+}

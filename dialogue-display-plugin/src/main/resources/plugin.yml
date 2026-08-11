@@ -1,0 +1,18 @@
+name: RPGMaker
+version: "${version}"
+main: kr.hyuni.dialogue.DialogueDisplayPlugin
+api-version: "1.21.8"
+description: Player-screen dialogue using display entities and a resource-pack font.
+author: hyuni
+softdepend: [Skript, Citizens]
+commands:
+  rpgmaker:
+    description: RPG dialogue editor and playback commands.
+    usage: /rpgmaker help
+permissions:
+  rpgmaker.use:
+    description: Allows normal RPG Maker dialogue commands.
+    default: true
+  rpgmaker.admin:
+    description: Allows RPG Maker administrative commands and console-command effects.
+    default: op

@@ -1,0 +1,35 @@
+{
+  "name": "rpgmaker-web-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync:assets": "node scripts/sync-character-assets.mjs",
+    "predev": "npm run sync:assets",
+    "dev": "vite",
+    "pretypecheck": "npm run sync:assets",
+    "typecheck": "tsc -b",
+    "check:migration": "node scripts/check-migrate-project.mjs",
+    "check:preview": "node --experimental-strip-types scripts/check-preview-engine.mjs",
+    "check:return-targets": "node --experimental-strip-types scripts/check-return-targets.mjs",
+    "check:validator": "node --experimental-strip-types scripts/check-project-validator.mjs",
+    "prebuild": "npm run sync:assets",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
+  }
+}
