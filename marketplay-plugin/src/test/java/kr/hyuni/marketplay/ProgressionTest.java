@@ -9,6 +9,10 @@ import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -94,6 +98,33 @@ class ProgressionTest {
             assertEquals(830, profile.money());
             assertTrue(profile.hasTool("old_net"));
             assertTrue(profile.hasTool("old_rod"));
+        }
+    }
+
+    @Test void dailyMarketAndBulletinPersist(@TempDir Path directory) throws Exception {
+        LocalDate day = LocalDate.of(2026, 8, 11);
+        Map<String, Long> bases = Map.of("apple", 100L, "cod", 100L);
+        MarketDay normal = MarketDay.create(day, bases, Map.of());
+        MarketDay supplied = MarketDay.create(day, bases, Map.of("apple", 600L));
+        assertTrue(supplied.entries().get("apple").unitPrice() < normal.entries().get("apple").unitPrice());
+        assertEquals(1, normal.entries().values().stream().filter(entry -> entry.royalTarget() > 0).count());
+        assertTrue(MarketText.render(normal).contains("왕실 특별 주문"));
+
+        UUID author = UUID.randomUUID();
+        Instant now = Instant.parse("2026-08-11T00:00:00Z");
+        MarketDay stored;
+        try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            stored = store.marketDay(day, bases, ZoneOffset.UTC).join();
+            ProfileStore.BulletinPost post = store.postBulletin(author, "Tester", "식당 구인", now, Duration.ofMinutes(5), Duration.ofDays(1)).join();
+            assertEquals("식당 구인", store.bulletins(now, 3).join().getFirst().body());
+            assertThrows(Exception.class, () -> store.postBulletin(author, "Tester", "도배", now.plusSeconds(1), Duration.ofMinutes(5), Duration.ofDays(1)).join());
+            assertFalse(store.deleteBulletin(post.shortId(), UUID.randomUUID(), false).join());
+        }
+        try (ProfileStore reopened = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            assertEquals(stored, reopened.marketDay(day, Map.of("apple", 999L, "cod", 999L), ZoneOffset.UTC).join());
+            ProfileStore.BulletinPost post = reopened.bulletins(now, 3).join().getFirst();
+            assertTrue(reopened.deleteBulletin(post.shortId(), author, false).join());
+            assertTrue(reopened.bulletins(now, 3).join().isEmpty());
         }
     }
 }

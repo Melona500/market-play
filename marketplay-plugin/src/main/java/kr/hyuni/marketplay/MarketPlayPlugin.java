@@ -34,11 +34,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
@@ -59,7 +64,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Long> fishingDeadlines = new ConcurrentHashMap<>();
     private final Map<UUID, EquipmentSlot> validFishingCasts = new ConcurrentHashMap<>();
     private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
+    private final Map<String, Long> basePrices = new LinkedHashMap<>();
     private final Map<String, Long> prices = new LinkedHashMap<>();
+    private MarketDay marketDay;
+    private List<ProfileStore.BulletinPost> bulletinPosts = List.of();
     private double maximumVitality;
     private double activityCost;
 
@@ -80,10 +88,14 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         hub = new HubBuilder(this);
         hubReady = hub.ensure(getServer().getWorlds().getFirst());
+        refreshMarketDay();
+        refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
         for (Player player : getServer().getOnlinePlayers()) load(player);
         long period = 20L * 60L;
         getServer().getScheduler().runTaskTimer(this, this::regenerateVitality, period, period);
+        getServer().getScheduler().runTaskTimer(this, this::refreshMarketDay, period, period);
+        getServer().getScheduler().runTaskTimer(this, this::refreshBulletins, period, period);
     }
 
     @Override public void onDisable() {
@@ -164,6 +176,12 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getState() == PlayerFishEvent.State.FISHING) {
             fishingDeadlines.remove(playerId);
             PlayerProfile profile = profiles.get(playerId);
+            if (!HubBuilder.RIVER.contains(event.getPlayer().getLocation())) {
+                event.setCancelled(true);
+                validFishingCasts.remove(playerId);
+                event.getPlayer().sendActionBar(Component.text("낚시는 강 지역에서만 할 수 있습니다.", NamedTextColor.RED));
+                return;
+            }
             if (profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), event.getHand()))) {
                 event.setCancelled(true);
                 validFishingCasts.remove(playerId);
@@ -190,7 +208,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         Long deadline = fishingDeadlines.remove(playerId);
         PlayerProfile profile = profiles.get(playerId);
         EquipmentSlot hand = validFishingCasts.remove(playerId);
-        if (hand == null || profile == null || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
+        if (hand == null || profile == null || !HubBuilder.RIVER.contains(event.getPlayer().getLocation()) || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
             event.setCancelled(true);
             if (event.getCaught() != null) event.getCaught().remove();
             event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));
@@ -232,6 +250,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("tools")) { openToolbox(player); return true; }
+        if (args.length > 0 && args[0].equalsIgnoreCase("board")) return board(player, args);
         showStatus(player);
         return true;
     }
@@ -275,6 +294,35 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             return true;
         }
         sender.sendMessage(Component.text("사용법: /mp admin money add|set ... | /mp admin item give ...", NamedTextColor.YELLOW));
+        return true;
+    }
+
+    private boolean board(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(Component.text("/mp board post <60자 이내 글> · /mp board remove <번호>", NamedTextColor.AQUA));
+            bulletinPosts.forEach(post -> player.sendMessage(Component.text("[" + post.shortId() + "] " + post.authorName() + ": " + post.body(), NamedTextColor.GRAY)));
+            return true;
+        }
+        if (args[1].equalsIgnoreCase("post") && args.length >= 3) {
+            String body = String.join(" ", Arrays.copyOfRange(args, 2, args.length)).trim();
+            profiles.postBulletin(player.getUniqueId(), player.getName(), body, Instant.now(), Duration.ofMinutes(5), Duration.ofDays(1))
+                    .whenComplete((post, error) -> getServer().getScheduler().runTask(this, () -> {
+                        if (error != null) { player.sendMessage(Component.text("글은 60자 이내이며 5분마다 작성할 수 있습니다.", NamedTextColor.RED)); return; }
+                        player.sendMessage(Component.text("게시글 등록: " + post.shortId(), NamedTextColor.GREEN));
+                        refreshBulletins();
+                    }));
+            return true;
+        }
+        if (args[1].equalsIgnoreCase("remove") && args.length == 3) {
+            profiles.deleteBulletin(args[2], player.getUniqueId(), player.hasPermission("marketplay.admin"))
+                    .whenComplete((deleted, error) -> getServer().getScheduler().runTask(this, () -> {
+                        boolean success = error == null && deleted;
+                        player.sendMessage(Component.text(success ? "게시글을 삭제했습니다." : "삭제할 수 있는 게시글을 찾지 못했습니다.", success ? NamedTextColor.GREEN : NamedTextColor.RED));
+                        if (success) refreshBulletins();
+                    }));
+            return true;
+        }
+        player.sendMessage(Component.text("/mp board post <글> · /mp board remove <번호>", NamedTextColor.YELLOW));
         return true;
     }
 
@@ -597,17 +645,41 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         tools.put("old_shears", new ToolDefinition("old_shears", "낡은 가위", Material.SHEARS, toolPrice));
         tools.put("old_pickaxe", new ToolDefinition("old_pickaxe", "낡은 곡괭이", Material.WOODEN_PICKAXE, toolPrice));
         tools.put("old_rod", new ToolDefinition("old_rod", "낡은 낚싯대", Material.FISHING_ROD, toolPrice));
-        prices.clear();
+        basePrices.clear();
         ConfigurationSection priceSection = getConfig().getConfigurationSection("prices");
         if (priceSection != null) for (String itemId : priceSection.getKeys(false)) {
             long price = priceSection.getLong(itemId);
             if (price <= 0) throw new IllegalArgumentException("판매 가격은 0보다 커야 합니다: " + itemId);
-            prices.put(itemId, price);
+            basePrices.put(itemId, price);
         }
-        if (hub != null && hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
+        if (profiles != null) refreshMarketDay();
     }
 
     Map<String, Long> prices() { return Map.copyOf(prices); }
+    String marketText() { return marketDay == null ? "오늘의 시장\n가격 준비 중" : MarketText.render(marketDay); }
+    List<ProfileStore.BulletinPost> bulletins() { return List.copyOf(bulletinPosts); }
+
+    private void refreshMarketDay() {
+        if (profiles == null || basePrices.isEmpty()) return;
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        if (marketDay != null && marketDay.date().equals(today)) return;
+        profiles.marketDay(today, basePrices, ZoneId.systemDefault()).whenComplete((loaded, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) { getLogger().severe("오늘의 시장 생성 실패: " + error.getMessage()); return; }
+            marketDay = loaded;
+            prices.clear();
+            prices.putAll(loaded.prices());
+            if (hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
+        }));
+    }
+
+    private void refreshBulletins() {
+        if (profiles == null) return;
+        profiles.bulletins(Instant.now(), 3).whenComplete((loaded, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) { getLogger().severe("게시판 로드 실패: " + error.getMessage()); return; }
+            bulletinPosts = loaded;
+            if (hubReady) hub.updateDisplays(getServer().getWorlds().getFirst());
+        }));
+    }
     private void tag(ItemStack item) {
         tag(item, item.getType().name().toLowerCase(Locale.ROOT));
     }

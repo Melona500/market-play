@@ -8,6 +8,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
@@ -98,6 +103,27 @@ public final class ProfileStore implements AutoCloseable {
             statement.executeUpdate("""
                     CREATE UNIQUE INDEX IF NOT EXISTS one_active_sale_per_player
                     ON sale_intents(player_uuid) WHERE state IN ('PREPARED', 'REMOVING')""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS market_days (
+                      day TEXT NOT NULL,
+                      item_id TEXT NOT NULL,
+                      unit_price INTEGER NOT NULL CHECK (unit_price > 0),
+                      change_percent INTEGER NOT NULL,
+                      sold_recent INTEGER NOT NULL CHECK (sold_recent >= 0),
+                      royal_target INTEGER NOT NULL CHECK (royal_target >= 0),
+                      created_at TEXT NOT NULL,
+                      PRIMARY KEY (day, item_id)
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS bulletin_posts (
+                      post_id TEXT PRIMARY KEY,
+                      author_uuid TEXT NOT NULL,
+                      author_name TEXT NOT NULL,
+                      body TEXT NOT NULL,
+                      created_at TEXT NOT NULL,
+                      expires_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE INDEX IF NOT EXISTS bulletin_posts_expiry ON bulletin_posts(expires_at, created_at)");
         }
     }
 
@@ -425,6 +451,113 @@ public final class ProfileStore implements AutoCloseable {
         }, writer);
     }
 
+    public CompletableFuture<MarketDay> marketDay(LocalDate day, Map<String, Long> basePrices, ZoneId zone) {
+        Map<String, Long> bases = Map.copyOf(basePrices);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                MarketDay existing = loadMarketDay(day);
+                if (existing != null) return existing;
+                Instant supplyEnd = day.atStartOfDay(zone).toInstant();
+                Instant supplyStart = supplyEnd.minus(Duration.ofDays(1));
+                Map<String, Long> supplies = new HashMap<>();
+                try (PreparedStatement query = database.prepareStatement("SELECT item_id, COALESCE(SUM(quantity), 0) FROM economy_transactions WHERE type='NPC_SALE' AND timestamp>=? AND timestamp<? GROUP BY item_id")) {
+                    query.setString(1, supplyStart.toString());
+                    query.setString(2, supplyEnd.toString());
+                    try (ResultSet rows = query.executeQuery()) {
+                        while (rows.next()) supplies.put(rows.getString(1), rows.getLong(2));
+                    }
+                }
+                MarketDay created = MarketDay.create(day, bases, supplies);
+                transaction(() -> {
+                    try (PreparedStatement insert = database.prepareStatement("INSERT INTO market_days VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                        for (var entry : created.entries().entrySet()) {
+                            insert.setString(1, day.toString());
+                            insert.setString(2, entry.getKey());
+                            insert.setLong(3, entry.getValue().unitPrice());
+                            insert.setInt(4, entry.getValue().changePercent());
+                            insert.setLong(5, entry.getValue().soldRecent());
+                            insert.setInt(6, entry.getValue().royalTarget());
+                            insert.setString(7, Instant.now().toString());
+                            insert.addBatch();
+                        }
+                        insert.executeBatch();
+                    }
+                });
+                return created;
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private MarketDay loadMarketDay(LocalDate day) throws SQLException {
+        Map<String, MarketDay.Entry> entries = new LinkedHashMap<>();
+        try (PreparedStatement query = database.prepareStatement("SELECT item_id, unit_price, change_percent, sold_recent, royal_target FROM market_days WHERE day=? ORDER BY item_id")) {
+            query.setString(1, day.toString());
+            try (ResultSet rows = query.executeQuery()) {
+                while (rows.next()) entries.put(rows.getString(1), new MarketDay.Entry(rows.getLong(2), rows.getInt(3), rows.getLong(4), rows.getInt(5)));
+            }
+        }
+        return entries.isEmpty() ? null : new MarketDay(day, entries);
+    }
+
+    public CompletableFuture<BulletinPost> postBulletin(UUID author, String name, String body, Instant now, Duration cooldown, Duration lifetime) {
+        if (body.isBlank() || body.length() > 60 || body.chars().anyMatch(Character::isISOControl))
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid bulletin body"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String id = UUID.randomUUID().toString();
+                transaction(() -> {
+                    try (PreparedStatement latest = database.prepareStatement("SELECT created_at FROM bulletin_posts WHERE author_uuid=? ORDER BY created_at DESC LIMIT 1")) {
+                        latest.setString(1, author.toString());
+                        try (ResultSet row = latest.executeQuery()) {
+                            if (row.next() && Instant.parse(row.getString(1)).plus(cooldown).isAfter(now)) throw new SQLException("Bulletin cooldown active");
+                        }
+                    }
+                    try (PreparedStatement insert = database.prepareStatement("INSERT INTO bulletin_posts VALUES (?, ?, ?, ?, ?, ?)")) {
+                        insert.setString(1, id);
+                        insert.setString(2, author.toString());
+                        insert.setString(3, name);
+                        insert.setString(4, body);
+                        insert.setString(5, now.toString());
+                        insert.setString(6, now.plus(lifetime).toString());
+                        insert.executeUpdate();
+                    }
+                });
+                return new BulletinPost(id, author, name, body, now, now.plus(lifetime));
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<BulletinPost>> bulletins(Instant now, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT post_id, author_uuid, author_name, body, created_at, expires_at FROM bulletin_posts WHERE expires_at>? ORDER BY created_at DESC LIMIT ?")) {
+                query.setString(1, now.toString());
+                query.setInt(2, Math.max(1, Math.min(10, limit)));
+                try (ResultSet rows = query.executeQuery()) {
+                    java.util.ArrayList<BulletinPost> result = new java.util.ArrayList<>();
+                    while (rows.next()) result.add(new BulletinPost(rows.getString(1), UUID.fromString(rows.getString(2)), rows.getString(3), rows.getString(4), Instant.parse(rows.getString(5)), Instant.parse(rows.getString(6))));
+                    return result;
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Boolean> deleteBulletin(String idPrefix, UUID requester, boolean admin) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                java.util.ArrayList<String[]> matches = new java.util.ArrayList<>();
+                try (PreparedStatement query = database.prepareStatement("SELECT post_id, author_uuid FROM bulletin_posts WHERE post_id LIKE ? LIMIT 2")) {
+                    query.setString(1, idPrefix + "%");
+                    try (ResultSet rows = query.executeQuery()) { while (rows.next()) matches.add(new String[]{rows.getString(1), rows.getString(2)}); }
+                }
+                if (matches.size() != 1 || (!admin && !requester.toString().equals(matches.getFirst()[1]))) return false;
+                try (PreparedStatement delete = database.prepareStatement("DELETE FROM bulletin_posts WHERE post_id=?")) {
+                    delete.setString(1, matches.getFirst()[0]);
+                    return delete.executeUpdate() == 1;
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
     public CompletableFuture<Void> unload(UUID id) {
         PlayerProfile profile = loaded.remove(id);
         return profile == null ? CompletableFuture.completedFuture(null) : save(profile);
@@ -459,4 +592,7 @@ public final class ProfileStore implements AutoCloseable {
 
     public record ItemGrant(String id, byte[] item) {}
     public record SaleIntent(String id, String state) {}
+    public record BulletinPost(String id, UUID author, String authorName, String body, Instant createdAt, Instant expiresAt) {
+        public String shortId() { return id.substring(0, 8); }
+    }
 }
