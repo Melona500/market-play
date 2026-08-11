@@ -1,0 +1,400 @@
+public-dialogues:
+  new_dialogue:
+    title: new_dialogue
+    page-speakers:
+      '0': 수호자
+    message-pages:
+    - '%{random}%'
+    speaker: 수호자
+    page-show-portraits:
+      '0': true
+    page-show-speakers:
+      '0': true
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 88ab4f4b-bed0-45ac-a1ce-befcd67fd548
+    public-by: Melona500
+  초보_상점_이용법:
+    example-version: 4
+    built-in-example: true
+    title: 왕도 잡화점 · 최종판
+    speaker: '#FFAA00:bold:잡화점 주인'
+    portrait: MALE_INNKEEPER
+    expression: HAPPY
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      #55FF55:왕도 잡화점에 어서 오세요!
+      단골권을 만들면 특별한
+      상품을 살 수 있습니다.
+    - |-
+      단골권과 에메랄드를 확인한 뒤
+      #FFAA00:오늘의 상품을 골라 보세요.
+      오늘의 행운은 {{shop_fortune}}점입니다.
+    - |-
+      구매가 끝났습니다.
+      더 둘러보시겠습니까?
+    page-portraits:
+      '0': MALE_INNKEEPER
+      '1': MALE_INNKEEPER
+      '2': MALE_INNKEEPER
+    page-expressions:
+      '0': HAPPY
+      '1': NEUTRAL
+      '2': HAPPY
+    page-effects:
+      '0':
+        variables-set: shop_fortune=random(1..100)
+        sounds: minecraft:entity.villager.yes:1.0:0.7:1
+        message: 왕도 잡화점 예제가 시작되었습니다.
+        message-color: '#55FF55'
+        return-mode: NONE
+        command-target: PLAYER
+      '1':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+      '2':
+        sounds: minecraft:block.note_block.bell:1.2:0.7:1
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-conditions:
+      '1':
+        type: BOTH
+        variable: shop_member
+        operator: EQ
+        value: 'yes'
+        extra-variables: shop_visits=1,shop_last_purchase=elixir
+        variable-logic: OR
+        item-spec: '@OWNER/shop_coupon:1'
+        replacement: |-
+          #55FF55:단골 확인이 완료되었습니다.
+          단골권으로 영약을 구매하거나
+          상품 설명을 확인하세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 단골 등록
+        target-page-1: 0
+        end-1: false
+        response-pages-1:
+        - |-
+          등록됐습니다! 이 #55FF55:단골권으로
+          특별 상품을 구매하세요.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+        response-expression-1:
+          '0': HAPPY
+        response-show-portraits-1:
+          '0': true
+        response-show-speakers-1:
+          '0': true
+        response-effects-1:
+          '0':
+            items: '@OWNER/shop_coupon:1'
+            variables-set: shop_member=yes, shop_visits=1, shop_hint=shown
+            sounds: minecraft:entity.player.levelup:1.1:0.8:1
+            message: 왕도 잡화점 단골권을 받았습니다.
+            message-color: '#55FF55'
+            return-mode: NONE
+            command: tellraw {target} {"text":"[상점 예제] 단골 등록 완료!","color":"green"}
+            command-target: PLAYER
+        choice-2: 이용법 듣기
+        target-page-2: 0
+        end-2: false
+        response-pages-2:
+        - |-
+          단골권은 특수 아이템입니다.
+          조건이 맞을 때 구매 선택지가
+          자동으로 나타납니다.
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+      '1':
+        choice-count: 6
+        choice-1: 회복 영약 구매
+        target-page-1: 0
+        end-1: false
+        condition-1:
+          type: BOTH
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          extra-variables: shop_visits=1
+          variable-logic: AND
+          item-spec: '@OWNER/shop_coupon:1'
+        response-pages-1:
+        - |-
+          단골권을 확인했습니다.
+          #FF5555:붉은 회복 영약을
+          안전하게 포장해 드릴게요.
+        - 거래가 안전하게 완료됐습니다.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+          '1': MALE_INNKEEPER
+        response-expression-1:
+          '0': NEUTRAL
+          '1': HAPPY
+        response-show-portraits-1:
+          '0': true
+          '1': true
+        response-show-speakers-1:
+          '0': true
+          '1': true
+        response-effects-1:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+          '1':
+            items: '@OWNER/healing_elixir:1'
+            take-items: '@OWNER/shop_coupon:1'
+            variables-set: shop_last_purchase=elixir, shop_purchase_count=1
+            variables-delete: shop_hint
+            sounds: minecraft:entity.item.pickup:1.2:0.8:2
+            message: 붉은 회복 영약 1병을 받았습니다.
+            message-color: '#FF5555'
+            return-mode: NONE
+            command: tellraw {target} {"text":"[상점 예제] 구매 완료!","color":"yellow"}
+            command-target: PLAYER
+        choice-2: 상품 설명
+        target-page-2: 0
+        end-2: false
+        response-pages-2:
+        - 어떤 상품을 설명해 드릴까요?
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+        response-page-choices-2:
+          '0':
+            choice-count: 2
+            choice-1: 붉은 영약
+            target-page-1: 0
+            end-1: false
+            response-pages-1:
+            - |-
+              #FF5555:붉은 회복 영약은
+              따뜻한 마력이 담긴
+              잡화점의 특별 상품입니다.
+            response-show-portraits-1:
+              '0': true
+            response-show-speakers-1:
+              '0': true
+            response-effects-1:
+              '0':
+                sounds: minecraft:block.brewing_stand.brew:1.0:0.7:1
+                message-color: '#FFFFFF'
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+                command-target: PLAYER
+            choice-2: 여행용 빵
+            target-page-2: 0
+            end-2: false
+            response-pages-2:
+            - |-
+              #FFAA00:여행용 빵은 오래 보관되고
+              모험 중 간편하게 먹기 좋습니다.
+            response-show-portraits-2:
+              '0': true
+            response-show-speakers-2:
+              '0': true
+            response-effects-2:
+              '0':
+                sounds: minecraft:entity.item.pickup:1.0:0.6:1
+                message-color: '#FFFFFF'
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+                command-target: PLAYER
+        choice-3: 단골권 재발급
+        target-page-3: 0
+        end-3: false
+        condition-3:
+          type: VARIABLE
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          variable-logic: AND
+        response-pages-3:
+        - 새 단골권을 한 장 드릴게요.
+        response-show-portraits-3:
+          '0': true
+        response-show-speakers-3:
+          '0': true
+        response-effects-3:
+          '0':
+            items: '@OWNER/shop_coupon:1'
+            sounds: minecraft:entity.villager.yes:1.1:0.7:1
+            message: 단골권을 재발급했습니다.
+            message-color: '#55FF55'
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+            command-target: PLAYER
+        choice-4: 처음 안내로
+        target-page-4: 0
+        end-4: false
+        response-pages-4:
+        - 처음부터 다시 안내하겠습니다.
+        response-show-portraits-4:
+          '0': true
+        response-show-speakers-4:
+          '0': true
+        response-effects-4:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: TARGET
+            return-target: PAGE:p0
+            command-target: PLAYER
+        choice-5: 상점 나가기
+        target-page-5: 0
+        end-5: true
+        response-pages-5:
+        - 다음 모험 전에 또 들러 주세요!
+        response-show-portraits-5:
+          '0': true
+        response-show-speakers-5:
+          '0': true
+        response-effects-5:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+        choice-6: 여행용 빵 구매
+        target-page-6: 0
+        end-6: false
+        condition-6:
+          type: BOTH
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          variable-logic: AND
+          item-spec: minecraft:emerald:1
+        response-pages-6:
+        - |-
+          에메랄드 1개를 확인했습니다.
+          #FFAA00:여행용 빵 3개를
+          따로 포장해 드릴게요.
+        response-show-portraits-6:
+          '0': true
+        response-show-speakers-6:
+          '0': true
+        response-effects-6:
+          '0':
+            items: minecraft:bread:3:여행용 빵:#FFAA00
+            take-items: minecraft:emerald:1
+            variables-set: shop_last_purchase=bread
+            sounds: minecraft:entity.item.pickup:1.0:0.7:1
+            message: 여행용 빵 3개를 구매했습니다.
+            message-color: '#FFAA00'
+            return-mode: NONE
+            command-target: PLAYER
+      '2':
+        choice-count: 2
+        choice-1: 계속 쇼핑
+        target-page-1: 0
+        end-1: false
+        response-pages-1:
+        - 다시 상품 진열대로 안내할게요.
+        response-show-portraits-1:
+          '0': true
+        response-show-speakers-1:
+          '0': true
+        response-effects-1:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+            command-target: PLAYER
+        choice-2: 거래 종료
+        target-page-2: 0
+        end-2: true
+        response-pages-2:
+        - 이용해 주셔서 감사합니다!
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+    page-speakers:
+      '0': '#FFAA00:bold:잡화점 주인'
+      '1': '#FFAA00:bold:잡화점 주인'
+      '2': '#FFAA00:bold:잡화점 주인'
+    page-show-portraits:
+      '0': true
+      '1': true
+      '2': true
+    page-show-speakers:
+      '0': true
+      '1': true
+      '2': true
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+      '1':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+      '2':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: 00000000-0000-0000-0000-000000000000
+  ㅇㅇ:
+    title: ㅇㅇ
+    message-pages:
+    - ㅇㅇ
+    speaker: 전사
+    page-speakers:
+      '0': 전사
+    page-portraits:
+      '0': MALE_WARRIOR
+    page-expressions:
+      '0': HAPPY
+    page-show-portraits:
+      '0': true
+    page-show-speakers:
+      '0': true
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 88ab4f4b-bed0-45ac-a1ce-befcd67fd548
+    public-by: Melona500

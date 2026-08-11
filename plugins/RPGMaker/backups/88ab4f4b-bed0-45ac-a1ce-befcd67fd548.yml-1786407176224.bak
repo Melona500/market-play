@@ -1,0 +1,207 @@
+owner-uuid: 88ab4f4b-bed0-45ac-a1ce-befcd67fd548
+dialogues:
+  Skript_변수_연동_테스트:
+    example-version: 5
+    built-in-example: true
+    title: Skript 변수 연동 테스트
+    speaker: '#55FFFF:bold:Skript 연동'
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      플레이어: %player%
+      위치: %player's location%
+      전역값: %{rpgmaker_test_global}%
+      개인값: %{rpgmaker_test::%uuid of player%}%
+    - |-
+      목록값: {{skript:rpgmaker_test_list::*}}
+      RPGMaker 미러: {{skript.quest_state}}
+      조건과 선택지도 연동됩니다.
+    page-conditions:
+      '1':
+        type: VARIABLE
+        variable: skript:rpgmaker_test_global
+        operator: EQ
+        value: 전역_정상
+        variable-logic: AND
+        replacement: |-
+          전역 변수가 준비되지 않았습니다.
+          먼저 /rpgskripttest 를 실행하세요.
+    page-choices:
+      '1':
+        choice-count: 2
+        choice-1: '%player%의 개인 변수 확인'
+        target-page-1: 0
+        end-1: true
+        condition-1:
+          type: VARIABLE
+          variable: skript:rpgmaker_test::%uuid of player%
+          operator: EQ
+          value: 개인_정상
+          variable-logic: AND
+        response-pages-1:
+        - |-
+          전역·플레이어 개인 변수와
+          기본 Skript 표현식이 정상입니다.
+        response-show-portraits-1:
+          '0': true
+        response-show-speakers-1:
+          '0': true
+        response-effects-1:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+        choice-2: 테스트 종료
+        target-page-2: 0
+        end-2: true
+        response-pages-2:
+        - 테스트를 종료합니다.
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+    page-speakers:
+      '0': '#55FFFF:bold:Skript 연동'
+      '1': '#55FFFF:bold:Skript 연동'
+    page-show-speakers:
+      '0': true
+      '1': true
+    page-show-portraits:
+      '0': true
+      '1': true
+    show-portrait: true
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+      '1':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+      '1':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+  새_대화:
+    title: 새 대화
+    message-pages:
+    - "안녕안녕안녕안녕안녕안녕안녕안녕안녕안녕\n안녕 안녕 안녕 안녕 안녕 안녕 안녕\n안녕         안녕           안녕 "
+    speaker: ㅎㅇ
+    page-speakers:
+      '0': ㅎㅇ
+    page-show-portraits:
+      '0': false
+    page-show-speakers:
+      '0': false
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+custom-items:
+  moon_letter:
+    example-version: 3
+    title: 달빛의 편지
+    material: minecraft:paper
+    display-name: 달빛의 편지
+    name-color: '#FFD966'
+    lore-lines:
+    - 세레나가 달빛 아래에서 건넨 편지
+    - 두 사람의 약속이 은은하게 빛난다
+    lore-colors:
+    - '#FFF2AA'
+    - '#DDA0DD'
+    built-in-example: true
+  shop_coupon:
+    example-version: 3
+    title: 왕도 잡화점 단골권
+    material: minecraft:emerald
+    display-name: 왕도 잡화점 단골권
+    name-color: '#55FF55'
+    lore-lines:
+    - 잡화점 주인이 발급한 특별 단골권
+    - 물약 한 병과 교환할 수 있다
+    lore-colors:
+    - '#AAFFAA'
+    - '#FFFF55'
+    built-in-example: true
+  healing_elixir:
+    example-version: 3
+    title: 붉은 회복 영약
+    material: minecraft:honey_bottle
+    display-name: 붉은 회복 영약
+    name-color: '#FF5555'
+    lore-lines:
+    - 왕도 잡화점의 비밀 배합 물약
+    - 달콤한 향과 따뜻한 마력이 난다
+    lore-colors:
+    - '#FFAAAA'
+    - '#FFD966'
+    built-in-example: true
+  약속의_반지:
+    title: 약속의 반지
+    material: minecraft:amethyst_shard
+    display-name: 영원의 약속
+    name-color: '#FF77CC'
+    lore-lines:
+    - 달빛과 진심으로 맺어진 증표
+    - 세레나와의 추억이 담겨 있다
+    lore-colors:
+    - '#FFBBDD'
+    - '#DDA0DD'
+  promise_ring:
+    example-version: 3
+    title: 약속의 반지
+    material: minecraft:amethyst_shard
+    display-name: 영원의 약속
+    name-color: '#FF77CC'
+    lore-lines:
+    - 달빛과 진심으로 맺어진 증표
+    - 세레나와의 추억이 담겨 있다
+    lore-colors:
+    - '#FFBBDD'
+    - '#DDA0DD'
+    built-in-example: true
+dismissed-examples:
+- 초보_상점_이용법_v2
+- 달빛_아래_피어난_약속
+- 초보_상점_이용법
+variables:
+  72656c6174696f6e73686970: lover
+  6d6f6f6e6c696768745f726f757465: complete
+  73686f705f6c6173745f7075726368617365: elixir
+  71756573745f7374617465: 미러_정상
+  7661726961626c65: '63'
+  '7472757374': 'yes'
+  746573746e616d65: 수호자
+  616666656374696f6e: '2'
+  70726f6d697365: begun
+  73686f705f70757263686173655f636f756e74: '1'
+  73686f705f67696674: received
+  5f5f5f: 안녕
+  73686f705f6d656d626572: 'yes'
+  68656c6c6f: 안녕
+  '74657374': hi
+  70617373776f7264: '11'
+  73686f705f766973697473: '1'
+  73686f705f666f7274756e65: '1'
+  73686f705f68696e74: shown

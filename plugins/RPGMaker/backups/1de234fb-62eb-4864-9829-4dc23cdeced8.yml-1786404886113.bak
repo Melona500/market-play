@@ -1,0 +1,481 @@
+owner-uuid: 1de234fb-62eb-4864-9829-4dc23cdeced8
+dialogues:
+  초보_상점_이용법:
+    example-version: 3
+    built-in-example: true
+    title: 왕도 잡화점 · 최종판
+    speaker: 잡화점 주인
+    portrait: MALE_INNKEEPER
+    expression: HAPPY
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      #55FF55:왕도 잡화점에 어서 오세요!
+      단골권을 만들면 특별한
+      상품을 살 수 있습니다.
+    - |-
+      #FFAA00:오늘의 상품을 골라 보세요.
+      단골권과 에메랄드를 확인한 뒤
+      물건을 안전하게 교환합니다.
+    - |-
+      구매가 끝났습니다.
+      더 둘러보시겠습니까?
+    page-portraits:
+      '0': MALE_INNKEEPER
+      '1': MALE_INNKEEPER
+      '2': MALE_INNKEEPER
+    page-expressions:
+      '0': HAPPY
+      '1': NEUTRAL
+      '2': HAPPY
+    page-effects:
+      '0':
+        sounds: minecraft:entity.villager.yes:1.0:0.7:1
+        message: 왕도 잡화점 예제가 시작되었습니다.
+        message-color: '#55FF55'
+      '2':
+        sounds: minecraft:block.note_block.bell:1.2:0.7:1
+    page-conditions:
+      '1':
+        type: BOTH
+        variable: shop_member
+        value: 'yes'
+        extra-variables: shop_visits=1,shop_last_purchase=elixir
+        variable-logic: OR
+        item-spec: '@1de234fb-62eb-4864-9829-4dc23cdeced8/shop_coupon:1'
+        replacement: |-
+          #55FF55:단골 확인이 완료되었습니다.
+          단골권으로 영약을 구매하거나
+          상품 설명을 확인하세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 단골 등록
+        response-pages-1:
+        - |-
+          등록됐습니다! 이 #55FF55:단골권으로
+          특별 상품을 구매하세요.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+        response-expression-1:
+          '0': HAPPY
+        response-effects-1:
+          '0':
+            items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/shop_coupon:1'
+            variables-set: shop_member=yes, shop_visits=1, shop_hint=shown
+            sounds: minecraft:entity.player.levelup:1.1:0.8:1
+            message: 왕도 잡화점 단골권을 받았습니다.
+            message-color: '#55FF55'
+            command: tellraw {target} {"text":"[상점 예제] 단골 등록 완료!","color":"green"}
+            command-target: PLAYER
+        end-1: false
+        choice-2: 이용법 듣기
+        response-pages-2:
+        - |-
+          단골권은 특수 아이템입니다.
+          조건이 맞을 때 구매 선택지가
+          자동으로 나타납니다.
+        response-expression-2:
+          '0': NEUTRAL
+        end-2: false
+      '1':
+        choice-count: 6
+        choice-1: 회복 영약 구매
+        condition-1:
+          type: BOTH
+          variable: shop_member
+          value: 'yes'
+          extra-variables: shop_visits=1
+          variable-logic: AND
+          item-spec: '@1de234fb-62eb-4864-9829-4dc23cdeced8/shop_coupon:1'
+        response-pages-1:
+        - |-
+          단골권을 확인했습니다.
+          #FF5555:붉은 회복 영약을
+          안전하게 포장해 드릴게요.
+        - 거래가 안전하게 완료됐습니다.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+          '1': MALE_INNKEEPER
+        response-expression-1:
+          '0': NEUTRAL
+          '1': HAPPY
+        response-effects-1:
+          '1':
+            items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/healing_elixir:1'
+            take-items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/shop_coupon:1'
+            variables-set: shop_last_purchase=elixir, shop_purchase_count=1
+            variables-delete: shop_hint
+            sounds: minecraft:entity.item.pickup:1.2:0.8:2
+            message: 붉은 회복 영약 1병을 받았습니다.
+            message-color: '#FF5555'
+            command: tellraw {target} {"text":"[상점 예제] 구매 완료!","color":"yellow"}
+            command-target: PLAYER
+        end-1: false
+        choice-2: 상품 설명
+        response-pages-2:
+        - 어떤 상품을 설명해 드릴까요?
+        response-expression-2:
+          '0': NEUTRAL
+        response-page-choices-2:
+          '0':
+            choice-count: 2
+            choice-1: 붉은 영약
+            response-pages-1:
+            - |-
+              #FF5555:붉은 회복 영약은
+              따뜻한 마력이 담긴
+              잡화점의 특별 상품입니다.
+            response-expression-1:
+              '0': HAPPY
+            response-effects-1:
+              '0':
+                sounds: minecraft:block.brewing_stand.brew:1.0:0.7:1
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+            end-1: false
+            choice-2: 여행용 빵
+            response-pages-2:
+            - |-
+              #FFAA00:여행용 빵은 오래 보관되고
+              모험 중 간편하게 먹기 좋습니다.
+            response-expression-2:
+              '0': HAPPY
+            response-effects-2:
+              '0':
+                sounds: minecraft:entity.item.pickup:1.0:0.6:1
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+            end-2: false
+        end-2: false
+        choice-3: 단골권 재발급
+        condition-3:
+          type: VARIABLE
+          variable: shop_member
+          value: 'yes'
+        response-pages-3:
+        - 새 단골권을 한 장 드릴게요.
+        response-expression-3:
+          '0': HAPPY
+        response-effects-3:
+          '0':
+            items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/shop_coupon:1'
+            sounds: minecraft:entity.villager.yes:1.1:0.7:1
+            message: 단골권을 재발급했습니다.
+            message-color: '#55FF55'
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+        end-3: false
+        choice-4: 처음 안내로
+        response-pages-4:
+        - 처음부터 다시 안내하겠습니다.
+        response-expression-4:
+          '0': HAPPY
+        response-effects-4:
+          '0':
+            return-mode: TARGET
+            return-target: PAGE:p0
+        end-4: false
+        choice-5: 상점 나가기
+        response-pages-5:
+        - 다음 모험 전에 또 들러 주세요!
+        response-expression-5:
+          '0': HAPPY
+        end-5: true
+        choice-6: 여행용 빵 구매
+        condition-6:
+          type: BOTH
+          variable: shop_member
+          value: 'yes'
+          item-spec: minecraft:emerald:1
+        response-pages-6:
+        - |-
+          에메랄드 1개를 확인했습니다.
+          #FFAA00:여행용 빵 3개를
+          따로 포장해 드릴게요.
+        response-effects-6:
+          '0':
+            items: minecraft:bread:3:여행용 빵:#FFAA00
+            take-items: minecraft:emerald:1
+            variables-set: shop_last_purchase=bread
+            sounds: minecraft:entity.item.pickup:1.0:0.7:1
+            message: 여행용 빵 3개를 구매했습니다.
+            message-color: '#FFAA00'
+        end-6: false
+      '2':
+        choice-count: 2
+        choice-1: 계속 쇼핑
+        response-pages-1:
+        - 다시 상품 진열대로 안내할게요.
+        response-expression-1:
+          '0': HAPPY
+        response-effects-1:
+          '0':
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+        end-1: false
+        choice-2: 거래 종료
+        response-pages-2:
+        - 이용해 주셔서 감사합니다!
+        response-expression-2:
+          '0': HAPPY
+        end-2: true
+  달빛_아래_피어난_약속:
+    example-version: 3
+    built-in-example: true
+    title: 달빛 아래 피어난 약속 · 최종판
+    speaker: 세레나
+    portrait: FEMALE_NOBLE
+    expression: NEUTRAL
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      #FFD966:달빛이 정원을 비추고 있어요.
+      오래 기다렸죠, 용사님.
+      오늘은 제 진심을 전할게요.
+    - |-
+      이 #FF77CC:편지에는 제 마음과
+      두 사람의 약속이 담겨 있어요.
+      받아 주시겠어요?
+    - |-
+      #FF77CC:당신의 대답을 듣고 싶어요.
+      어떤 관계로 남고 싶은지
+      솔직하게 말해 주세요.
+    - |-
+      오늘의 #FFD966:약속을 기억할게요.
+      다음 달빛 아래에서도
+      다시 만나요.
+    page-portraits:
+      '0': FEMALE_NOBLE
+      '1': FEMALE_NOBLE
+      '2': FEMALE_NOBLE
+      '3': FEMALE_NOBLE
+    page-expressions:
+      '0': NEUTRAL
+      '1': EMBARRASSED
+      '2': SURPRISED
+      '3': HAPPY
+    page-effects:
+      '0':
+        sounds: minecraft:block.amethyst_block.chime:1.1:0.8:2
+        message: 세레나와의 최종 예제가 시작되었습니다.
+        message-color: '#DDA0DD'
+      '3':
+        variables-delete: temporary_hint
+        sounds: minecraft:ui.toast.challenge_complete:1.0:0.8:1
+        message: 달빛 아래의 약속 이야기를 마쳤습니다.
+        message-color: '#FFD966'
+        command: tellraw {target} {"text":"[연애 예제] 이야기를 완료했습니다.","color":"light_purple"}
+        command-target: PLAYER
+    page-conditions:
+      '2':
+        type: BOTH
+        variable: promise
+        value: begun
+        extra-variables: affection=2,trust=yes
+        variable-logic: OR
+        item-spec: '@1de234fb-62eb-4864-9829-4dc23cdeced8/moon_letter:1'
+        replacement: |-
+          편지와 #FF77CC:마음이 같은 답을
+          가리키고 있어요.
+          이제 우리 관계를 정해요.
+    page-choices:
+      '1':
+        choice-count: 3
+        choice-1: 편지를 받는다
+        response-pages-1:
+        - |-
+          고마워요. 이 #FFD966:달빛의 편지를
+          소중히 간직해 주세요.
+        - |-
+          당신의 손이 따뜻해서
+          조금 용기가 생겼어요.
+        response-portrait-1:
+          '0': FEMALE_NOBLE
+          '1': FEMALE_NOBLE
+        response-expression-1:
+          '0': EMBARRASSED
+          '1': HAPPY
+        response-effects-1:
+          '0':
+            items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/moon_letter:1'
+            variables-set: promise=begun, affection=2
+            sounds: minecraft:entity.player.levelup:1.2:0.8:1
+            message: 달빛의 편지를 받았습니다.
+            message-color: '#FFD966'
+          '1':
+            command: tellraw {target} {"text":"세레나의 호감도가 올랐습니다.","color":"light_purple"}
+            command-target: PLAYER
+        end-1: false
+        choice-2: 진실을 묻는다
+        response-pages-2:
+        - |-
+          제 진실은 단 하나예요.
+          #FF77CC:당신을 오래 기다렸어요.
+        - 이 말을 믿어 주실래요?
+        response-portrait-2:
+          '0': FEMALE_NOBLE
+          '1': FEMALE_NOBLE
+        response-expression-2:
+          '0': SAD
+          '1': SURPRISED
+        response-page-choices-2:
+          '1':
+            choice-count: 2
+            choice-1: 믿는다고 한다
+            response-pages-1:
+            - |-
+              그 한마디면 충분해요.
+              제 #FF77CC:진심을 받아 주세요.
+            - 함께 앞으로 걸어가요.
+            response-portrait-1:
+              '0': FEMALE_NOBLE
+              '1': FEMALE_NOBLE
+            response-expression-1:
+              '0': SURPRISED
+              '1': HAPPY
+            response-effects-1:
+              '1':
+                items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/moon_letter:1'
+                variables-set: trust=yes, promise=begun, affection=2
+                sounds: minecraft:block.amethyst_block.resonate:1.2:1.0:1
+                message: 신뢰와 편지를 얻었습니다.
+                message-color: '#FF77CC'
+            end-1: false
+            choice-2: 잠시 생각한다
+            response-pages-2:
+            - |-
+              괜찮아요. 다시 질문을
+              천천히 읽어 보세요.
+            response-expression-2:
+              '0': SAD
+            response-effects-2:
+              '0':
+                variables-set: temporary_hint=retry
+                return-mode: TARGET
+                return-target: PAGE:p1
+            end-2: false
+        end-2: false
+        choice-3: 처음부터 듣기
+        response-pages-3:
+        - 처음부터 다시 이야기할게요.
+        response-portrait-3:
+          '0': FEMALE_NOBLE
+        response-expression-3:
+          '0': HAPPY
+        response-effects-3:
+          '0':
+            return-mode: TARGET
+            return-target: PAGE:p0
+        end-3: false
+      '2':
+        choice-count: 3
+        choice-1: 연인이 된다
+        condition-1:
+          type: BOTH
+          variable: promise
+          value: begun
+          extra-variables: affection=2,trust=yes
+          variable-logic: OR
+          item-spec: '@1de234fb-62eb-4864-9829-4dc23cdeced8/moon_letter:1'
+        response-pages-1:
+        - 정말인가요? 꿈만 같아요.
+        - |-
+          이 #FF77CC:약속의 반지를 받아요.
+          기쁜 날도 슬픈 날도
+          언제나 곁에 있을게요.
+        response-portrait-1:
+          '0': FEMALE_NOBLE
+          '1': FEMALE_NOBLE
+        response-expression-1:
+          '0': SURPRISED
+          '1': HAPPY
+        response-effects-1:
+          '1':
+            items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/promise_ring:1'
+            take-items: '@1de234fb-62eb-4864-9829-4dc23cdeced8/moon_letter:1'
+            variables-set: relationship=lover
+            variables-delete: temporary_hint
+            sounds: minecraft:ui.toast.challenge_complete:1.1:1.0:1
+            message: 세레나와 연인이 되었습니다.
+            message-color: '#FF77CC'
+            command: tellraw {target} {"text":"영원의 약속을 맺었습니다!","color":"gold"}
+            command-target: PLAYER
+        end-1: false
+        choice-2: 친구로 남는다
+        response-pages-2:
+        - |-
+          조금 아쉽지만 괜찮아요.
+          #55FFFF:소중한 친구로 남을게요.
+        response-expression-2:
+          '0': SAD
+        response-effects-2:
+          '0':
+            variables-set: relationship=friend
+            sounds: minecraft:entity.allay.ambient_with_item:1.0:0.8:1
+            message: 친구 경로를 선택했습니다.
+            message-color: '#55FFFF'
+        end-2: false
+        choice-3: 선택 다시 보기
+        response-pages-3:
+        - 마음을 정할 때까지 기다릴게요.
+        response-expression-3:
+          '0': EMBARRASSED
+        response-effects-3:
+          '0':
+            return-mode: TARGET
+            return-target: CHOICE:p2#c0
+        end-3: false
+custom-items:
+  moon_letter:
+    example-version: 3
+    title: 달빛의 편지
+    material: minecraft:paper
+    display-name: 달빛의 편지
+    name-color: '#FFD966'
+    lore-lines:
+    - 세레나가 달빛 아래에서 건넨 편지
+    - 두 사람의 약속이 은은하게 빛난다
+    lore-colors:
+    - '#FFF2AA'
+    - '#DDA0DD'
+    built-in-example: true
+  promise_ring:
+    example-version: 3
+    title: 약속의 반지
+    material: minecraft:amethyst_shard
+    display-name: 영원의 약속
+    name-color: '#FF77CC'
+    lore-lines:
+    - 달빛과 진심으로 맺어진 증표
+    - 세레나와의 추억이 담겨 있다
+    lore-colors:
+    - '#FFBBDD'
+    - '#DDA0DD'
+    built-in-example: true
+  shop_coupon:
+    example-version: 3
+    title: 왕도 잡화점 단골권
+    material: minecraft:emerald
+    display-name: 왕도 잡화점 단골권
+    name-color: '#55FF55'
+    lore-lines:
+    - 잡화점 주인이 발급한 특별 단골권
+    - 물약 한 병과 교환할 수 있다
+    lore-colors:
+    - '#AAFFAA'
+    - '#FFFF55'
+    built-in-example: true
+  healing_elixir:
+    example-version: 3
+    title: 붉은 회복 영약
+    material: minecraft:honey_bottle
+    display-name: 붉은 회복 영약
+    name-color: '#FF5555'
+    lore-lines:
+    - 왕도 잡화점의 비밀 배합 물약
+    - 달콤한 향과 따뜻한 마력이 난다
+    lore-colors:
+    - '#FFAAAA'
+    - '#FFD966'
+    built-in-example: true

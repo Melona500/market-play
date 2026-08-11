@@ -1,0 +1,476 @@
+distance: 1.8
+vertical-offset: -1.4900000000000004
+frame-x-offset: -0.03
+duration-ticks: 160
+typing-interval-ticks: 2
+frame-scale: 0.22
+frame-scale-x: 0.7800000000000005
+frame-scale-y: 0.5200000000000002
+portrait-scale: 0.16499999999999998
+portrait-x-offset: -1.8700000000000008
+portrait-vertical-offset: 1.420000000000001
+text-scale: 0.62
+text-x-offset: -0.04999999999999932
+finish-close-delay-ticks: 60
+choice-scale: 0.58
+choice-x-offset: 1.410000000000001
+text-vertical-offset: 0.3500000000000001
+choice-vertical-offset: 1.4500000000000008
+pack-server-port: 25566
+pack-file: DialogueDisplay-Pack-20260807-014225.zip
+dialogues: {}
+content:
+  speaker: ?⑷툑 湲곕줉愿???섑샇??
+  message: ?ш린源뚯? ???멸컙? ?ㅻ옖留뚯씠援? 遊됱씤??湲곕줉???쎌쓣 ?먭꺽???덈뒗吏 ?듯빐??
+  choice-1: 湲곕줉??蹂댁뿬以?
+  response-1: 醫뗫떎. 吏꾩떎??媛먮떦??媛곸삤遺??利앸챸?대씪.
+  choice-2: ??붾? ?앸궦??
+  response-2: ?뚭쿋??
+speaker-vertical-offset: 1.0200000000000005
+speaker-scale: 0.66
+speaker-x-offset: -1.8800000000000008
+player-dialogues:
+  88ab4f4b-bed0-45ac-a1ce-befcd67fd548:
+    new_dialogue:
+      speaker: 수호자
+      message-pages:
+      - 대화 내용
+      camera-direction: NORTH
+      portrait: SENTINEL
+    달빛_아래_피어난_약속:
+      title: 달빛 아래 피어난 약속
+      speaker: 세레나
+      message-pages:
+      - |-
+        오래 기다렸죠, 용사님.
+        달빛이 정원에 닿는 밤이면
+        그날의 약속이 떠올라요.
+        오늘은 답을 듣고 싶어요.
+      - |-
+        이 편지는 제 진심이에요.
+        꽃 한 송이와 바꾸기엔
+        너무 무거운 마음이지만요.
+      - |-
+        저와 함께 걷겠어요?
+        아니면 먼저 묻고 싶은
+        이야기가 있나요?
+      - |-
+        마음속 약속과 편지가
+        같은 답을 가리키고 있어요.
+        이제 숨기지 않을게요.
+      - |-
+        달이 지기 전에 말해 주세요.
+        우리의 다음 계절을
+        어떤 이름으로 부를까요?
+      - |-
+        고마워요. 오늘의 약속을
+        오래도록 기억할게요.
+        다시 만날 때까지 안녕.
+      camera-direction: NORTH
+      portrait: FEMALE_NOBLE
+      expression: NEUTRAL
+      page-portraits:
+        '0': FEMALE_NOBLE
+        '1': FEMALE_NOBLE
+        '2': FEMALE_NOBLE
+        '3': FEMALE_NOBLE
+        '4': FEMALE_NOBLE
+        '5': FEMALE_NOBLE
+      page-expressions:
+        '0': NEUTRAL
+        '1': HAPPY
+        '2': EMBARRASSED
+        '3': SURPRISED
+        '4': EMBARRASSED
+        '5': HAPPY
+      page-effects:
+        '0':
+          sound: minecraft:block.amethyst_block.chime
+          sound-volume: 0.8
+          sound-pitch: 1.1
+        '1':
+          item: minecraft:paper
+          amount: 1
+          take-item: minecraft:dandelion
+          take-amount: 1
+          item-name: 달빛의 편지
+          item-color: '#FFD966'
+          variable: promise
+          value: begun
+          variable-action: SET
+          sound: minecraft:entity.experience_orb.pickup
+          sound-volume: 0.8
+          sound-pitch: 1.2
+          command: experience add {player} 1 points
+          command-target: PLAYER
+        '2':
+          variable: affection
+          value: '1'
+          variable-action: SET
+          sound: minecraft:entity.villager.yes
+          sound-volume: 0.7
+          sound-pitch: 1.1
+        '3':
+          variable: temporary_hint
+          variable-action: DELETE
+        '5':
+          variable: moonlight_route
+          value: complete
+          variable-action: SET
+          sound: minecraft:ui.toast.challenge_complete
+          sound-volume: 0.9
+          sound-pitch: 1.0
+          command: 'tellraw {target} {"text":"[예제] 달빛 아래의 약속을 완료했습니다.","color":"gold"}'
+          command-target: PLAYER
+      page-conditions:
+        '3':
+          type: ANY
+          variable: promise
+          value: begun
+          extra-variables: trust=yes,affection=2
+          variable-logic: OR
+          item: minecraft:paper
+          amount: 1
+          item-name: 달빛의 편지
+          name-match: true
+          replacement: |-
+            편지와 마음이 답했어요.
+            우리 둘의 약속은 이미
+            달빛 아래 피어나고 있어요.
+      page-choices:
+        '2':
+          choice-count: 2
+          choice-1: 손을 잡는다
+          response-pages-1:
+          - |-
+            손이 따뜻하네요.
+            이 온기를 믿어도 되겠죠?
+          - |-
+            그럼 함께 정원 끝까지
+            천천히 걸어가요.
+          response-portrait-1:
+            '0': FEMALE_NOBLE
+            '1': FEMALE_NOBLE
+          response-expression-1:
+            '0': EMBARRASSED
+            '1': HAPPY
+          response-effects-1:
+            '0':
+              variable: affection
+              value: '2'
+              variable-action: SET
+              sound: minecraft:entity.player.levelup
+              sound-volume: 0.7
+              sound-pitch: 1.4
+          end-1: false
+          choice-2: 진실을 묻는다
+          response-pages-2:
+          - |-
+            제 진실은 단 하나예요.
+            당신을 오래 기다렸어요.
+          - |-
+            이 말을 믿어 주실래요?
+          response-portrait-2:
+            '0': FEMALE_NOBLE
+            '1': FEMALE_NOBLE
+          response-expression-2:
+            '0': SAD
+            '1': SURPRISED
+          response-effects-2:
+            '0':
+              variable: trust
+              value: asked
+              variable-action: SET
+              sound: minecraft:block.note_block.harp
+              sound-volume: 0.7
+              sound-pitch: 0.9
+          end-2: false
+          response-page-choices-2:
+            '1':
+              choice-count: 2
+              choice-1: 믿는다고 말한다
+              response-pages-1:
+              - |-
+                고마워요. 그 한마디면
+                기다린 시간이 빛나요.
+              - |-
+                이 약속의 조각을
+                받아 주세요.
+              response-portrait-1:
+                '0': FEMALE_NOBLE
+                '1': FEMALE_NOBLE
+              response-expression-1:
+                '0': SURPRISED
+                '1': HAPPY
+              response-effects-1:
+                '1':
+                  item: minecraft:amethyst_shard
+                  amount: 1
+                  item-name: 약속의 조각
+                  item-color: '#DDA0DD'
+                  variable: trust
+                  value: 'yes'
+                  variable-action: SET
+                  sound: minecraft:block.amethyst_block.resonate
+                  sound-volume: 1.0
+                  sound-pitch: 1.2
+              end-1: true
+              choice-2: 시간을 달라고 한다
+              response-pages-2:
+              - |-
+                괜찮아요. 기다림은
+                이미 제게 익숙하니까요.
+              response-portrait-2:
+                '0': FEMALE_NOBLE
+              response-expression-2:
+                '0': SAD
+              response-effects-2:
+                '0':
+                  variable: trust
+                  value: later
+                  variable-action: SET
+                  sound: minecraft:entity.villager.no
+                  sound-volume: 0.6
+                  sound-pitch: 1.0
+              end-2: true
+          condition-2:
+            type: BOTH
+            variable: promise
+            value: begun
+            item: minecraft:paper
+            amount: 1
+            item-name: 달빛의 편지
+            name-match: true
+        '4':
+          choice-count: 3
+          choice-1: 연인이 되자
+          response-pages-1:
+          - |-
+            정말인가요? 꿈만 같아요.
+          - |-
+            앞으로 기쁜 날도 슬픈 날도
+            당신 곁에 있을게요.
+          response-portrait-1:
+            '0': FEMALE_NOBLE
+            '1': FEMALE_NOBLE
+          response-expression-1:
+            '0': SURPRISED
+            '1': HAPPY
+          response-effects-1:
+            '1':
+              variable: relationship
+              value: lover
+              variable-action: SET
+              sound: minecraft:ui.toast.challenge_complete
+              sound-volume: 1.0
+              sound-pitch: 1.1
+          end-1: false
+          choice-2: 친구로 남자
+          response-pages-2:
+          - |-
+            조금 아쉽지만 괜찮아요.
+          - |-
+            소중한 친구로 곁에 있을게요.
+            쉬프트를 누르면 인사할게요.
+          response-portrait-2:
+            '0': FEMALE_NOBLE
+            '1': FEMALE_NOBLE
+          response-expression-2:
+            '0': SAD
+            '1': HAPPY
+          response-effects-2:
+            '1':
+              variable: relationship
+              value: friend
+              variable-action: SET
+              sound: minecraft:entity.allay.ambient_with_item
+              sound-volume: 0.8
+              sound-pitch: 1.0
+          end-2: true
+          choice-3: 아직 모르겠어
+          response-pages-3:
+          - |-
+            서두르지 않아도 괜찮아요.
+          - |-
+            다음 달빛 아래에서
+            다시 답을 들려주세요.
+          response-portrait-3:
+            '0': FEMALE_NOBLE
+            '1': FEMALE_NOBLE
+          response-expression-3:
+            '0': SURPRISED
+            '1': EMBARRASSED
+          response-effects-3:
+            '1':
+              variable: relationship
+              value: pending
+              variable-action: SET
+              sound: minecraft:block.note_block.bell
+              sound-volume: 0.7
+              sound-pitch: 0.8
+          end-3: true
+shared-dialogues:
+  beaa0adfad7d410293170b7d4120e3c5:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: PLAYER
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: ''
+        amount: 0
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  fea2062f65314205ade4fab365d2f33e:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용2
+    camera-direction: NORTH
+    portrait: WARRIOR
+    page-effects:
+      '0':
+        item: ''
+        amount: 0
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+    shared-by: Melona500
+    shared-name: new_dialogue
+  8886521c2d424ea6ba966c6294d714ba:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+  c67842ed7f0a439dbcbb2213997e3446:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+  75e8b7c6d6be4f7bbe760bc1f413dd31:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  25af7a91d1f9480a8788472dcda3d7a9:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  eb6661808e224395a14f2ce222d70aa1:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  597a175c7fcf48d789b7ed152e8acfd6:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  1abea857e9c74bf5b69e9540fcf22a01:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  b47dddf962134eef8344fa3a63144f35:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+

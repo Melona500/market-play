@@ -1,0 +1,26 @@
+last-created-npc-id: 1
+npc:
+  '0':
+    metadata:
+      rpgmaker-guide-dialogue: 초보_상점_이용법
+    name: 대화 안내인
+    uuid: 9092b18e-6d7f-41ea-94f6-6dcd78a55ef7
+    traits:
+      skintrait: {}
+      location:
+        worldid: 200bc87b-6108-4cf5-8064-8ad81da5e44a
+        x: 0.0
+        y: 81.0
+        z: 34.0
+        yaw: 0.0
+        pitch: 0.0
+        bodyYaw: 0.0
+      type: PLAYER
+      scoreboardtrait:
+        tags:
+          '0': CITIZENS_NPC
+    traitnames: spawned,scoreboardtrait,owner,skintrait,location,type,inventory,chunktickettrait
+    navigator:
+      speedmodifier: 1.0
+      avoidwater: false
+      usedefaultstuckaction: false

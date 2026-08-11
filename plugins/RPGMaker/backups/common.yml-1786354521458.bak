@@ -1,0 +1,1911 @@
+shared-dialogues:
+  cc560f72a4354ac0a84191219406a7d5:
+    title: new_dialogue
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    page-portraits:
+      '0': SENTINEL
+    page-expressions:
+      '0': HAPPY
+    shared-by: Melona500
+    shared-name: new_dialogue
+  04b8e65477da40349db14f3be80e36ef:
+    title: new_dialogue
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    page-portraits:
+      '0': SENTINEL
+    page-expressions:
+      '0': HAPPY
+    shared-by: Melona500
+    shared-name: new_dialogue
+  768dc338539c456b9efeceb4fc7936da:
+    title: new_dialogue
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    shared-by: Q_quick
+    shared-name: new_dialogue
+  de181149ffc543fc8916e0af12e8d95f:
+    title: 대화하기
+    speaker: 나는 화자 지화자
+    message-pages:
+    - |-
+      반갑다
+      나는 화자
+      이 말의 발화자인 지화자
+      ㅋㅋㅋㅋ
+    page-portraits:
+      '0': DRAGONKIN
+    page-expressions:
+      '0': NEUTRAL
+    shared-by: Chowol_0309
+    shared-name: 대화하기
+  357963135ccd4f0d9153f8d50548bbd3:
+    title: 욕
+    speaker: 김똥털
+    message-pages:
+    - |-
+      야이 시발놈아
+      좆
+      개
+      앙
+    page-portraits:
+      '0': FEMALE_KNIGHT
+    page-expressions:
+      '0': HAPPY
+    page-choices:
+      '0':
+        choice-1: 고추
+        response-pages-1:
+        - |-
+          ㅄ
+          앙
+          젖
+          응
+        end-1: false
+        choice-count: 1
+        response-page-choices-1:
+          '0':
+            choice-1: ㅁㄴㅇ
+            response-pages-1:
+            - |-
+              ㅁㄴㅇ
+              ㅁㄴㅇ
+              ㅁㄴ
+            end-1: true
+            choice-count: 1
+    shared-by: GULZZIM
+    shared-name: 욕
+  d52f96a89e394367bc724953f97bffa5:
+    title: Shark
+    speaker: 상어
+    message-pages:
+    - 샤아아아아크
+    page-portraits:
+      '0': FEMALE_RANGER
+    page-expressions:
+      '0': NEUTRAL
+    page-effects:
+      '0':
+        sounds: ''
+        items: ''
+        take-items: ''
+    shared-by: sohxx
+    shared-name: Shark
+  fe1a6b11f8e5498faf280df984aa42d3:
+    title: 롤 챔피언 맞추기!
+    speaker: '노무현 대통령 '
+    message-pages:
+    - |-
+      부산지역정책연구소를 여는 것을 계기로 부산서 정치승부를
+      "정치하는 사람은 명분이 있어야 하며, 명분 없는 정치
+    - "15대 대선 TV찬조 연설중에서\n\"야당하다 여당으로 따라가지 않았습니다. 야당없는 민주\n. 그러나 우리는 가지 않았습니다. 세 번\
+      이나 연거푸 "
+    page-portraits:
+      '1': MALE_KING
+    page-expressions:
+      '1': HAPPY
+    shared-by: andlist
+    shared-name: 롤_챔피언_맞추기_
+  7c5aa64b133d4cc5811ba1abc55806fb:
+    title: manosaba
+    speaker: 니카이도히로
+    message-pages:
+    - |-
+      사쿠라바에마...! 너는 악이다!
+      너를 죽여주마...!!!!
+    page-portraits:
+      '0': MALE_CLERIC
+    page-expressions:
+      '0': ANGRY
+    page-effects:
+      '0':
+        sounds: ''
+    page-choices:
+      '0':
+        choice-1: 켕
+        response-pages-1:
+        - ''
+        end-1: false
+        choice-count: 1
+    shared-by: dadatda
+    shared-name: manosaba
+  bab3b295c7e442b985aec4f95a272eb0:
+    title: 샌즈
+    speaker: 샌즈
+    message-pages:
+    - 으으.으으으
+    page-portraits:
+      '0': GOBLIN
+    page-expressions:
+      '0': NEUTRAL
+    page-choices:
+      '0':
+        choice-1: ??
+        response-pages-1:
+        - ''
+        - ''
+        end-1: false
+        choice-count: 1
+    shared-by: Chowol_0309
+    shared-name: 샌즈
+  804abc9bff6b478f9cb9156a999214a9:
+    title: 노전대사 리부트
+    speaker: 노무현
+    message-pages:
+    - 노무현 전 대통령 사
+    page-choices:
+      '0':
+        choice-1: 루비아
+        response-pages-1:
+        - |-
+          아 사루비아
+          사루비아 비아
+          사루비아 당신 내 사랑
+          빠라밤 빠라밤
+        end-1: false
+        choice-count: 8
+        choice-2: 인 코사인 탄젠트
+        response-pages-2:
+        - |-
+          노래를 부르며 삼각함수를 공부하여 보자
+          r분의 y 사인 함수
+          r분의 x 코사인 함수
+          x분의 y 탄젠트 함수
+        end-2: false
+        choice-3: 이타마
+        response-pages-3:
+        - |-
+          팔굽혀펴기 100개!
+          윗몸일으키기 100개!
+          스퀴트 100개!
+          뜀걸음 10km!
+        end-3: false
+        choice-4: '4'
+        response-pages-4:
+        - |-
+          하나,
+          둘.
+          세엣,
+          네에에에에엣!
+        end-4: false
+        choice-5: 랑받기위해태어난사람
+        response-pages-5:
+        - |-
+          당신의 삶 속에서 그 사랑 받고 있지요
+          당신은 사랑받기 위해 태어난 사람
+          당신의 삶 속에서 그 사랑 받고 있지요
+        end-5: false
+        choice-6: 일러스
+        response-pages-6:
+        - |-
+          Q - 집값 후려치기
+          W - 대통령시해자
+          E - 논으로 도주 / 검찰청 억압
+          R - 피아제 강탈
+        end-6: false
+        choice-7: 자보이즈
+        response-pages-7:
+        - |-
+          Don't want you, need you Yeah,
+          마시고 마셔 봐도 성에 차지 않아
+          Got a feeling that, oh, yeah (
+          You could be everything that
+        end-7: false
+        choice-8: 이버사이코
+        response-pages-8:
+        - "노무현, 사이코우! \n(도배기록에서 발췌)"
+        end-8: false
+    shared-by: shaktien
+    shared-name: 노전대사_리부트
+  e127c88b611d465389832ed59fcd5ace:
+    title: 롤 챔피언 맞추기!
+    speaker: '노무현 대통령 '
+    message-pages:
+    - |-
+      부산지역정책연구소를 여는 것을 계기로 부산서 정치승부를
+      "정치하는 사람은 명분이 있어야 하며, 명분 없는 정치
+    - "15대 대선 TV찬조 연설중에서\n\"야당하다 여당으로 따라가지 않았습니다. 야당없는 민주\n. 그러나 우리는 가지 않았습니다. 세 번\
+      이나 연거푸 "
+    page-portraits:
+      '1': MALE_KING
+    page-expressions:
+      '1': HAPPY
+    shared-by: andlist
+    shared-name: 롤_챔피언_맞추기_
+  202e263dce2341dbbc6b979a934b997e:
+    title: 퀴즈
+    speaker: 김대중
+    message-pages:
+    - 이 문제의 답을 맞출 확률은 얼마인가?
+    page-portraits:
+      '0': MALE_VILLAGER
+    page-expressions:
+      '0': HAPPY
+    page-choices:
+      '0':
+        choice-1: 25%
+        response-pages-1:
+        - ''
+        end-1: false
+        choice-count: 4
+        choice-2: 0%
+        response-pages-2:
+        - ''
+        end-2: false
+        choice-3: 50%
+        response-pages-3:
+        - 50%라던데 나도모름
+        end-3: false
+        choice-4: 25%
+        response-pages-4:
+        - ''
+        end-4: false
+    shared-by: GULZZIM
+    shared-name: 퀴즈
+  17f45c574b8c464b9b7456c73fcd2220:
+    title: 퀴즈
+    speaker: 김대중
+    message-pages:
+    - 이 문제의 답을 맞출 확률은 얼마인가?
+    page-portraits:
+      '0': MALE_VILLAGER
+    page-expressions:
+      '0': HAPPY
+    page-choices:
+      '0':
+        choice-1: 25%
+        response-pages-1:
+        - ''
+        end-1: false
+        choice-count: 4
+        choice-2: 0%
+        response-pages-2:
+        - ''
+        end-2: false
+        choice-3: 50%
+        response-pages-3:
+        - 50%라던데 나도모름
+        end-3: false
+        choice-4: 25%
+        response-pages-4:
+        - ''
+        end-4: false
+    shared-by: GULZZIM
+    shared-name: 퀴즈
+  474c2fc92ae64ab795f0bfd40e71baa9:
+    title: 멸망한세계에서살아남는세가지방법_텍+본!!!(쩔 떄 유출금지)
+    speaker: ㅎㅇ
+    message-pages:
+    - |-
+      < Prologue. 멸망한 세계에서 살아남는 세 가지
+      전지적 독자 시점
+      Prologue. 멸망한 세계에서 살아남는 세 가지 방
+      멸망한세계에서살아남는세가지방법이있다이제몇개는잊어버렸다그
+    page-portraits:
+      '0': DEMON
+    page-expressions:
+      '0': HAPPY
+    shared-by: Chowol_0309
+    shared-name: 멸망한세계에서살아남는세가지방법_텍_본____쩔_떄_유출금지_
+  8033b80a049a485992cf7df275da7ab3:
+    title: 샌즈
+    speaker: 샌즈
+    message-pages:
+    - 으으.으으으
+    page-portraits:
+      '0': GOBLIN
+    page-expressions:
+      '0': NEUTRAL
+    page-choices:
+      '0':
+        choice-1: ??
+        response-pages-1:
+        - ''
+        - ''
+        end-1: false
+        choice-count: 1
+    shared-by: Chowol_0309
+    shared-name: 샌즈
+  ca7d59262a1d494fa76d99cb300aa4fc:
+    title: 사랑의 전화
+    speaker: 이재명 현 대통령
+    message-pages:
+    - |-
+      여보세요? 뭐 하는 짓이냐, 너? 나한테 뭐라고 보냈는
+      찢어 죽일 놈이지 너 이 새끼야.
+       그래?
+       이 개새끼야. 우리 녹음한 거 공개해.
+    - "그래…\n어머니의 구멍을 칼로 쑤셔 죽인다고? 이 천하의 개새끼\n 그런 일 없어\n그런 일 없어? 이 새끼야? 녹음 다 했어, 이 병\
+      신 "
+    - |-
+      퍼뜨려, 녹음 공개해.
+       병신 새끼, 아이고.
+      퍼뜨려, 녹음 공개해.(박인복 : 욕하는거야.)
+      네가 인간이야, 이 새끼야?
+    - |-
+      욕 하는 거 공개해봐.
+       네가 해 이 새끼야! 천하의 개놈의 새끼.
+       너 댓글 쓰고 자빠졌더라? 댓글 쓰고 자빠졌더라?
+      개새끼야, 전화를 안 받으니까 댓글 쓰지 병신새끼야.
+    - |-
+      남의 이름으로 썼더라, 여자 이름으로? 댓글 도용했더라
+      개새끼야, 집사람이 쓰고 있어 이 씹새끼야.
+      야 실명제…
+      병신새끼야. 부모를 씨발놈아, 어? 네 어머니 80 노
+    shared-by: dadatda
+    shared-name: 사랑의_전화
+  381f33aabbcc405dbc5cff9ebeacd972:
+    title: 줨데리아 주문
+    speaker: 알바
+    message-pages:
+    - "안녕하세요 줨데리아입니다 \n주문받겠습니다"
+    page-choices:
+      '0':
+        choice-1: 미준엄버거 단품
+        response-pages-1:
+        - |-
+          미리 준비한 엄마의 버거입니다.
+          엄마의 손길로 만들어 재료를 아낌없이 넣었습니다.
+          특제 소스인 느억맘 소스는 매우 맛있습니다.
+        end-1: false
+        choice-count: 2
+        response-portrait-1:
+          '0': MALE_VILLAGER
+        response-expression-1:
+          '0': HAPPY
+        response-page-choices-1:
+          '0':
+            choice-1: 단품
+            response-pages-1:
+            - |-
+              네 감사합니다 미준엄버거 주문 받았습니다
+              가격은 5230원이비다
+              주문 감사하비다 번호표 확인하세요
+            end-1: false
+            choice-count: 1
+            response-portrait-1:
+              '0': MALE_VILLAGER
+            response-expression-1:
+              '0': HAPPY
+        choice-2: 미준엄버거 세트
+        response-pages-2:
+        - "기존 미준엄버거에 케이줨 후라이와\n음료 500ml을 추가한 세트입니다 \n무려 500ml! 0.5L를 줍니다\n음료는 무엇으로\
+          \ 하시게씁니까?"
+        end-2: false
+        response-portrait-2:
+          '0': MALE_VILLAGER
+        response-expression-2:
+          '0': HAPPY
+        response-page-choices-2:
+          '0':
+            choice-1: 제로콜라
+            response-pages-1:
+            - "네 제로콜라 포함한 미준엄버거 세트 \n가격은 8848원입니다\n주문해주셔서 감사하비다 \n번호표 확인하세요"
+            end-1: true
+            choice-count: 2
+            response-portrait-1:
+              '0': MALE_VILLAGER
+            response-expression-1:
+              '0': HAPPY
+            choice-2: 콜라
+            response-pages-2:
+            - "네 그냥콜라 포함한 미준엄버거세트 \n가격은 8848원이비다\n주문해주셔서감사하비다번호표확인하세요"
+            end-2: true
+            response-portrait-2:
+              '0': MALE_VILLAGER
+            response-expression-2:
+              '0': HAPPY
+    page-portraits:
+      '0': MALE_VILLAGER
+    page-expressions:
+      '0': HAPPY
+    shared-by: Mata_tabi
+    shared-name: 미준엄버거_미리_준비한_엄마의버거__주문
+  93c3b869f8d24fbaabb339702c772423:
+    title: 노전대사 리부트
+    speaker: 노무현
+    message-pages:
+    - 노무현 전 대통령 사
+    page-choices:
+      '0':
+        choice-1: 루비아
+        response-pages-1:
+        - |-
+          아 사루비아
+          사루비아 비아
+          사루비아 당신 내 사랑
+          빠라밤 빠라밤
+        end-1: false
+        choice-count: 8
+        choice-2: 인 코사인 탄젠트
+        response-pages-2:
+        - |-
+          노래를 부르며 삼각함수를 공부하여 보자
+          r분의 y 사인 함수
+          r분의 x 코사인 함수
+          x분의 y 탄젠트 함수
+        end-2: false
+        choice-3: 이타마
+        response-pages-3:
+        - |-
+          팔굽혀펴기 100개!
+          윗몸일으키기 100개!
+          스퀴트 100개!
+          뜀걸음 10km!
+        end-3: false
+        choice-4: '4'
+        response-pages-4:
+        - |-
+          하나,
+          둘.
+          세엣,
+          네에에에에엣!
+        end-4: false
+        choice-5: 랑받기위해태어난사람
+        response-pages-5:
+        - |-
+          당신의 삶 속에서 그 사랑 받고 있지요
+          당신은 사랑받기 위해 태어난 사람
+          당신의 삶 속에서 그 사랑 받고 있지요
+        end-5: false
+        choice-6: 일러스
+        response-pages-6:
+        - |-
+          Q - 집값 후려치기
+          W - 대통령시해자
+          E - 논으로 도주 / 검찰청 억압
+          R - 피아제 강탈
+        end-6: false
+        choice-7: 자보이즈
+        response-pages-7:
+        - |-
+          Don't want you, need you Yeah,
+          마시고 마셔 봐도 성에 차지 않아
+          Got a feeling that, oh, yeah (
+          You could be everything that
+        end-7: false
+        choice-8: 이버사이코
+        response-pages-8:
+        - "노무현, 사이코우! \n(도배기록에서 발췌)"
+        end-8: false
+    shared-by: shaktien
+    shared-name: 노전대사_리부트
+  140102232caf430fa1ac402d6caf741c:
+    title: 야한 도라에몽
+    speaker: '노진구 '
+    message-pages:
+    - "노라에모오옹 ㅠㅠㅠ [내 이름은 \"노\"진구 오늘도 골목\n노라에몽:애휴.. 진구야.. 그럴줄 알고 내가 오늘은 \n\"노\"진구:\
+      \ 특별한 도구..? 그게.. 뭔..데? \n노라에몽:므흐흣 이름하여 항문딜도!           "
+    - |-
+      "노"진구: 항문딜..도? 이걸로 퉁퉁이를 어떻게 이겨
+      노라에몽: 진구 이 등신아~ 이걸로 퉁퉁이 항문에 쑤셔
+      "노"진구: 이걸로..? 흐음.. 일단 알겠어.. 바로
+      나는 반신반의한 표정으로 퉁퉁이가 있는 공원으로 달려갔
+    - "퉁퉁이: 어? 이 ㅈ밥년 또 달려왔네? 또 ㅈㄴ게 쳐 \n[나는 퉁퉁이에게 항문딜도를..] "
+    page-choices:
+      '2':
+        choice-1: 쑤셔넣었다
+        response-pages-1:
+        - "퉁퉁이:응기기기기기깃!!!!!!~~~~ 우효오오오옷~~\n퉁퉁이는 엄청난 신음 소리와 함께 가랑이에 하얀액체를 \n\"노\"진구\
+          : 어..? 이게 항..항문딜도..?\n다음화에 계속.."
+        end-1: false
+        choice-count: 2
+        choice-2: '안쑤셔넣었다 '
+        response-pages-2:
+        - 나는 그렇게 계속 쳐맞다 결국 죽었다..
+        end-2: false
+    shared-by: Koesi_0622
+    shared-name: 야한_도라에몽_
+  a0dd07cfaad24923a8c5a6011a4f8ac4:
+    title: 이쁜이
+    speaker: 이쁜이
+    message-pages:
+    - 뭐야...? 역겹게 생겼잖아. 사람맞아...???
+    - 뭐.... 그래도 거래는 거래니까..
+    - 통장으로 입금이나 해 허접 노예 ♥
+    page-portraits:
+      '0': FEMALE_WIZARD
+      '1': FEMALE_WIZARD
+      '2': FEMALE_WIZARD
+    page-expressions:
+      '0': SURPRISED
+      '1': EMBARRASSED
+      '2': HAPPY
+    page-effects:
+      '2':
+        sounds: ''
+        items: '@cec21a9a-e2c2-4aeb-a5ec-4dfc0232ffa1/신던스타킹:1'
+        take-items: ''
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    shared-by: Viyoly
+    shared-name: 이쁜이
+  097567cf12494337b7fff3f3105871ed:
+    title: test
+    speaker: GhangDhang
+    message-pages:
+    - 댕강이 기염 감자도리 보올탱 만져어도 돼에..??
+    - |-
+      댕강이.. 자존심 상했쪄어... 기여운 감자도리 보올탱
+      보여줄꼬야!!!!!!!! 감자돌이에게!!!!!!!!!!
+    - 댕강이랑 기여움 대결 펼치는거야!!!!!!!!!!!!!
+    - "조아.. 가위 바위 보로.. 먼저 기염 매력 펼칠사람 \n찾아아아..!!"
+    - 가위.. 바위... ㅂ...
+    - (말랑)
+    - |-
+      꺄아아아아아아아아아아앙 ㅏ나렁니로ㅓㅏㄴ오ㅓㅏㅣㄹ노ㅓㄹㅇ
+      꺙ㅁ낭ㅁ;ㄴ이ㅏㅁ너어ㅏㅣㅁ아ㅓㅣㅁㄴ이ㅏㅓㅁㄴ아ㅓㅣㅁㄴ아
+    page-portraits:
+      '0': DEMON
+    page-expressions:
+      '0': HAPPY
+    page-choices:
+      '0':
+        choice-1: '안돼에에에엣!!! '
+        response-pages-1:
+        - |-
+          에에ㅡ엣... 왜 안된다는고양... 기염 기염 감자돌이
+          댕강이 기염 감자도리 보올탱 만지작 하고시퍼쁑...
+        end-1: false
+        choice-count: 2
+        choice-2: 야이 기여운 댕강이
+        response-pages-2:
+        - |-
+          그렇게 기염 뽀쨕 유관유관 매력 있으면서..
+          맨날 내 매력쀼우만!!!!
+          기여운 댕강이... 자존심 상해..
+        end-2: false
+      '1':
+        choice-1: 기염 대결을 펼치자
+        response-pages-1:
+        - |2-
+           웅..!! 우웅..!! 감자돌이이...
+          이 기염 유관유관 매력 가진..!!!
+        end-1: false
+        choice-count: 1
+      '4':
+        choice-1: 가위..바위.. ㅂ
+        response-pages-1:
+        - (감자돌이가 기습적으로 댕강이의 보올탱을 만졌다)
+        end-1: false
+        choice-count: 1
+    camera-direction: NORTH
+    page-effects:
+      '0':
+        message: ''
+        message-color: '#FFFFFF'
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    page-conditions:
+      '0':
+        variable: ''
+        value: ''
+        extra-variables: ''
+        variable-logic: AND
+    shared-by: War_Gwang
+    shared-name: test
+  0871544b8faa4876904555cfeae5dc60:
+    title: 이쁜이
+    speaker: 이쁜이
+    message-pages:
+    - 뭐야...? 역겹게 생겼잖아. 사람맞아...???
+    - 뭐.... 그래도 거래는 거래니까..
+    - 통장으로 입금이나 해 허접 노예 ♥
+    page-portraits:
+      '0': FEMALE_WIZARD
+      '1': FEMALE_WIZARD
+      '2': FEMALE_WIZARD
+    page-expressions:
+      '0': SURPRISED
+      '1': EMBARRASSED
+      '2': HAPPY
+    page-effects:
+      '2':
+        sounds: ''
+        items: '@cec21a9a-e2c2-4aeb-a5ec-4dfc0232ffa1/신던스타킹:1'
+        take-items: ''
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    shared-by: Viyoly
+    shared-name: 이쁜이
+  c5d9f2fea3f84a9fbbd7fa4aa8ada0c5:
+    title: test
+    speaker: GhangDhang
+    message-pages:
+    - 댕강이 기염 감자도리 보올탱 만져어도 돼에..??
+    - |-
+      댕강이.. 자존심 상했쪄어... 기여운 감자도리 보올탱
+      보여줄꼬야!!!!!!!! 감자돌이에게!!!!!!!!!!
+    - 댕강이랑 기여움 대결 펼치는거야!!!!!!!!!!!!!
+    - "조아.. 가위 바위 보로.. 먼저 기염 매력 펼칠사람 \n찾아아아..!!"
+    - 가위.. 바위... ㅂ...
+    - (말랑)
+    - |-
+      꺄아아아아아아아아아아앙 ㅏ나렁니로ㅓㅏㄴ오ㅓㅏㅣㄹ노ㅓㄹㅇ
+      꺙ㅁ낭ㅁ;ㄴ이ㅏㅁ너어ㅏㅣㅁ아ㅓㅣㅁㄴ이ㅏㅓㅁㄴ아ㅓㅣㅁㄴ아
+    page-portraits:
+      '0': DEMON
+    page-expressions:
+      '0': HAPPY
+    page-choices:
+      '0':
+        choice-1: '안돼에에에엣!!! '
+        response-pages-1:
+        - |-
+          에에ㅡ엣... 왜 안된다는고양... 기염 기염 감자돌이
+          댕강이 기염 감자도리 보올탱 만지작 하고시퍼쁑...
+        end-1: false
+        choice-count: 2
+        choice-2: 야이 기여운 댕강이
+        response-pages-2:
+        - |-
+          그렇게 기염 뽀쨕 유관유관 매력 있으면서..
+          맨날 내 매력쀼우만!!!!
+          기여운 댕강이... 자존심 상해..
+        end-2: false
+      '1':
+        choice-1: 기염 대결을 펼치자
+        response-pages-1:
+        - |2-
+           웅..!! 우웅..!! 감자돌이이...
+          이 기염 유관유관 매력 가진..!!!
+        end-1: false
+        choice-count: 1
+      '4':
+        choice-1: 가위..바위.. ㅂ
+        response-pages-1:
+        - (감자돌이가 기습적으로 댕강이의 보올탱을 만졌다)
+        end-1: false
+        choice-count: 1
+    camera-direction: NORTH
+    page-effects:
+      '0':
+        message: ''
+        message-color: '#FFFFFF'
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    page-conditions:
+      '0':
+        variable: ''
+        value: ''
+        extra-variables: ''
+        variable-logic: AND
+    shared-by: War_Gwang
+    shared-name: test
+  40ecd6949acb412ea9a2d126ce4c9b07:
+    title: 행운 테스트
+    speaker: 당신의 운은?
+    message-pages:
+    - |-
+      안녕하세요
+      지금부터 당신의 운을 테스트 해보겠습니다.
+    page-choices:
+      '0':
+        choice-1: 1번
+        response-pages-1:
+        - |-
+          와... 초장부터 탈ㄹ락해스ㅂ니다
+          이런 개병ㅇ신색기
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+        end-1: false
+        choice-count: 4
+        choice-2: 2번
+        response-pages-2:
+        - |-
+          와... 이런 ㅂㅅ색기 처음부터
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+        end-2: false
+        choice-3: 3번
+        response-pages-3:
+        - |-
+          ㅎㅇ
+          와..축하드립니다!!! !!!!
+          ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+          탈락입니다.
+        end-3: false
+        choice-4: 4번
+        response-pages-4:
+        - |-
+          와...
+          정말 대단합니다
+          아ㅣㄴ정 인정
+          짱!
+        end-4: false
+    shared-by: Chowol_0309
+    shared-name: 행운_테스트
+  b020bd4084d94ba8890c317198f53c85:
+    title: ASMR
+    speaker: ASMR유튜버
+    message-pages:
+    - 나의 ASMR을 들을준비가됐나? 볼륨을 최대로 키우도록
+    page-effects:
+      '0':
+        sounds: minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100
+    shared-by: Dor00
+    shared-name: ASMR
+  6efd92ead0504c05b9e32eca62eea567:
+    title: 템지급용
+    speaker: 히히
+    message-pages:
+    - 받
+    page-choices:
+      '0':
+        choice-1: 활
+        response-pages-1:
+        - '1'
+        end-1: false
+        choice-count: 3
+        response-effects-1:
+          '0':
+            items: bow
+            take-items: ''
+        choice-2: 화살
+        response-pages-2:
+        - '1213'
+        end-2: false
+        response-effects-2:
+          '0':
+            items: arrow:64
+            take-items: ''
+        choice-3: 방패
+        response-pages-3:
+        - qweqweqew
+        end-3: false
+        response-effects-3:
+          '0':
+            items: shield
+            take-items: ''
+    shared-by: shaktien
+    shared-name: 템지급용
+  14a1c8e275c34a428118216734c2104e:
+    title: new_dialogue
+    speaker: 수호자
+    message-pages:
+    - d
+    page-effects:
+      '0':
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+        items: minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000,minecraft:stone_sword:64:수고링:#FF0000
+        take-items: ''
+        message: ''
+        message-color: '#FFFFFF'
+        sounds: ''
+    page-conditions:
+      '0':
+        variable: ''
+        value: ''
+        extra-variables: ''
+        variable-logic: AND
+        type: NONE
+        item-spec: ''
+        replacement: ''
+    camera-direction: NORTH
+    shared-by: Dor00
+    shared-name: new_dialogue
+  c98dd5264f554b79a23954e89f8c5a2d:
+    title: 템지급용
+    speaker: 히히
+    message-pages:
+    - 받
+    page-choices:
+      '0':
+        choice-1: 활
+        response-pages-1:
+        - '1'
+        end-1: false
+        choice-count: 3
+        response-effects-1:
+          '0':
+            items: bow
+            take-items: ''
+        choice-2: 화살
+        response-pages-2:
+        - '1213'
+        end-2: false
+        response-effects-2:
+          '0':
+            items: arrow:64
+            take-items: ''
+        choice-3: 방패
+        response-pages-3:
+        - qweqweqew
+        end-3: false
+        response-effects-3:
+          '0':
+            items: shield
+            take-items: ''
+    shared-by: shaktien
+    shared-name: 템지급용
+  803e9492795c4122b8b4c81c25e4010a:
+    title: 사람가두는채팅
+    speaker: 간수
+    message-pages:
+    - |-
+      안녕하세요
+      텅빈다음대사를막만들고
+      구냥끝내버리면
+      사람이가둬집니다
+    - ''
+    - ㅎㅇ
+    shared-by: Chowol_0309
+    shared-name: 사람가두는채팅
+  01b038b9d7b94a32b7938b6967d0f304:
+    title: 활카스
+    speaker: 나
+    message-pages:
+    - "지금 활카스 6대 6 상황..\n우리 팀은 꼬챙이을 당하고 나 혼자 남았다.\n남은 적팀은 4명. 스파이크는 막 설치된 상황. 나는 \n\
+      어떻게 해야 할까...?"
+    page-portraits:
+      '0': ORC
+    page-expressions:
+      '0': NEUTRAL
+    page-choices:
+      '0':
+        choice-1: 포기
+        response-pages-1:
+        - |-
+          나는 포기하고 팀을 향해 마구잡이로 욕설을 날리기 시작
+          <Ceci_Riwa> 글로벌 밴 리스트 부흥운동이나 ㄱ
+          <Ceci_Riwa> 아무래도 이 제시어를 보니 전주딱
+          <Ceci_Riwa> 얜 걍 생긴게 맘에 안드네 누구라
+        - |-
+          <Ceci_Riwa> 아.. _____이랑 돌아왔네..
+          <Ceci_Riwa> _____ 장례식이라는 말은 왜하
+          <Ceci_Riwa> _____ _____ 둘이 싸운거
+          <Ceci_Riwa> 병신이라 무시가 답..
+        - "<Ceci_Riwa> 픽셀몬으로 유입된 단타충.... \n<Ceci_Riwa> _____ 짭년도 살아있네 질긴년\n<Ceci_Riwa>\
+          \ 고로시 5번은 쳐당했는데 질긴 생\n<Ceci_Riwa> 근데 _____ 좃팬건 이니쉬 내"
+        - |-
+          <Ceci_Riwa> 수상하면 _____ _____ 찌
+          <Ceci_Riwa> _____는 들어오면 안되는데..
+          <Ceci_Riwa> 돌보미 선생님도 그따위 이론은 안
+          <Ceci_Riwa> _____사이드 스쿼드란? 마블의
+        - |-
+          <Ceci_Riwa> 얘가 어떻게 낙태를 안당햇지?
+          <Ceci_Riwa> ㄱㄱ 그냥 사람이 패고싶은 기분
+          <Ceci_Riwa> 니 가정만큼 씹창났을까 _____
+          <Ceci_Riwa> 고아의견은 무조건 반~대
+        end-1: false
+        choice-count: 3
+        choice-2: 활을 쏜다
+        response-pages-2:
+        - |-
+          다행이 내가 쏜 활을 모두 꼬챙이돼 클러치에 성공한다.
+          그 덕에 브론즈 5에서 브론즈4로 승격에 성공했다.
+          모두가 나에게 명예를 주고, 이 서버의 주인인 sohx
+          심지어 군대간 ok마저 폰접으로 들어와 나를 축하해주기
+        - |-
+          ....
+          ....
+          그러나.. 이렇게 형편 좋은 것은 대부분..
+          꿈.....!!
+        - 나는 그대로 사망하고 팀에 있는 ce******에게 패
+        end-2: false
+        choice-3: 서버를 나간다
+        response-pages-3:
+        - |-
+          그대로 서버를 나간 나는 다시는 단타에 접속하지 않았다
+          그리고 공부를 해 로스쿨에 합격후 변시에 합격한뒤
+          훌륭한 여자를 만나 결혼까지 골인했다.
+          내가 만일 활카스를 그대로 하고 있었다면 어떻게 됐을까
+        end-3: false
+    shared-by: dadatda
+    shared-name: 활카스
+  bc72ef6fd2bb4b9a86d53e0382760ecf:
+    title: 활카스
+    speaker: 나
+    message-pages:
+    - "지금 활카스 6대 6 상황..\n우리 팀은 꼬챙이을 당하고 나 혼자 남았다.\n남은 적팀은 4명. 스파이크는 막 설치된 상황. 나는 \n\
+      어떻게 해야 할까...?"
+    page-portraits:
+      '0': ORC
+    page-expressions:
+      '0': NEUTRAL
+    page-choices:
+      '0':
+        choice-1: 포기
+        response-pages-1:
+        - |-
+          나는 포기하고 팀을 향해 마구잡이로 욕설을 날리기 시작
+          <Ceci_Riwa> 글로벌 밴 리스트 부흥운동이나 ㄱ
+          <Ceci_Riwa> 아무래도 이 제시어를 보니 전주딱
+          <Ceci_Riwa> 얜 걍 생긴게 맘에 안드네 누구라
+        - |-
+          <Ceci_Riwa> 아.. _____이랑 돌아왔네..
+          <Ceci_Riwa> _____ 장례식이라는 말은 왜하
+          <Ceci_Riwa> _____ _____ 둘이 싸운거
+          <Ceci_Riwa> 병신이라 무시가 답..
+        - "<Ceci_Riwa> 픽셀몬으로 유입된 단타충.... \n<Ceci_Riwa> _____ 짭년도 살아있네 질긴년\n<Ceci_Riwa>\
+          \ 고로시 5번은 쳐당했는데 질긴 생\n<Ceci_Riwa> 근데 _____ 좃팬건 이니쉬 내"
+        - |-
+          <Ceci_Riwa> 수상하면 _____ _____ 찌
+          <Ceci_Riwa> _____는 들어오면 안되는데..
+          <Ceci_Riwa> 돌보미 선생님도 그따위 이론은 안
+          <Ceci_Riwa> _____사이드 스쿼드란? 마블의
+        - |-
+          <Ceci_Riwa> 얘가 어떻게 낙태를 안당햇지?
+          <Ceci_Riwa> ㄱㄱ 그냥 사람이 패고싶은 기분
+          <Ceci_Riwa> 니 가정만큼 씹창났을까 _____
+          <Ceci_Riwa> 고아의견은 무조건 반~대
+        end-1: false
+        choice-count: 3
+        choice-2: 활을 쏜다
+        response-pages-2:
+        - |-
+          다행이 내가 쏜 활을 모두 꼬챙이돼 클러치에 성공한다.
+          그 덕에 브론즈 5에서 브론즈4로 승격에 성공했다.
+          모두가 나에게 명예를 주고, 이 서버의 주인인 sohx
+          심지어 군대간 ok마저 폰접으로 들어와 나를 축하해주기
+        - |-
+          ....
+          ....
+          그러나.. 이렇게 형편 좋은 것은 대부분..
+          꿈.....!!
+        - 나는 그대로 사망하고 팀에 있는 ce******에게 패
+        end-2: false
+        choice-3: 서버를 나간다
+        response-pages-3:
+        - |-
+          그대로 서버를 나간 나는 다시는 단타에 접속하지 않았다
+          그리고 공부를 해 로스쿨에 합격후 변시에 합격한뒤
+          훌륭한 여자를 만나 결혼까지 골인했다.
+          내가 만일 활카스를 그대로 하고 있었다면 어떻게 됐을까
+        end-3: false
+    shared-by: dadatda
+    shared-name: 활카스
+  582826b1a4a2428a8d17e77738f72149:
+    title: 템지급용
+    speaker: 히히
+    message-pages:
+    - 받
+    page-choices:
+      '0':
+        choice-1: 활
+        response-pages-1:
+        - '1'
+        end-1: false
+        choice-count: 4
+        response-effects-1:
+          '0':
+            items: bow
+            take-items: ''
+        choice-2: 화살
+        response-pages-2:
+        - '1213'
+        end-2: false
+        response-effects-2:
+          '0':
+            items: arrow:64
+            take-items: ''
+        choice-3: 방패
+        response-pages-3:
+        - qweqweqew
+        end-3: false
+        response-effects-3:
+          '0':
+            items: shield
+            take-items: ''
+        choice-4: 돌
+        response-pages-4:
+        - 풍구
+        end-4: false
+        response-effects-4:
+          '0':
+            items: wind_charge:64
+            take-items: ''
+    shared-by: shaktien
+    shared-name: 템지급용
+  0647cb6b7f7b42b1acc5e269c355e6c3:
+    title: 이쁜이
+    speaker: 이쁜이
+    message-pages:
+    - 뭐야...? 역겹게 생겼잖아. 사람맞아...???
+    - 뭐.... 그래도 거래는 거래니까..
+    - 통장으로 입금이나 해 허접 노예 ♥
+    page-portraits:
+      '0': FEMALE_WIZARD
+      '1': FEMALE_WIZARD
+      '2': FEMALE_WIZARD
+    page-expressions:
+      '0': SURPRISED
+      '1': EMBARRASSED
+      '2': HAPPY
+    page-effects:
+      '2':
+        sounds: ''
+        items: '@cec21a9a-e2c2-4aeb-a5ec-4dfc0232ffa1/신던스타킹:1'
+        take-items: ''
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    shared-by: Viyoly
+    shared-name: 이쁜이
+  25879206f3104f0ab600bfd4cf0440a3:
+    title: 야한 도라에몽 퉁퉁이의 신음편
+    speaker: '"노"진구 '
+    message-pages:
+    - |-
+      노라에모오옹 ㅠㅠㅠ [내 이름은 "노"진구]
+      [오늘도 골목대장 퉁퉁이에게 쳐 맞고 오는길이다..]
+      노라에몽:애휴.. 진구야.. 그럴줄 알고 내가 오늘은.
+      특별한 도구를 준비했어.. 므흐흣
+    - "\"노\"진구: 특별한..도구? 그게 뭔데..?\n노라에몽:므흐흣 이름하여 항문딜도!           \n\"노\"진구: 항문딜..도\
+      ? 이걸로 퉁퉁이를 어떻게 이겨\n노라에몽: 진구 이 등신아~ 이걸로 퉁퉁이 항문에 쑤셔"
+    - "\"노\"진구: 이걸로..? 흐음.. 일단 알겠어..\n[나는 곧장 퉁퉁이가 있는 놀이터로 달려갔다]\n퉁퉁이: 어? 이 ㅈ밥년 또 달\
+      려왔네? \n또 홍어로 쳐맞아야겠노ㅋㅋ 1기야2기야3기야 "
+    - '나는 퉁퉁이에게 항문딜도를.. '
+    page-choices:
+      '3':
+        choice-1: '쑤셔넣었다 '
+        response-pages-1:
+        - |-
+          응기기기기기깃! 헤으으으으응~~
+          퉁퉁이는 큰신음과 함꼐 절정하였다..
+          퉁퉁이의 바지가랑이는 하얀액체가 넘쳐 흘렸다..
+          "노"진구:이것이 항문딜도..?
+        end-1: false
+        choice-count: 3
+        choice-2: 안쑤셔넣었다..
+        response-pages-2:
+        - "퉁퉁이: 얼린홍어 맛좀 봐라ㅋㅋ \n[그렇게 난 계속 쳐맞고 결국 죽었다..]"
+        end-2: false
+        choice-3: ''
+        response-pages-3:
+        - ''
+        end-3: false
+    shared-by: Koesi_0622
+    shared-name: 야한_도라에몽_퉁퉁이의_신음편_
+  3be0f92fb799413e8d13e60b60623ae4:
+    title: 사랑의 전화
+    speaker: 이재명 현 대통령
+    message-pages:
+    - |-
+      여보세요? 뭐 하는 짓이냐, 너? 나한테 뭐라고 보냈는
+      찢어 죽일 놈이지 너 이 새끼야.
+       그래?
+       이 개새끼야. 우리 녹음한 거 공개해.
+    - "그래…\n어머니의 구멍을 칼로 쑤셔 죽인다고? 이 천하의 개새끼\n 그런 일 없어\n그런 일 없어? 이 새끼야? 녹음 다 했어, 이 병\
+      신 "
+    - |-
+      퍼뜨려, 녹음 공개해.
+       병신 새끼, 아이고.
+      퍼뜨려, 녹음 공개해.(박인복 : 욕하는거야.)
+      네가 인간이야, 이 새끼야?
+    - |-
+      욕 하는 거 공개해봐.
+       네가 해 이 새끼야! 천하의 개놈의 새끼.
+       너 댓글 쓰고 자빠졌더라? 댓글 쓰고 자빠졌더라?
+      개새끼야, 전화를 안 받으니까 댓글 쓰지 병신새끼야.
+    - |-
+      남의 이름으로 썼더라, 여자 이름으로? 댓글 도용했더라
+      개새끼야, 집사람이 쓰고 있어 이 씹새끼야.
+      야 실명제…
+      병신새끼야. 부모를 씨발놈아, 어? 네 어머니 80 노
+    shared-by: dadatda
+    shared-name: 사랑의_전화
+  cf6f423105254cc1afd76787a4265903:
+    title: 이쁜이
+    speaker: 이쁜이
+    message-pages:
+    - 뭐야...? 역겹게 생겼잖아. 사람맞아...???
+    - 뭐.... 그래도 거래는 거래니까..
+    - 통장으로 입금이나 해 허접 노예 ♥
+    page-portraits:
+      '0': FEMALE_WIZARD
+      '1': FEMALE_WIZARD
+      '2': FEMALE_WIZARD
+    page-expressions:
+      '0': SURPRISED
+      '1': EMBARRASSED
+      '2': HAPPY
+    page-effects:
+      '2':
+        sounds: ''
+        items: '@cec21a9a-e2c2-4aeb-a5ec-4dfc0232ffa1/신던스타킹:1'
+        take-items: ''
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    shared-by: Viyoly
+    shared-name: 이쁜이
+  cb09410db6f94a26b6a0cb493cd77810:
+    title: 활카스
+    speaker: 나
+    message-pages:
+    - "지금 활카스 6대 6 상황..\n우리 팀은 꼬챙이을 당하고 나 혼자 남았다.\n남은 적팀은 4명. 스파이크는 막 설치된 상황. 나는 \n\
+      어떻게 해야 할까...?"
+    page-portraits:
+      '0': ORC
+    page-expressions:
+      '0': NEUTRAL
+    page-choices:
+      '0':
+        choice-1: 포기
+        response-pages-1:
+        - |-
+          나는 포기하고 팀을 향해 마구잡이로 욕설을 날리기 시작
+          <Ceci_Riwa> 글로벌 밴 리스트 부흥운동이나 ㄱ
+          <Ceci_Riwa> 아무래도 이 제시어를 보니 전주딱
+          <Ceci_Riwa> 얜 걍 생긴게 맘에 안드네 누구라
+        - |-
+          <Ceci_Riwa> 아.. _____이랑 돌아왔네..
+          <Ceci_Riwa> _____ 장례식이라는 말은 왜하
+          <Ceci_Riwa> _____ _____ 둘이 싸운거
+          <Ceci_Riwa> 병신이라 무시가 답..
+        - "<Ceci_Riwa> 픽셀몬으로 유입된 단타충.... \n<Ceci_Riwa> _____ 짭년도 살아있네 질긴년\n<Ceci_Riwa>\
+          \ 고로시 5번은 쳐당했는데 질긴 생\n<Ceci_Riwa> 근데 _____ 좃팬건 이니쉬 내"
+        - |-
+          <Ceci_Riwa> 수상하면 _____ _____ 찌
+          <Ceci_Riwa> _____는 들어오면 안되는데..
+          <Ceci_Riwa> 돌보미 선생님도 그따위 이론은 안
+          <Ceci_Riwa> _____사이드 스쿼드란? 마블의
+        - |-
+          <Ceci_Riwa> 얘가 어떻게 낙태를 안당햇지?
+          <Ceci_Riwa> ㄱㄱ 그냥 사람이 패고싶은 기분
+          <Ceci_Riwa> 니 가정만큼 씹창났을까 _____
+          <Ceci_Riwa> 고아의견은 무조건 반~대
+        end-1: false
+        choice-count: 3
+        choice-2: 활을 쏜다
+        response-pages-2:
+        - |-
+          다행이 내가 쏜 활을 모두 꼬챙이돼 클러치에 성공한다.
+          그 덕에 브론즈 5에서 브론즈4로 승격에 성공했다.
+          모두가 나에게 명예를 주고, 이 서버의 주인인 sohx
+          심지어 군대간 ok마저 폰접으로 들어와 나를 축하해주기
+        - |-
+          ....
+          ....
+          그러나.. 이렇게 형편 좋은 것은 대부분..
+          꿈.....!!
+        - 나는 그대로 사망하고 팀에 있는 ce******에게 패
+        end-2: false
+        choice-3: 서버를 나간다
+        response-pages-3:
+        - |-
+          그대로 서버를 나간 나는 다시는 단타에 접속하지 않았다
+          그리고 공부를 해 로스쿨에 합격후 변시에 합격한뒤
+          훌륭한 여자를 만나 결혼까지 골인했다.
+          내가 만일 활카스를 그대로 하고 있었다면 어떻게 됐을까
+        end-3: false
+    shared-by: dadatda
+    shared-name: 활카스
+  58a990e4569748fc8b0537ed7898faa5:
+    title: 붕키의 일상
+    speaker: ???
+    message-pages:
+    - |-
+      아침에 눈을 뜨니 이럴수가 내 정실 소보로가 있었다
+      붕키 : 당신은...소보로?
+      소보로 : 애미시발 여긴 어디야?
+      붕키 : 소보로님!!! 맞으시군요! 스티브 갤러리 파딱
+    - |-
+      소보로 : 뭔 개소리야 시발? 난 분명 포탈섭에...
+      소보로 : 카른이랑 뽀뽀하고 해피 타임 보내고있었는데
+      붕키 : 됐고 절 도와주세요 제가 단타를 만들려하거든요
+      소보로 : 닥쳐 시발 되돌리기나해
+    - |-
+      소보로 : 하아...그러니깐 단타 만드는걸 도와줘야
+      소보로 : 원래 세계로 돌아가게 해준다는거지?
+      붕키 : 바로 이해하셨군요 바로 그거에요
+      붕키 : 자 컴퓨터는 켰습니다 단타를 만들어보죠
+    page-portraits:
+      '1': SENTINEL
+    page-expressions:
+      '1': HAPPY
+    page-choices:
+      '1':
+        choice-count: 0
+      '2':
+        choice-1: PVP 단타 만들기
+        response-pages-1:
+        - 좋아 이런류의 단타를 만드는게 좋겠어.
+        end-1: false
+        choice-count: 3
+        response-page-choices-1:
+          '0':
+            choice-1: PVP단타를만든다
+            response-pages-1:
+            - ''
+            end-1: false
+            choice-count: 1
+        choice-2: 조돌 단타 만들기
+        response-pages-2:
+        - '이럴수가 난 결국 주딱에게 걸려 포탈섭 영밴을 당했다 '
+        end-2: true
+        choice-3: 더벌룬 부활 단타
+        response-pages-3:
+        - 이런 시발 이딴 선택지 고르네 쳐 뒤져라 ㅈㅈ
+        end-3: true
+        response-page-choices-3:
+          '0':
+            choice-count: 0
+        response-effects-3:
+          '0':
+            message: ''
+            message-color: '#FFFFFF'
+    shared-by: Flowey_2407
+    shared-name: 붕키의_일상
+  cd7c77cd548b47808b0dd504f6639192:
+    title: 애옹재앙의 회고록
+    speaker: 이쁜이
+    message-pages:
+    - 축하해♥ 0.1%의 확률로 회고록 대신 내가 왔어 ♥♥
+    page-portraits:
+      '0': FEMALE_CLERIC
+    page-expressions:
+      '0': HAPPY
+    shared-by: Viyoly
+    shared-name: 애옹재앙의_회고록
+  49b89707abe24b70b2295a3624b1e1fa:
+    title: 사랑의 전화
+    speaker: 이재명 현 대통령
+    message-pages:
+    - |-
+      여보세요? 뭐 하는 짓이냐, 너? 나한테 뭐라고 보냈는
+      찢어 죽일 놈이지 너 이 새끼야.
+       그래?
+       이 개새끼야. 우리 녹음한 거 공개해.
+    - "그래…\n어머니의 구멍을 칼로 쑤셔 죽인다고? 이 천하의 개새끼\n 그런 일 없어\n그런 일 없어? 이 새끼야? 녹음 다 했어, 이 병\
+      신 "
+    - |-
+      퍼뜨려, 녹음 공개해.
+       병신 새끼, 아이고.
+      퍼뜨려, 녹음 공개해.(박인복 : 욕하는거야.)
+      네가 인간이야, 이 새끼야?
+    - |-
+      욕 하는 거 공개해봐.
+       네가 해 이 새끼야! 천하의 개놈의 새끼.
+       너 댓글 쓰고 자빠졌더라? 댓글 쓰고 자빠졌더라?
+      개새끼야, 전화를 안 받으니까 댓글 쓰지 병신새끼야.
+    - |-
+      남의 이름으로 썼더라, 여자 이름으로? 댓글 도용했더라
+      개새끼야, 집사람이 쓰고 있어 이 씹새끼야.
+      야 실명제…
+      병신새끼야. 부모를 씨발놈아, 어? 네 어머니 80 노
+    shared-by: dadatda
+    shared-name: 사랑의_전화
+  3cfa4b5f1a0f465daf032e535fec9778:
+    title: 영원회귀자
+    speaker: 영원회귀자
+    message-pages:
+    - 또다시 회귀했다.......
+    page-effects:
+      '0':
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+        return-mode: TARGET
+        return-target: PAGE:p0
+        items: ''
+        take-items: ''
+    shared-by: Dor00
+    shared-name: 영원회귀자
+  50d28ce132d345eb9618b777f7415eb7:
+    title: 야한 도라에몽 퉁퉁이의 신음편
+    speaker: '"노"진구 '
+    message-pages:
+    - |-
+      노라에모오옹 ㅠㅠㅠ [내 이름은 "노"진구]
+      [오늘도 골목대장 퉁퉁이에게 쳐 맞고 오는길이다..]
+      노라에몽:애휴.. 진구야.. 그럴줄 알고 내가 오늘은.
+      특별한 도구를 준비했어.. 므흐흣
+    - "\"노\"진구: 특별한..도구? 그게 뭔데..?\n노라에몽:므흐흣 이름하여 항문딜도!           \n\"노\"진구: 항문딜..도\
+      ? 이걸로 퉁퉁이를 어떻게 이겨\n노라에몽: 진구 이 등신아~ 이걸로 퉁퉁이 항문에 쑤셔"
+    - "\"노\"진구: 이걸로..? 흐음.. 일단 알겠어..\n[나는 곧장 퉁퉁이가 있는 놀이터로 달려갔다]\n퉁퉁이: 어? 이 ㅈ밥년 또 달\
+      려왔네? \n또 홍어로 쳐맞아야겠노ㅋㅋ 1기야2기야3기야 "
+    - '나는 퉁퉁이에게 항문딜도를.. '
+    page-choices:
+      '3':
+        choice-1: '쑤셔넣었다 '
+        response-pages-1:
+        - |-
+          응기기기기기깃! 헤으으으으응~~
+          퉁퉁이는 큰신음과 함꼐 절정하였다..
+          퉁퉁이의 바지가랑이는 하얀액체가 넘쳐 흘렸다..
+          "노"진구:이것이 항문딜도..?
+        end-1: false
+        choice-count: 3
+        choice-2: 안쑤셔넣었다..
+        response-pages-2:
+        - "퉁퉁이: 얼린홍어 맛좀 봐라ㅋㅋ \n[그렇게 난 계속 쳐맞고 결국 죽었다..]"
+        end-2: false
+        choice-3: ''
+        response-pages-3:
+        - ''
+        end-3: false
+    shared-by: Koesi_0622
+    shared-name: 야한_도라에몽_퉁퉁이의_신음편_
+  59c071d9b2604e979eaeb495f32a5cfa:
+    title: 야한도라에몽 비실이의 신음편
+    speaker: '"노"진구 '
+    message-pages:
+    - "\"노\"진구 노라에몽.. 이 딜도 성능뭐야?\n노라에몽: 므흐흣 딜도에 약간 똥이 묻은걸 보니 \n퉁퉁이에게 잘 사용했나 보구나 므흐\
+      흣 \n노라에몽: 진구야.. 그건 중요하지않아.. "
+    - "중요한건 너가 그걸로 무엇을 하는지야..\n\"노\"진구 이걸로..? 그래.. 이번엔 비실이에게 \n이 딜도맛을 보여줘야겠다 므흐흣~\n\
+      [나는 곧바로 비실이네 집으로 갔다]"
+    - "비실이 엄마: 어머 진구야 놀러왔구나 \n비실이는 거실에 있단다 재밌게 놀다가럼 \n\"노\"진구: 네ㅎㅎ [여자는 관심없어 난 오로지\
+      \ 남자만\n비실이: 뭐야? 말도없이 우리집은 왜 왔어? "
+    - 나는 곧바로 달려가서 항문딜도를
+    page-choices:
+      '3':
+        choice-1: '쑤셔넣었다 '
+        response-pages-1:
+        - "비실이:응기기기기기깃!!!! 우효오오옷 \n비실이는 큰 절정과 함꼐 똥을지렷다\n나는 그것을 보고 발기하였다..\n일단 비실이네\
+          \ 엄마가 눈치채기 전에 도망갔다 "
+        - ''
+        end-1: false
+        choice-count: 3
+        choice-2: '쑤셔넣었다 '
+        response-pages-2:
+        - "비실이:응기기기기기깃!!!! 우효오오옷 \n비실이는 큰 절정과 함꼐 똥을지렷다\n나는 그것을 보고 발기하였다..\n일단 비실이네\
+          \ 엄마가 눈치채기 전에 도망갔다 "
+        end-2: false
+        choice-3: '쑤셔넣었다 '
+        response-pages-3:
+        - "비실이:응기기기기기깃!!!! 우효오오옷 \n비실이는 큰 절정과 함꼐 똥을지렷다\n나는 그것을 보고 발기하였다..\n일단 비실이네\
+          \ 엄마가 눈치채기 전에 도망갔다 "
+        end-3: false
+      '2':
+        choice-1: ''
+        response-pages-1:
+        - ''
+        end-1: false
+        choice-count: 1
+    shared-by: Koesi_0622
+    shared-name: 야한도라에몽_비실이의_신음편
+  90efc33ebf584b3e8885096d2df31d66:
+    title: NOclick
+    speaker: 수호자
+    message-pages:
+    - 트월킹을 춰보세요
+    page-effects:
+      '0':
+        items: shulker_box, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/book2:64shulker_box,
+          @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/book2:64shulker_box,
+          @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/book2:64shulker_box,
+          @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/book2:64shulker_box,
+          @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/book2:64,
+          @8ffaa638-94bd-4bd5-b352-675f4f39e80f/bookbundle2:64, @8ffaa638-94bd-4bd5-b352-675f4f39e80f/testbook:64
+        take-items: ''
+        return-mode: TARGET
+        return-target: PAGE:p0
+    shared-by: sohxx
+    shared-name: NOclick
+  7dee13621737470a95f05fb112acc36a:
+    title: 학급재판
+    speaker: 메로나
+    message-pages:
+    - |-
+      서버가 좆테러당했다..
+      범인는누구일까
+    page-choices:
+      '0':
+        choice-1: 도론도
+        response-pages-1:
+        - "정답을 맞췄ㄲ다.\n메로나의 서버는 인류 모두가 접속하는 서버가됐다\n오대ㅣ박 "
+        end-1: false
+        choice-count: 2
+        choice-2: 'ㅁㄹ '
+        response-pages-2:
+        - |-
+          메로나서버는 파괴당ㅎ했다
+          메로나는 vrchat이나 하게됐다
+          얼굴은 쇼콜라 바디는 아이리에 r18 바텍을 깔고 포이
+          메로나는 그렇게 살아가게돼었다
+        end-2: false
+        response-portrait-2:
+          '0': MALE_ARCHER
+        response-expression-2:
+          '0': HAPPY
+    shared-by: dadatda
+    shared-name: 학급재판
+  7c8006f1dc734af3be2cee7a68d7276c:
+    title: 도론도밴하기
+    speaker: dor00
+    message-pages:
+    - 한번만살려주세요ㅠㅠㅠㅠㅠㅠㅠㅠㅠ
+    page-portraits:
+      '0': MALE_KNIGHT
+    page-expressions:
+      '0': SAD
+    page-choices:
+      '0':
+        choice-1: 죽이기
+        response-pages-1:
+        - 밴ㄴ되;슨니다
+        end-1: false
+        choice-count: 1
+    shared-by: Melona500
+    shared-name: 도론도밴하기
+  278f8b5d58834526874ac562775ea065:
+    title: 뉴비의 모험
+    speaker: 뉴비
+    message-pages:
+    - |-
+      나는 뉴비
+      서버가 3개 열려있다
+      무슨 서버에 들어갈까??
+    page-choices:
+      '0':
+        choice-1: 활카스
+        response-pages-1:
+        - |-
+          ?? : 걍 미드로 ㄱ 너넨 이길 가치없음
+          충격받은 나는 다시는 돌아오지않앗다
+        end-1: false
+        choice-count: 1
+    shared-by: dadatda
+    shared-name: 뉴비의_모험
+  c2480cb9fa1340798ea98cedb1d20a6f:
+    title: 사랑의 전화
+    speaker: 이재명 현 대통령
+    message-pages:
+    - |-
+      여보세요? 뭐 하는 짓이냐, 너? 나한테 뭐라고 보냈는
+      찢어 죽일 놈이지 너 이 새끼야.
+       그래?
+       이 개새끼야. 우리 녹음한 거 공개해.
+    - "그래…\n어머니의 구멍을 칼로 쑤셔 죽인다고? 이 천하의 개새끼\n 그런 일 없어\n그런 일 없어? 이 새끼야? 녹음 다 했어, 이 병\
+      신 "
+    - |-
+      퍼뜨려, 녹음 공개해.
+       병신 새끼, 아이고.
+      퍼뜨려, 녹음 공개해.(박인복 : 욕하는거야.)
+      네가 인간이야, 이 새끼야?
+    - |-
+      욕 하는 거 공개해봐.
+       네가 해 이 새끼야! 천하의 개놈의 새끼.
+       너 댓글 쓰고 자빠졌더라? 댓글 쓰고 자빠졌더라?
+      개새끼야, 전화를 안 받으니까 댓글 쓰지 병신새끼야.
+    - |-
+      남의 이름으로 썼더라, 여자 이름으로? 댓글 도용했더라
+      개새끼야, 집사람이 쓰고 있어 이 씹새끼야.
+      야 실명제…
+      병신새끼야. 부모를 씨발놈아, 어? 네 어머니 80 노
+    shared-by: dadatda
+    shared-name: 사랑의_전화
+  6c2e6c44061c4a869afb0e742b568012:
+    title: 평화로운 활카스
+    speaker: ???
+    message-pages:
+    - |-
+      ??? : 귀검사 장애임?
+      ??? : f q로 쳐 진입을 쳐하네 장애새끼가
+      ??? 2 : 느금
+      ???이(가) 게임에서 나갔습니다
+    shared-by: Flowey_2407
+    shared-name: 평화로운_활카스
+public-dialogues:
+  ㅇㅇ:
+    title: ㅇㅇ
+    message-pages:
+    - ㅇㅇ
+    speaker: 전사
+    page-speakers:
+      '0': 전사
+    page-portraits:
+      '0': MALE_WARRIOR
+    page-expressions:
+      '0': HAPPY
+    page-show-portraits:
+      '0': true
+    page-show-speakers:
+      '0': true
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 88ab4f4b-bed0-45ac-a1ce-befcd67fd548
+    public-by: Melona500
+  new_dialogue:
+    title: new_dialogue
+    page-speakers:
+      '0': 수호자
+    message-pages:
+    - '%{random}%'
+    speaker: 수호자
+    page-show-portraits:
+      '0': true
+    page-show-speakers:
+      '0': true
+    page-effects:
+      '0':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 88ab4f4b-bed0-45ac-a1ce-befcd67fd548
+    public-by: Melona500
+  초보_상점_이용법:
+    example-version: 4
+    built-in-example: true
+    title: 왕도 잡화점 · 최종판
+    speaker: '#FFAA00:bold:잡화점 주인'
+    portrait: MALE_INNKEEPER
+    expression: HAPPY
+    camera-direction: NORTH
+    message-pages:
+    - |-
+      #55FF55:왕도 잡화점에 어서 오세요!
+      단골권을 만들면 특별한
+      상품을 살 수 있습니다.
+    - |-
+      단골권과 에메랄드를 확인한 뒤
+      #FFAA00:오늘의 상품을 골라 보세요.
+      오늘의 행운은 {{shop_fortune}}점입니다.
+    - |-
+      구매가 끝났습니다.
+      더 둘러보시겠습니까?
+    page-portraits:
+      '0': MALE_INNKEEPER
+      '1': MALE_INNKEEPER
+      '2': MALE_INNKEEPER
+    page-expressions:
+      '0': HAPPY
+      '1': NEUTRAL
+      '2': HAPPY
+    page-effects:
+      '0':
+        variables-set: shop_fortune=random(1..100)
+        sounds: minecraft:entity.villager.yes:1.0:0.7:1
+        message: 왕도 잡화점 예제가 시작되었습니다.
+        message-color: '#55FF55'
+        return-mode: NONE
+        command-target: PLAYER
+      '1':
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+      '2':
+        sounds: minecraft:block.note_block.bell:1.2:0.7:1
+        message-color: '#FFFFFF'
+        return-mode: NONE
+        command-target: PLAYER
+    page-conditions:
+      '1':
+        type: BOTH
+        variable: shop_member
+        operator: EQ
+        value: 'yes'
+        extra-variables: shop_visits=1,shop_last_purchase=elixir
+        variable-logic: OR
+        item-spec: '@OWNER/shop_coupon:1'
+        replacement: |-
+          #55FF55:단골 확인이 완료되었습니다.
+          단골권으로 영약을 구매하거나
+          상품 설명을 확인하세요.
+    page-choices:
+      '0':
+        choice-count: 2
+        choice-1: 단골 등록
+        target-page-1: 0
+        end-1: false
+        response-pages-1:
+        - |-
+          등록됐습니다! 이 #55FF55:단골권으로
+          특별 상품을 구매하세요.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+        response-expression-1:
+          '0': HAPPY
+        response-show-portraits-1:
+          '0': true
+        response-show-speakers-1:
+          '0': true
+        response-effects-1:
+          '0':
+            items: '@OWNER/shop_coupon:1'
+            variables-set: shop_member=yes, shop_visits=1, shop_hint=shown
+            sounds: minecraft:entity.player.levelup:1.1:0.8:1
+            message: 왕도 잡화점 단골권을 받았습니다.
+            message-color: '#55FF55'
+            return-mode: NONE
+            command: tellraw {target} {"text":"[상점 예제] 단골 등록 완료!","color":"green"}
+            command-target: PLAYER
+        choice-2: 이용법 듣기
+        target-page-2: 0
+        end-2: false
+        response-pages-2:
+        - |-
+          단골권은 특수 아이템입니다.
+          조건이 맞을 때 구매 선택지가
+          자동으로 나타납니다.
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+      '1':
+        choice-count: 6
+        choice-1: 회복 영약 구매
+        target-page-1: 0
+        end-1: false
+        condition-1:
+          type: BOTH
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          extra-variables: shop_visits=1
+          variable-logic: AND
+          item-spec: '@OWNER/shop_coupon:1'
+        response-pages-1:
+        - |-
+          단골권을 확인했습니다.
+          #FF5555:붉은 회복 영약을
+          안전하게 포장해 드릴게요.
+        - 거래가 안전하게 완료됐습니다.
+        response-portrait-1:
+          '0': MALE_INNKEEPER
+          '1': MALE_INNKEEPER
+        response-expression-1:
+          '0': NEUTRAL
+          '1': HAPPY
+        response-show-portraits-1:
+          '0': true
+          '1': true
+        response-show-speakers-1:
+          '0': true
+          '1': true
+        response-effects-1:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+          '1':
+            items: '@OWNER/healing_elixir:1'
+            take-items: '@OWNER/shop_coupon:1'
+            variables-set: shop_last_purchase=elixir, shop_purchase_count=1
+            variables-delete: shop_hint
+            sounds: minecraft:entity.item.pickup:1.2:0.8:2
+            message: 붉은 회복 영약 1병을 받았습니다.
+            message-color: '#FF5555'
+            return-mode: NONE
+            command: tellraw {target} {"text":"[상점 예제] 구매 완료!","color":"yellow"}
+            command-target: PLAYER
+        choice-2: 상품 설명
+        target-page-2: 0
+        end-2: false
+        response-pages-2:
+        - 어떤 상품을 설명해 드릴까요?
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+        response-page-choices-2:
+          '0':
+            choice-count: 2
+            choice-1: 붉은 영약
+            target-page-1: 0
+            end-1: false
+            response-pages-1:
+            - |-
+              #FF5555:붉은 회복 영약은
+              따뜻한 마력이 담긴
+              잡화점의 특별 상품입니다.
+            response-show-portraits-1:
+              '0': true
+            response-show-speakers-1:
+              '0': true
+            response-effects-1:
+              '0':
+                sounds: minecraft:block.brewing_stand.brew:1.0:0.7:1
+                message-color: '#FFFFFF'
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+                command-target: PLAYER
+            choice-2: 여행용 빵
+            target-page-2: 0
+            end-2: false
+            response-pages-2:
+            - |-
+              #FFAA00:여행용 빵은 오래 보관되고
+              모험 중 간편하게 먹기 좋습니다.
+            response-show-portraits-2:
+              '0': true
+            response-show-speakers-2:
+              '0': true
+            response-effects-2:
+              '0':
+                sounds: minecraft:entity.item.pickup:1.0:0.6:1
+                message-color: '#FFFFFF'
+                return-mode: TARGET
+                return-target: CHOICE:p1#c0
+                command-target: PLAYER
+        choice-3: 단골권 재발급
+        target-page-3: 0
+        end-3: false
+        condition-3:
+          type: VARIABLE
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          variable-logic: AND
+        response-pages-3:
+        - 새 단골권을 한 장 드릴게요.
+        response-show-portraits-3:
+          '0': true
+        response-show-speakers-3:
+          '0': true
+        response-effects-3:
+          '0':
+            items: '@OWNER/shop_coupon:1'
+            sounds: minecraft:entity.villager.yes:1.1:0.7:1
+            message: 단골권을 재발급했습니다.
+            message-color: '#55FF55'
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+            command-target: PLAYER
+        choice-4: 처음 안내로
+        target-page-4: 0
+        end-4: false
+        response-pages-4:
+        - 처음부터 다시 안내하겠습니다.
+        response-show-portraits-4:
+          '0': true
+        response-show-speakers-4:
+          '0': true
+        response-effects-4:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: TARGET
+            return-target: PAGE:p0
+            command-target: PLAYER
+        choice-5: 상점 나가기
+        target-page-5: 0
+        end-5: true
+        response-pages-5:
+        - 다음 모험 전에 또 들러 주세요!
+        response-show-portraits-5:
+          '0': true
+        response-show-speakers-5:
+          '0': true
+        response-effects-5:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+        choice-6: 여행용 빵 구매
+        target-page-6: 0
+        end-6: false
+        condition-6:
+          type: BOTH
+          variable: shop_member
+          operator: EQ
+          value: 'yes'
+          variable-logic: AND
+          item-spec: minecraft:emerald:1
+        response-pages-6:
+        - |-
+          에메랄드 1개를 확인했습니다.
+          #FFAA00:여행용 빵 3개를
+          따로 포장해 드릴게요.
+        response-show-portraits-6:
+          '0': true
+        response-show-speakers-6:
+          '0': true
+        response-effects-6:
+          '0':
+            items: minecraft:bread:3:여행용 빵:#FFAA00
+            take-items: minecraft:emerald:1
+            variables-set: shop_last_purchase=bread
+            sounds: minecraft:entity.item.pickup:1.0:0.7:1
+            message: 여행용 빵 3개를 구매했습니다.
+            message-color: '#FFAA00'
+            return-mode: NONE
+            command-target: PLAYER
+      '2':
+        choice-count: 2
+        choice-1: 계속 쇼핑
+        target-page-1: 0
+        end-1: false
+        response-pages-1:
+        - 다시 상품 진열대로 안내할게요.
+        response-show-portraits-1:
+          '0': true
+        response-show-speakers-1:
+          '0': true
+        response-effects-1:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: TARGET
+            return-target: CHOICE:p1#c0
+            command-target: PLAYER
+        choice-2: 거래 종료
+        target-page-2: 0
+        end-2: true
+        response-pages-2:
+        - 이용해 주셔서 감사합니다!
+        response-show-portraits-2:
+          '0': true
+        response-show-speakers-2:
+          '0': true
+        response-effects-2:
+          '0':
+            message-color: '#FFFFFF'
+            return-mode: NONE
+            command-target: PLAYER
+    page-speakers:
+      '0': '#FFAA00:bold:잡화점 주인'
+      '1': '#FFAA00:bold:잡화점 주인'
+      '2': '#FFAA00:bold:잡화점 주인'
+    page-show-portraits:
+      '0': true
+      '1': true
+      '2': true
+    page-show-speakers:
+      '0': true
+      '1': true
+      '2': true
+    page-flow:
+      '0':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+      '1':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+      '2':
+        next-page: 0
+        terminal: false
+        jump-target: 0
+        jump-timing: AFTER
+    public-owner: 00000000-0000-0000-0000-000000000000
+    public-by: 00000000-0000-0000-0000-000000000000
