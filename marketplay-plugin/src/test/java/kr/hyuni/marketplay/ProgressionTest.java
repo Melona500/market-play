@@ -127,4 +127,11 @@ class ProgressionTest {
             assertTrue(reopened.bulletins(now, 3).join().isEmpty());
         }
     }
+
+    @Test void areaRequiresMainWorldAndProtectedHeight() {
+        Area river = new Area(9, 9, 24, 24);
+        assertTrue(river.contains("world", 9, 62, 9));
+        assertFalse(river.contains("world_nether", 9, 62, 9));
+        assertFalse(river.contains("world", 9, 61, 9));
+    }
 }

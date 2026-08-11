@@ -176,7 +176,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getState() == PlayerFishEvent.State.FISHING) {
             fishingDeadlines.remove(playerId);
             PlayerProfile profile = profiles.get(playerId);
-            if (!HubBuilder.RIVER.contains(event.getPlayer().getLocation())) {
+            if (!HubBuilder.contains(HubBuilder.RIVER, event.getPlayer().getLocation())) {
                 event.setCancelled(true);
                 validFishingCasts.remove(playerId);
                 event.getPlayer().sendActionBar(Component.text("낚시는 강 지역에서만 할 수 있습니다.", NamedTextColor.RED));
@@ -208,7 +208,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         Long deadline = fishingDeadlines.remove(playerId);
         PlayerProfile profile = profiles.get(playerId);
         EquipmentSlot hand = validFishingCasts.remove(playerId);
-        if (hand == null || profile == null || !HubBuilder.RIVER.contains(event.getPlayer().getLocation()) || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
+        if (hand == null || profile == null || !HubBuilder.contains(HubBuilder.RIVER, event.getPlayer().getLocation()) || !profile.hasTool("old_rod") || !"old_rod".equals(toolInHand(event.getPlayer(), hand)) || !FishingTiming.caught(deadline, System.currentTimeMillis())) {
             event.setCancelled(true);
             if (event.getCaught() != null) event.getCaught().remove();
             event.getPlayer().sendActionBar(Component.text("놓쳤습니다. 입질 직후 낚싯대를 감으세요.", NamedTextColor.RED));

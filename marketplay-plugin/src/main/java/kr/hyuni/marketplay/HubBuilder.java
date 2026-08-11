@@ -170,12 +170,10 @@ final class HubBuilder {
         });
     }
 
+    static boolean contains(Area area, Location location) { return area.contains(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ()); }
+
     record LocationKey(int x, int y, int z) {
         boolean matches(Block block) { return block.getX() == x && block.getY() == y && block.getZ() == z; }
-    }
-
-    record Area(int minX, int minZ, int maxX, int maxZ) {
-        boolean contains(Location location) { return location.getBlockX() >= minX && location.getBlockX() <= maxX && location.getBlockZ() >= minZ && location.getBlockZ() <= maxZ; }
     }
 
     record Node(String id, String name, LocationKey location, Material reward, Skill skill, String toolId) {}
