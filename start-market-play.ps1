@@ -45,7 +45,10 @@ function Assert-MainBranch {
 }
 
 function Assert-ServerJava {
-    $version = (& $ServerJava -version 2>&1 | Out-String)
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { $version = (& $ServerJava -version 2>&1 | Out-String) }
+    finally { $ErrorActionPreference = $previousErrorAction }
     if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "25(?:\.|")') {
         throw "Paper requires Java 25. Current java.exe: $ServerJava"
     }
