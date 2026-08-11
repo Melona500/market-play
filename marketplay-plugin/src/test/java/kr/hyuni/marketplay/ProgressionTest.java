@@ -477,12 +477,29 @@ class ProgressionTest {
     }
 
     @Test void explorationAndEndgameMovementStayInsideBuiltContent() {
-        assertTrue(ProfileStore.insideExplorationMap(-65,70));
-        assertFalse(ProfileStore.insideExplorationMap(-66,70));
+        assertTrue(ProfileStore.insideExplorationMap(-4,70));
+        assertFalse(ProfileStore.insideExplorationMap(-5,70));
+        assertTrue(ProfileStore.insideExplorationMap(-65,12));
+        assertFalse(ProfileStore.insideExplorationMap(-66,12));
         assertTrue(ProfileStore.allowsEndgameMove(3,3,false));
         assertFalse(ProfileStore.allowsEndgameMove(3,-1,true));
         assertTrue(ProfileStore.allowsEndgameMove(-1,-1,true));
         assertFalse(ProfileStore.allowsEndgameMove(-1,-1,false));
         assertFalse(ProfileStore.allowsEndgameMove(-1,3,true));
+        assertTrue(ProfileStore.insideEndgameInstance(0,65,-24));
+        assertTrue(ProfileStore.insideEndgameInstance(0,65,-10));
+        assertTrue(ProfileStore.insideEndgameInstance(0,65,20));
+        assertFalse(ProfileStore.insideEndgameInstance(20,65,0));
+        assertFalse(ProfileStore.insideEndgameInstance(0,63,0));
+    }
+
+    @Test void endgameGatesFollowDungeonStages() {
+        assertFalse(ProfileStore.endgameGateOpen("PIRATE","APPROACH",1));
+        assertTrue(ProfileStore.endgameGateOpen("PIRATE","DECK",1));
+        assertFalse(ProfileStore.endgameGateOpen("PIRATE","DECK",2));
+        assertTrue(ProfileStore.endgameGateOpen("PIRATE","CAPTAIN",2));
+        assertFalse(ProfileStore.endgameGateOpen("ANUBIS","MUMMIES",2));
+        assertTrue(ProfileStore.endgameGateOpen("ANUBIS","BOSS",2));
+        assertTrue(ProfileStore.endgameGateOpen("TOWER","FLOOR",2));
     }
 }

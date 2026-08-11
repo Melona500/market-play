@@ -2069,8 +2069,22 @@ public final class ProfileStore implements AutoCloseable {
     public record RestaurantResult(int rating, long reward, long balance) {}
     public record PartySnapshot(String groupKey, List<UUID> members) {}
     static boolean allowsEndgameDamage(Set<UUID> members, UUID attacker, String sourceSession, String session, boolean victimPlayer) { return attacker != null && members.contains(attacker) || victimPlayer && session.equals(sourceSession); }
-    static boolean insideExplorationMap(int x, int z) { return x >= -65 && x <= 60 && z >= -68 && z <= 70; }
+    static boolean insideExplorationMap(int x, int z) { return x >= -65 && x <= 60 && z >= -68 && z <= 70 && (z <= 12 || x >= -4); }
     static boolean allowsEndgameMove(int ownSlot, int destinationSlot, boolean persistentArea) { return ownSlot >= 0 ? destinationSlot == ownSlot : destinationSlot < 0 && persistentArea; }
+    static boolean insideEndgameInstance(int x, int y, int z) {
+        if (y < 64 || y > 71) return false;
+        return Math.abs(x) <= 12 && (z >= -28 && z <= -12 || z >= -8 && z <= 8 || z >= 12 && z <= 28)
+                || Math.abs(x) <= 3 && (z >= -12 && z <= -8 || z >= 8 && z <= 12);
+    }
+    static boolean endgameGateOpen(String content, String stage, int gate) {
+        if (gate == 1) return !Set.of("APPROACH", "STORM").contains(stage);
+        return switch (content) {
+            case "TRASH" -> stage.equals("BOSS");
+            case "PIRATE" -> Set.of("CAPTAIN", "TREASURE").contains(stage);
+            case "ANUBIS" -> stage.equals("BOSS");
+            default -> true;
+        };
+    }
     public record EndgameSession(String id, UUID owner, String groupKey, String scope, String content, int slot, String stage, int progress, int aux, String state, Instant startedAt) {}
     public record EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity, String state) {
         public EndgameIntent(String id, UUID player, String kind, byte[] item, String category, int quantity) { this(id, player, kind, item, category, quantity, "PREPARED"); }
