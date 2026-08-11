@@ -1,0 +1,206 @@
+distance: 1.8
+vertical-offset: -1.4900000000000004
+frame-x-offset: -0.03
+duration-ticks: 160
+typing-interval-ticks: 2
+frame-scale: 0.22
+frame-scale-x: 0.7800000000000005
+frame-scale-y: 0.5200000000000002
+portrait-scale: 0.16499999999999998
+portrait-x-offset: -1.8700000000000008
+portrait-vertical-offset: 1.420000000000001
+text-scale: 0.6299999952316284
+text-x-offset: -0.04999999999999932
+finish-close-delay-ticks: 60
+choice-scale: 0.5799999833106995
+choice-x-offset: 1.410000000000001
+text-vertical-offset: 0.3500000000000001
+choice-vertical-offset: 1.4500000000000008
+pack-server-port: 25566
+pack-file: DialogueDisplay-Pack-20260807-014225.zip
+dialogues: {}
+content:
+  speaker: ?⑷툑 湲곕줉愿???섑샇??
+  message: ?ш린源뚯? ???멸컙? ?ㅻ옖留뚯씠援? 遊됱씤??湲곕줉???쎌쓣 ?먭꺽???덈뒗吏 ?듯빐??
+  choice-1: 湲곕줉??蹂댁뿬以?
+  response-1: 醫뗫떎. 吏꾩떎??媛먮떦??媛곸삤遺??利앸챸?대씪.
+  choice-2: ??붾? ?앸궦??
+  response-2: ?뚭쿋??
+speaker-vertical-offset: 1.0200000000000005
+speaker-scale: 0.66
+speaker-x-offset: -1.8800000000000008
+player-dialogues:
+  88ab4f4b-bed0-45ac-a1ce-befcd67fd548:
+    new_dialogue:
+      speaker: 수호자
+      message-pages:
+      - 대화 내용
+      camera-direction: NORTH
+      portrait: SENTINEL
+shared-dialogues:
+  beaa0adfad7d410293170b7d4120e3c5:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: PLAYER
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: ''
+        amount: 0
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  fea2062f65314205ade4fab365d2f33e:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용2
+    camera-direction: NORTH
+    portrait: WARRIOR
+    page-effects:
+      '0':
+        item: ''
+        amount: 0
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+    shared-by: Melona500
+    shared-name: new_dialogue
+  8886521c2d424ea6ba966c6294d714ba:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+  c67842ed7f0a439dbcbb2213997e3446:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+  75e8b7c6d6be4f7bbe760bc1f413dd31:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  25af7a91d1f9480a8788472dcda3d7a9:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  eb6661808e224395a14f2ce222d70aa1:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  597a175c7fcf48d789b7ed152e8acfd6:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  1abea857e9c74bf5b69e9540fcf22a01:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    page-effects:
+      '0':
+        item: diamond
+        amount: 7
+        item-name: ''
+        item-color: '#FFFFFF'
+        variable: ''
+        value: ''
+        sound: minecraft:entity.villager.yes
+        sound-volume: 1.0
+        sound-pitch: 1.0
+        command: ''
+        command-target: PLAYER
+    shared-by: Melona500
+    shared-name: new_dialogue
+  b47dddf962134eef8344fa3a63144f35:
+    speaker: 수호자
+    message-pages:
+    - 대화 내용
+    camera-direction: NORTH
+    portrait: SENTINEL
+    shared-by: Melona500
+    shared-name: new_dialogue
+
+
+

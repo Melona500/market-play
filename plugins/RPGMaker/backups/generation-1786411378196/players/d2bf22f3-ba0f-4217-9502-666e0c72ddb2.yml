@@ -1,0 +1,231 @@
+owner-uuid: d2bf22f3-ba0f-4217-9502-666e0c72ddb2
+dialogues:
+  ASMR:
+    title: ASMR
+    speaker: ASMR유튜버
+    message-pages:
+    - 나의 ASMR을 들을준비가됐나? 볼륨을 최대로 키우도록
+    page-effects:
+      '0':
+        sounds: minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100,minecraft:entity.ender_dragon.death:1:4:100
+  빙빙이:
+    title: 누르지마세요제발
+    speaker: d
+    message-pages:
+    - d
+    - d
+    - d
+    - d
+    camera-direction: NORTH
+    page-effects:
+      '3':
+        return-mode: TARGET
+        return-target: PAGE:p0
+        items: minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0
+        take-items: ''
+      '0':
+        items: minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0
+        take-items: ''
+      '1':
+        items: minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0
+        take-items: ''
+      '2':
+        items: minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0,minecraft:stone_sword:64:ㅇ:#0
+        take-items: ''
+  영원회귀자:
+    title: 영원회귀자
+    speaker: 영원회귀자
+    message-pages:
+    - 또다시 회귀했다.......
+    page-effects:
+      '0':
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+        return-mode: TARGET
+        return-target: PAGE:p0
+        items: ''
+        take-items: ''
+    page-conditions:
+      '0':
+        type: NONE
+        variable: ''
+        value: ''
+        extra-variables: ''
+        variable-logic: AND
+  new_dialogue:
+    title: new_dialogue
+    speaker: 수호자
+    message-pages:
+    - '{{player_name}}대화 내용'
+    - asdf
+    - '3'
+    page-effects:
+      '0':
+        items: '@d2bf22f3-ba0f-4217-9502-666e0c72ddb2/ㅇㅇㅇ:64'
+        take-items: ''
+        chat-input-variable: res
+        variables-set: ''
+        variables-delete: ''
+        message: ''
+        message-color: '#FFFFFF'
+      '1':
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+    page-conditions:
+      '1':
+        type: VARIABLE
+        variable: res
+        value: '1'
+        extra-variables: ''
+        variable-logic: AND
+        replacement: asdfasdf
+  가위바위보:
+    title: 가위바위보
+    speaker: 가위바위보의고수
+    message-pages:
+    - |-
+      가위,바위,보중 하나를 내라.
+      가위.....
+      바위........
+      보..!!!!!!!!!!!!!
+    - |-
+      {{res}}(가위바위보 고수가 가위를 냈다)
+      후후..또다시 이겨버렸군
+    - |-
+      (가위바위보 고수가 바위를 냈다)
+      후후..또다시 이겨버렸군
+    - |-
+      (가위바위보 고수가 보를 냈다)
+      후후..또다시 이겨버렸군
+    - |-
+      응? 가위,바위,보 중 하나를 내라니깐.. 너는 가위바
+      ...실격패 처리하겠다. 내가 이겼군.
+    page-effects:
+      '0':
+        chat-input-variable: res
+        variables-set: ''
+        variables-delete: ''
+        items: ''
+        take-items: ''
+      '1':
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+        return-mode: TARGET
+        return-target: PAGE:p0
+        items: ''
+        take-items: ''
+        message: ''
+        message-color: '#FFFFFF'
+      '2':
+        return-mode: TARGET
+        return-target: PAGE:p0
+        chat-input-variable: ''
+        variables-set: ''
+        variables-delete: ''
+      '3':
+        return-mode: TARGET
+        return-target: PAGE:p0
+      '4':
+        return-mode: TARGET
+        return-target: PAGE:p0
+    page-conditions:
+      '1':
+        variable: res
+        value: 보
+        extra-variables: res=보,res="보"
+        variable-logic: OR
+        type: VARIABLE
+        replacement: ''
+      '2':
+        variable: res
+        value: 가위
+        extra-variables: ''
+        variable-logic: AND
+        type: VARIABLE
+      '3':
+        variable: res
+        value: 바위
+        extra-variables: ''
+        variable-logic: AND
+        type: VARIABLE
+      '0':
+        item-spec: ''
+        replacement: ''
+        variable: ''
+        value: ''
+        extra-variables: ''
+        variable-logic: AND
+custom-items:
+  moon_letter:
+    example-version: 3
+    title: 달빛의 편지
+    material: minecraft:paper
+    display-name: 달빛의 편지
+    name-color: '#FFD966'
+    lore-lines:
+    - 세레나가 달빛 아래에서 건넨 편지
+    - 두 사람의 약속이 은은하게 빛난다
+    lore-colors:
+    - '#FFF2AA'
+    - '#DDA0DD'
+    built-in-example: true
+  promise_ring:
+    example-version: 3
+    title: 약속의 반지
+    material: minecraft:amethyst_shard
+    display-name: 영원의 약속
+    name-color: '#FF77CC'
+    lore-lines:
+    - 달빛과 진심으로 맺어진 증표
+    - 세레나와의 추억이 담겨 있다
+    lore-colors:
+    - '#FFBBDD'
+    - '#DDA0DD'
+    built-in-example: true
+  shop_coupon:
+    example-version: 3
+    title: 왕도 잡화점 단골권
+    material: minecraft:emerald
+    display-name: 왕도 잡화점 단골권
+    name-color: '#55FF55'
+    lore-lines:
+    - 잡화점 주인이 발급한 특별 단골권
+    - 물약 한 병과 교환할 수 있다
+    lore-colors:
+    - '#AAFFAA'
+    - '#FFFF55'
+    built-in-example: true
+  healing_elixir:
+    example-version: 3
+    title: 붉은 회복 영약
+    material: minecraft:honey_bottle
+    display-name: 붉은 회복 영약
+    name-color: '#FF5555'
+    lore-lines:
+    - 왕도 잡화점의 비밀 배합 물약
+    - 달콤한 향과 따뜻한 마력이 난다
+    lore-colors:
+    - '#FFAAAA'
+    - '#FFD966'
+    built-in-example: true
+  ㅇㅇㅇ:
+    title: ㅇㅇㅇ
+    material: minecraft:paper
+    display-name: ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ
+    name-color: '#FFFFFF'
+    lore-lines:
+    - ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ
+    - ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ
+    - ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ
+    - ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ
+    lore-colors:
+    - '#AAAAAA'
+    - '#AAAAAA'
+    - '#AAAAAA'
+    - '#AAAAAA'
+dismissed-examples:
+- 달빛_아래_피어난_약속
+- 초보_상점_이용법

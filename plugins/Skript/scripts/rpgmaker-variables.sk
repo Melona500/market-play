@@ -1,0 +1,144 @@
+# ============================================================
+# RPGMaker <-> Skript 변수 연동 관리 스크립트
+# ============================================================
+#
+# 1. 대화문 / 선택지 / 채팅 메시지에서 RPGMaker 미러 출력
+#    {{skript.quest_state}}
+#    일반 Skript 표현식도 그대로 사용: %player%, %player's location%
+#    전역 변수: %{global_name}%
+#    플레이어별 변수: %{quest::%uuid of player%}%
+#
+# 2. 표시 조건의 변수 이름에 사용
+#    변수: skript.quest_state
+#    값: accepted
+#    일반 전역/동적 변수는 skript:global_name 또는 skript:quest::%uuid of player%
+#
+# 3. RPGMaker의 [변수 설정] 효과에서 사용
+#    quest_state=accepted          # RPGMaker 변수 + Skript 미러를 함께 저장
+#    skript.quest_state=accepted   # Skript 변수만 저장
+#
+# 4. Skript에서 직접 쓰는 저장 위치
+#    {rpgmaker::<플레이어 UUID>::quest_state}
+#    예: set {rpgmaker::%uuid of player%::quest_state} to "accepted"
+#
+# 5. 권장 방식
+#    rpgmaker_set(player, "quest_state", "accepted")
+#    위 함수는 RPGMaker와 Skript 양쪽에 함께 저장합니다.
+#
+# 주의: {_local} 지역 변수는 해당 Skript 이벤트 안에서만 존재하므로 다른 플러그인의 대화 이벤트에서는 읽을 수 없습니다.
+
+# RPGMaker와 동기화된 값 조회. 값이 없으면 비어 있습니다.
+function rpgmaker_get(player: player, name: text) :: text:
+    return {rpgmaker::%uuid of {_player}%::%{_name}%}
+
+# RPGMaker PDC와 Skript 미러에 동시에 저장합니다.
+function rpgmaker_set(player: player, name: text, value: text):
+    execute console command "rpgmaker variable set %{_player}% %{_name}% %{_value}%"
+
+# RPGMaker PDC와 Skript 미러에서 함께 삭제합니다.
+function rpgmaker_delete(player: player, name: text):
+    execute console command "rpgmaker variable delete %{_player}% %{_name}%"
+
+# RPGMaker 전용 플레이어 미러에 Skript 값을 저장합니다. {{skript.변수}}로 읽습니다.
+function rpgmaker_set_skript(player: player, name: text, value: text):
+    set {rpgmaker::%uuid of {_player}%::%{_name}%} to {_value}
+
+# 숫자 카운터를 쉽게 증가/감소합니다. 없는 값은 0에서 시작합니다.
+function rpgmaker_add(player: player, name: text, amount: number):
+    set {_current} to rpgmaker_get({_player}, {_name}) parsed as number
+    if {_current} is not set:
+        set {_current} to 0
+    add {_amount} to {_current}
+    rpgmaker_set({_player}, {_name}, "%{_current}%")
+
+# /rpgvar <이름> [값]
+# 값 없이 사용하면 조회, 값이 있으면 RPGMaker와 Skript에 함께 저장합니다.
+command /rpgvar <text> [<text>]:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        if arg-2 is set:
+            rpgmaker_set(player, arg-1, arg-2)
+            send "&aRPGMaker 변수 &f%arg-1%&a을(를) 저장했습니다."
+        else:
+            set {_value} to rpgmaker_get(player, arg-1)
+            if {_value} is not set:
+                send "&e값이 없습니다."
+            else:
+                send "&b%arg-1% &f= %{_value}%"
+
+# /rpgvardel <이름>
+# RPGMaker와 Skript 미러에서 변수를 함께 삭제합니다.
+command /rpgvardel <text>:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        rpgmaker_delete(player, arg-1)
+        send "&aRPGMaker 변수 &f%arg-1%&a을(를) 삭제했습니다."
+
+# /rpgvars
+# 자신의 연동 변수 전체를 표시합니다.
+command /rpgvars:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        set {_count} to 0
+        send "&6[RPGMaker 변수 목록]"
+        loop {rpgmaker::%uuid of player%::*}:
+            add 1 to {_count}
+            send "&b%loop-index% &7= &f%loop-value%"
+        if {_count} is 0:
+            send "&e저장된 연동 변수가 없습니다."
+
+# /rpgvarcopy <원본 이름> <새 이름>
+# 같은 플레이어의 값을 안전하게 복사합니다.
+command /rpgvarcopy <text> <text>:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        set {_value} to rpgmaker_get(player, arg-1)
+        if {_value} is not set:
+            send "&e원본 변수에 값이 없습니다."
+            stop
+        rpgmaker_set(player, arg-2, {_value})
+        send "&a%arg-1%&a을(를) &f%arg-2%&a로 복사했습니다."
+
+# /rpgvarreset CONFIRM
+# 자신의 모든 연동 변수(PDC와 Skript 미러)를 함께 초기화합니다.
+command /rpgvarreset [<text>]:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        if arg-1 is not "CONFIRM":
+            send "&c정말 초기화하려면 /rpgvarreset CONFIRM 을 입력하세요."
+            stop
+        set {_names::*} to indices of {rpgmaker::%uuid of player%::*}
+        loop {_names::*}:
+            rpgmaker_delete(player, loop-value)
+        send "&a모든 RPGMaker 연동 변수를 초기화했습니다."
+
+# 전역·플레이어별·목록·RPGMaker 미러와 기본 표현식을 한 번에 검증합니다.
+command /rpgskripttest:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        set {rpgmaker_test_global} to "전역_정상"
+        set {rpgmaker_test::%uuid of player%} to "개인_정상"
+        set {rpgmaker_test_list::*} to "목록1" and "목록2"
+        rpgmaker_set_skript(player, "quest_state", "미러_정상")
+        send "&aSkript 테스트 변수를 준비했습니다. 플레이어=%player%, 위치=%player's location%"
+        execute player command "rpgmaker play Skript_변수_연동_테스트"
+
+command /rpgskriptclear:
+    permission: rpgmaker.admin
+    permission message: &c관리자 권한이 필요합니다.
+    trigger:
+        delete {rpgmaker_test_global}
+        delete {rpgmaker_test::%uuid of player%}
+        delete {rpgmaker_test_list::*}
+        delete {rpgmaker::%uuid of player%::quest_state}
+        send "&aSkript 테스트 변수를 삭제했습니다."
+
+command /asdf:
+	trigger:
+		set {random} to random integer between 1 and 5

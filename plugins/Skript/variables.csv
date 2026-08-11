@@ -1,0 +1,67 @@
+# === Skript's variable storage ===
+# Please do not modify this file manually!
+#
+# version: 2.16.1
+
+random, long, 0000000000000001
+rpgmaker::1de234fb-62eb-4864-9829-4dc23cdeced8::affection, string, 800132
+rpgmaker::1de234fb-62eb-4864-9829-4dc23cdeced8::promise, string, 8005626567756E
+rpgmaker::1de234fb-62eb-4864-9829-4dc23cdeced8::relationship, string, 80056C6F766572
+rpgmaker::8b99c9e7-d5b2-43ea-ac1b-1eb495cf6152::affection, string, 800132
+rpgmaker::8b99c9e7-d5b2-43ea-ac1b-1eb495cf6152::promise, string, 8005626567756E
+rpgmaker::8b99c9e7-d5b2-43ea-ac1b-1eb495cf6152::relationship, string, 80056C6F766572
+rpgmaker::8b99c9e7-d5b2-43ea-ac1b-1eb495cf6152::trust, string, 8003796573
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::___, string, 8006EC9588EB8595
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::affection, long, 0000000000000002
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::hello, string, 8006EC9588EB8595
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::moonlight_route, string, 8008636F6D706C657465
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::password, long, 000000000000000B
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::promise, string, 8005626567756E
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::quest_state, string, 800DEBAFB8EB9FAC5FECA095EC8381
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::relationship, string, 80056C6F766572
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_fortune, long, 000000000000001E
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_gift, string, 80087265636569766564
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_hint, string, 800573686F776E
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_last_purchase, string, 80056272656164
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_member, string, 8003796573
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_purchase_count, long, 0000000000000001
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::shop_visits, long, 0000000000000001
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::test, string, 80026869
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::testname, string, 8009EC8898ED98B8EC9E90
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::trust, string, 8003796573
+rpgmaker::88ab4f4b-bed0-45ac-a1ce-befcd67fd548::variable, long, 000000000000003F
+rpgmaker::484c0599-8adc-4d5e-bb05-c09e085ee216::______, string, 800474727565
+rpgmaker::484c0599-8adc-4d5e-bb05-c09e085ee216::affection, string, 800132
+rpgmaker::484c0599-8adc-4d5e-bb05-c09e085ee216::promise, string, 8005626567756E
+rpgmaker::484c0599-8adc-4d5e-bb05-c09e085ee216::relationship, string, 80056C6F766572
+rpgmaker::484c0599-8adc-4d5e-bb05-c09e085ee216::slimecorequest, string, 800131
+rpgmaker::495f2725-eaeb-42b1-9c0c-291e857c98a1::affection, string, 800132
+rpgmaker::495f2725-eaeb-42b1-9c0c-291e857c98a1::promise, string, 8005626567756E
+rpgmaker::495f2725-eaeb-42b1-9c0c-291e857c98a1::relationship, string, 8006667269656E64
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::affection, string, 800132
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::promise, string, 8005626567756E
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::relationship, string, 80056C6F766572
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::shop_last_purchase, string, 8006656C69786972
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::shop_member, string, 8003796573
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::shop_purchase_count, string, 800131
+rpgmaker::2590a72d-79ee-421e-a5fe-125a71c11679::shop_visits, string, 800131
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::affection, string, 800132
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::promise, string, 8005626567756E
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::relationship, string, 80056C6F766572
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::shop_last_purchase, string, 8006656C69786972
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::shop_member, string, 8003796573
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::shop_purchase_count, string, 800131
+rpgmaker::3542a486-7ac6-4a1a-9263-df3282bb5f8f::shop_visits, string, 800131
+rpgmaker::ae2c3ff1-4041-449f-97d6-4888509568a3::affection, long, 0000000000000002
+rpgmaker::ae2c3ff1-4041-449f-97d6-4888509568a3::promise, string, 8005626567756E
+rpgmaker::ae2c3ff1-4041-449f-97d6-4888509568a3::relationship, string, 80056C6F766572
+rpgmaker::d2bf22f3-ba0f-4217-9502-666e0c72ddb2::affection, string, 800132
+rpgmaker::d2bf22f3-ba0f-4217-9502-666e0c72ddb2::promise, string, 8005626567756E
+rpgmaker::d2bf22f3-ba0f-4217-9502-666e0c72ddb2::relationship, string, 8006667269656E64
+rpgmaker::d2bf22f3-ba0f-4217-9502-666e0c72ddb2::res, string, 800131
+rpgmaker::d2bf22f3-ba0f-4217-9502-666e0c72ddb2::test, string, 8003E38587
+rpgmaker_test::88ab4f4b-bed0-45ac-a1ce-befcd67fd548, string, 800DEAB09CEC9DB85FECA095EC8381
+rpgmaker_test_global, string, 800DECA084EC97AD5FECA095EC8381
+rpgmaker_test_list::1, string, 8007EBAAA9EBA19D31
+rpgmaker_test_list::2, string, 8007EBAAA9EBA19D32
+
