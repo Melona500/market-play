@@ -16,6 +16,14 @@ import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -26,14 +34,26 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class MarketPlayPlugin extends JavaPlugin implements Listener {
+    private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private ProfileStore profiles;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
     private NamespacedKey itemIdKey;
     private NamespacedKey itemSchemaKey;
+    private NamespacedKey toolKey;
+    private NamespacedKey grantKey;
+    private NamespacedKey saleIntentKey;
+    private HubBuilder hub;
+    private boolean hubReady;
+    private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
+    private final Map<String, Long> nodeCooldowns = new ConcurrentHashMap<>();
+    private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
+    private final Map<String, Long> prices = new LinkedHashMap<>();
     private double maximumVitality;
     private double activityCost;
 
@@ -42,6 +62,9 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         qualityKey = new NamespacedKey(this, "quality");
         itemIdKey = new NamespacedKey(this, "item_id");
         itemSchemaKey = new NamespacedKey(this, "item_schema");
+        toolKey = new NamespacedKey(this, "tool_id");
+        grantKey = new NamespacedKey(this, "grant_id");
+        saleIntentKey = new NamespacedKey(this, "sale_intent");
         reloadRuntimeConfig();
         try { profiles = new ProfileStore(getDataFolder().toPath().resolve("marketplay.db"), getConfig().getLong("starting-money", 1000), maximumVitality); }
         catch (Exception error) {
@@ -49,6 +72,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        hub = new HubBuilder(this);
+        hubReady = hub.ensure(getServer().getWorlds().getFirst());
         getServer().getPluginManager().registerEvents(this, this);
         for (Player player : getServer().getOnlinePlayers()) load(player);
         long period = 20L * 60L;
@@ -63,11 +88,50 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @EventHandler public void onJoin(PlayerJoinEvent event) { load(event.getPlayer()); }
     @EventHandler public void onQuit(PlayerQuitEvent event) {
+        busy.remove(event.getPlayer().getUniqueId());
         profiles.unload(event.getPlayer().getUniqueId()).exceptionally(error -> {
             getLogger().severe("플레이어 데이터 저장 실패: " + error.getMessage());
             return null;
         });
     }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onInteract(PlayerInteractEvent event) {
+        if (!hubReady || event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
+        if (HubBuilder.MARKET.matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            openMarket(event.getPlayer());
+            return;
+        }
+        if (HubBuilder.SELL.matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            sellHand(event.getPlayer());
+            return;
+        }
+        for (HubBuilder.Node node : HubBuilder.NODES) if (node.location().matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            harvest(event.getPlayer(), node);
+            return;
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
+        if (!event.getView().title().equals(MARKET_TITLE)) return;
+        event.setCancelled(true);
+        if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType().isAir()) return;
+        String toolId = clicked.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+        if (toolId != null) purchaseTool(player, toolId);
+        else if (clicked.getType() == Material.HOPPER) { player.closeInventory(); sellHand(player); }
+    }
+
+    @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
+    @EventHandler public void onSwap(PlayerSwapHandItemsEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
+    @EventHandler public void onHeld(PlayerItemHeldEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
 
     @EventHandler(ignoreCancelled = true) public void onBlockBreak(BlockBreakEvent event) {
         Skill skill = activityBlocks.get(event.getBlock().getType());
@@ -114,6 +178,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         if (args.length > 0 && args[0].equalsIgnoreCase("admin")) return admin(sender, args);
         if (!(sender instanceof Player player)) return true;
+        if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
+        if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
         showStatus(player);
         return true;
     }
@@ -172,14 +238,216 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             skills.append(skill.displayName()).append(' ').append(profile.level(skill));
         }
         player.sendMessage(Component.text(skills.toString(), NamedTextColor.GREEN));
+        player.sendMessage(Component.text("광장 북쪽 상점에서 도구를 사고, 자원 지역에서 채집한 뒤 판매대에 파세요.", NamedTextColor.GRAY));
     }
 
     private void load(Player player) {
-        profiles.load(player.getUniqueId()).exceptionally(error -> {
-            getLogger().severe("플레이어 데이터 로드 실패: " + error.getMessage());
-            getServer().getScheduler().runTask(this, () -> player.kick(Component.text("시장놀이 데이터를 불러오지 못했습니다.")));
+        busy.add(player.getUniqueId());
+        profiles.load(player.getUniqueId()).whenComplete((profile, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) {
+                getLogger().severe("플레이어 데이터 로드 실패: " + error.getMessage());
+                player.kick(Component.text("시장놀이 데이터를 불러오지 못했습니다."));
+                return;
+            }
+            recoverSale(player, profile);
+        }));
+    }
+
+    private void recoverSale(Player player, PlayerProfile profile) {
+        profiles.pendingSale(player.getUniqueId()).whenComplete((pending, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) { player.kick(Component.text("판매 정산 상태를 확인하지 못했습니다.")); return; }
+            if (pending.isEmpty()) { deliverPendingGrants(player); return; }
+            ProfileStore.SaleIntent sale = pending.get();
+            ItemStack marked = findMarked(player, saleIntentKey, sale.id());
+            if (sale.state().equals("PREPARED") || marked != null) {
+                if (marked != null) {
+                    marked.editPersistentDataContainer(data -> data.remove(saleIntentKey));
+                    player.saveData();
+                }
+                profiles.cancelSale(sale.id()).whenComplete((ignored, cancelError) -> getServer().getScheduler().runTask(this, () -> {
+                    if (cancelError != null) player.kick(Component.text("판매 취소 복구에 실패했습니다."));
+                    else deliverPendingGrants(player);
+                }));
+                return;
+            }
+            profiles.completeSale(profile, sale.id()).whenComplete((balance, completeError) -> getServer().getScheduler().runTask(this, () -> {
+                if (completeError != null) { player.kick(Component.text("판매 정산 복구에 실패했습니다.")); return; }
+                synchronized (profile) { profile.setMoney(balance); }
+                player.sendMessage(Component.text("중단됐던 판매 대금이 정산되었습니다.", NamedTextColor.GREEN));
+                deliverPendingGrants(player);
+            }));
+        }));
+    }
+
+    private void deliverPendingGrants(Player player) {
+        profiles.pendingGrants(player.getUniqueId()).whenComplete((grants, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) { player.kick(Component.text("구매 물품을 확인하지 못했습니다.")); return; }
+            for (ProfileStore.ItemGrant grant : grants) deliverGrant(player, grant);
+            busy.remove(player.getUniqueId());
+        }));
+    }
+
+    private void deliverGrant(Player player, ProfileStore.ItemGrant grant) {
+        if (findMarked(player, grantKey, grant.id()) == null) {
+            ItemStack item = ItemStack.deserializeBytes(grant.item());
+            if (!player.getInventory().addItem(item).isEmpty()) {
+                player.sendMessage(Component.text("인벤토리를 비우고 다시 접속하면 구매 물품을 받습니다.", NamedTextColor.YELLOW));
+                return;
+            }
+            player.saveData();
+        }
+        profiles.acknowledgeGrant(grant.id()).exceptionally(error -> {
+            getLogger().severe("구매 물품 확인 저장 실패: " + error.getMessage());
             return null;
         });
+    }
+
+    private ItemStack findMarked(Player player, NamespacedKey key, String value) {
+        for (ItemStack item : player.getInventory().getContents())
+            if (item != null && value.equals(item.getPersistentDataContainer().get(key, PersistentDataType.STRING))) return item;
+        return null;
+    }
+
+    private void openMarket(Player player) {
+        if (busy.contains(player.getUniqueId()) || profiles.get(player.getUniqueId()) == null) {
+            player.sendMessage(Component.text("플레이어 데이터를 확인하는 중입니다.", NamedTextColor.YELLOW));
+            return;
+        }
+        Inventory market = Bukkit.createInventory(null, 9, MARKET_TITLE);
+        int slot = 0;
+        for (ToolDefinition definition : tools.values()) market.setItem(slot++, tool(definition));
+        ItemStack sell = new ItemStack(Material.HOPPER);
+        sell.editMeta(meta -> meta.displayName(Component.text("손에 든 자원 판매", NamedTextColor.GREEN)));
+        market.setItem(8, sell);
+        player.openInventory(market);
+    }
+
+    private ItemStack tool(ToolDefinition definition) {
+        ItemStack item = new ItemStack(definition.material());
+        item.editMeta(meta -> {
+            meta.displayName(Component.text(definition.name() + " · " + definition.price() + "원", NamedTextColor.YELLOW));
+            meta.getPersistentDataContainer().set(toolKey, PersistentDataType.STRING, definition.id());
+            meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, "tool:" + definition.id());
+            meta.getPersistentDataContainer().set(itemSchemaKey, PersistentDataType.INTEGER, 1);
+        });
+        return item;
+    }
+
+    private void purchaseTool(Player player, String toolId) {
+        ToolDefinition definition = tools.get(toolId);
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (definition == null || profile == null || !busy.add(player.getUniqueId())) return;
+        player.closeInventory();
+        String grantId = UUID.randomUUID().toString();
+        ItemStack item = tool(definition);
+        item.editMeta(meta -> meta.getPersistentDataContainer().set(grantKey, PersistentDataType.STRING, grantId));
+        profiles.purchase(profile, definition.price(), "tool:" + definition.id(), item.serializeAsBytes(), grantId)
+                .whenComplete((balance, error) -> getServer().getScheduler().runTask(this, () -> {
+                    if (error != null) {
+                        busy.remove(player.getUniqueId());
+                        player.sendMessage(Component.text("돈이 부족하거나 구매 처리에 실패했습니다.", NamedTextColor.RED));
+                        return;
+                    }
+                    synchronized (profile) { profile.setMoney(balance); }
+                    if (player.isOnline()) {
+                        deliverGrant(player, new ProfileStore.ItemGrant(grantId, item.serializeAsBytes()));
+                        player.sendMessage(Component.text(definition.name() + "을 구매했습니다. 잔액 " + balance + "원", NamedTextColor.GREEN));
+                    }
+                    busy.remove(player.getUniqueId());
+                }));
+    }
+
+    private void harvest(Player player, HubBuilder.Node node) {
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (profile == null || busy.contains(player.getUniqueId())) return;
+        ItemStack held = player.getInventory().getItemInMainHand();
+        String toolId = held.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING);
+        if (!node.toolId().equals(toolId)) {
+            player.sendActionBar(Component.text(node.name() + " 필요 도구: " + tools.get(node.toolId()).name(), NamedTextColor.RED));
+            return;
+        }
+        String cooldownKey = player.getUniqueId() + ":" + node.id();
+        long now = System.currentTimeMillis();
+        long readyAt = nodeCooldowns.getOrDefault(cooldownKey, 0L);
+        if (readyAt > now) {
+            player.sendActionBar(Component.text("자원이 재생 중입니다. " + ((readyAt - now + 999) / 1000) + "초", NamedTextColor.YELLOW));
+            return;
+        }
+        ItemStack reward = new ItemStack(node.reward());
+        tag(reward, node.id());
+        reward.editMeta(meta -> meta.displayName(Component.text(node.name() + " ★", NamedTextColor.GREEN)));
+        if (!player.getInventory().addItem(reward).isEmpty()) {
+            player.sendActionBar(Component.text("인벤토리 공간이 없습니다.", NamedTextColor.RED));
+            return;
+        }
+        nodeCooldowns.put(cooldownKey, now + getConfig().getLong("resource-node-cooldown-millis", 5000));
+        rewardActivity(player, node.skill());
+        player.sendActionBar(Component.text(node.name() + " 획득 · " + node.skill().displayName() + " +1", NamedTextColor.GREEN));
+    }
+
+    private void sellHand(Player player) {
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (profile == null || !busy.add(player.getUniqueId())) return;
+        ItemStack original = player.getInventory().getItemInMainHand().clone();
+        String itemId = original.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        Long unitPrice = itemId == null ? null : prices.get(itemId);
+        if (unitPrice == null || original.getType().isAir()) {
+            busy.remove(player.getUniqueId());
+            player.sendMessage(Component.text("판매 가능한 시장놀이 자원을 주 손에 들어주세요.", NamedTextColor.YELLOW));
+            return;
+        }
+        String intentId = UUID.randomUUID().toString();
+        profiles.beginSale(profile, intentId, original.serializeAsBytes(), itemId, original.getAmount(), unitPrice)
+                .whenComplete((ignored, beginError) -> getServer().getScheduler().runTask(this, () -> {
+                    if (beginError != null) { failSale(player, "판매 준비에 실패했습니다.", beginError); return; }
+                    if (!player.isOnline() || !sameStack(player.getInventory().getItemInMainHand(), original)) {
+                        profiles.cancelSale(intentId);
+                        busy.remove(player.getUniqueId());
+                        return;
+                    }
+                    ItemStack marked = player.getInventory().getItemInMainHand();
+                    marked.editPersistentDataContainer(data -> data.set(saleIntentKey, PersistentDataType.STRING, intentId));
+                    player.saveData();
+                    profiles.markSaleRemoving(intentId).whenComplete((removed, markError) -> getServer().getScheduler().runTask(this, () -> {
+                        if (markError != null) {
+                            marked.editPersistentDataContainer(data -> data.remove(saleIntentKey));
+                            player.saveData();
+                            profiles.cancelSale(intentId);
+                            failSale(player, "판매 잠금에 실패했습니다.", markError);
+                            return;
+                        }
+                        if (!player.isOnline() || findMarked(player, saleIntentKey, intentId) == null) {
+                            busy.remove(player.getUniqueId());
+                            return;
+                        }
+                        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                        player.saveData();
+                        completeSale(player, profile, intentId, original.getAmount(), unitPrice);
+                    }));
+                }));
+    }
+
+    private void completeSale(Player player, PlayerProfile profile, String intentId, int quantity, long unitPrice) {
+        profiles.completeSale(profile, intentId).whenComplete((balance, error) -> getServer().getScheduler().runTask(this, () -> {
+            if (error != null) {
+                getLogger().severe("판매 정산 실패, 자동 복구 대기: " + error.getMessage());
+                getServer().getScheduler().runTaskLater(this, () -> recoverSale(player, profile), 20L);
+                return;
+            }
+            synchronized (profile) { profile.setMoney(balance); }
+            busy.remove(player.getUniqueId());
+            player.sendMessage(Component.text(quantity + "개 판매 · +" + Math.multiplyExact(quantity, unitPrice) + "원 · 잔액 " + balance + "원", NamedTextColor.GREEN));
+        }));
+    }
+
+    private void failSale(Player player, String message, Throwable error) {
+        busy.remove(player.getUniqueId());
+        getLogger().severe(message + " " + error.getMessage());
+        if (player.isOnline()) player.sendMessage(Component.text(message, NamedTextColor.RED));
+    }
+
+    private boolean sameStack(ItemStack current, ItemStack expected) {
+        return current.getAmount() == expected.getAmount() && current.isSimilar(expected);
     }
 
     private void regenerateVitality() {
@@ -204,15 +472,37 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             Skill skill = Skill.byDisplayName(name);
             for (String material : activities.getStringList(name)) activityBlocks.put(Material.valueOf(material), skill);
         }
+        long toolPrice = getConfig().getLong("starter-tool-price", 100);
+        if (toolPrice <= 0) throw new IllegalArgumentException("초보 도구 가격은 0보다 커야 합니다.");
+        tools.clear();
+        tools.put("old_net", new ToolDefinition("old_net", "낡은 망", Material.BRUSH, toolPrice));
+        tools.put("old_hoe", new ToolDefinition("old_hoe", "낡은 호미", Material.WOODEN_HOE, toolPrice));
+        tools.put("old_axe", new ToolDefinition("old_axe", "낡은 도끼", Material.WOODEN_AXE, toolPrice));
+        tools.put("old_shears", new ToolDefinition("old_shears", "낡은 가위", Material.SHEARS, toolPrice));
+        tools.put("old_pickaxe", new ToolDefinition("old_pickaxe", "낡은 곡괭이", Material.WOODEN_PICKAXE, toolPrice));
+        tools.put("old_rod", new ToolDefinition("old_rod", "낡은 낚싯대", Material.FISHING_ROD, toolPrice));
+        prices.clear();
+        ConfigurationSection priceSection = getConfig().getConfigurationSection("prices");
+        if (priceSection != null) for (String itemId : priceSection.getKeys(false)) {
+            long price = priceSection.getLong(itemId);
+            if (price <= 0) throw new IllegalArgumentException("판매 가격은 0보다 커야 합니다: " + itemId);
+            prices.put(itemId, price);
+        }
     }
 
     private void tag(ItemStack item) {
+        tag(item, item.getType().name().toLowerCase(Locale.ROOT));
+    }
+
+    private void tag(ItemStack item, String itemId) {
         item.editPersistentDataContainer(data -> {
-            data.set(itemIdKey, PersistentDataType.STRING, item.getType().name().toLowerCase(Locale.ROOT));
+            data.set(itemIdKey, PersistentDataType.STRING, itemId);
             data.set(itemSchemaKey, PersistentDataType.INTEGER, 1);
             data.set(qualityKey, PersistentDataType.INTEGER, 1);
         });
     }
 
     private boolean message(Player player, String text, NamedTextColor color) { player.sendMessage(Component.text(text, color)); return true; }
+
+    private record ToolDefinition(String id, String name, Material material, long price) {}
 }

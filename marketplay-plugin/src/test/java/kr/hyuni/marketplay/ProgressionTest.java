@@ -47,4 +47,29 @@ class ProgressionTest {
             assertEquals(10, profile.experience(Skill.MINING));
         }
     }
+
+    @Test void purchaseGrantAndCrashSafeSaleAreIdempotent(@TempDir Path directory) throws Exception {
+        UUID id = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            PlayerProfile profile = store.load(id).join();
+            String grantId = UUID.randomUUID().toString();
+            profile.setMoney(store.purchase(profile, 100, "tool:old_net", new byte[]{1, 2, 3}, grantId).join());
+            assertEquals(900, profile.money());
+            assertEquals(1, store.pendingGrants(id).join().size());
+            store.acknowledgeGrant(grantId).join();
+            assertTrue(store.pendingGrants(id).join().isEmpty());
+
+            String intentId = UUID.randomUUID().toString();
+            store.beginSale(profile, intentId, new byte[]{4, 5, 6}, "apple", 2, 15).join();
+            assertEquals("PREPARED", store.pendingSale(id).join().orElseThrow().state());
+            store.markSaleRemoving(intentId).join();
+            profile.setMoney(store.completeSale(profile, intentId).join());
+            assertEquals(930, profile.money());
+            assertEquals(930, store.completeSale(profile, intentId).join());
+            assertTrue(store.pendingSale(id).join().isEmpty());
+        }
+        try (ProfileStore reopened = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            assertEquals(930, reopened.load(id).join().money());
+        }
+    }
 }

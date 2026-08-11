@@ -15,7 +15,8 @@ import java.util.ArrayList;
 
 final class CitizensDialogueNpc implements Listener {
     private static final String KEY = "rpgmaker-guide-dialogue";
-    private static final String DIALOGUE = "초보_상점_이용법";
+    private static final String DIALOGUE = "시장놀이_첫걸음";
+    private static final String LEGACY_DIALOGUE = "초보_상점_이용법";
     private final DialogueDisplayPlugin plugin;
 
     CitizensDialogueNpc(DialogueDisplayPlugin plugin) {
@@ -25,16 +26,24 @@ final class CitizensDialogueNpc implements Listener {
     void install() {
         NPCRegistry registry = CitizensAPI.getNPCRegistry();
         ArrayList<NPC> guides = new ArrayList<>();
-        for (NPC npc : registry) if (DIALOGUE.equals(npc.data().get(KEY, ""))) guides.add(npc);
+        for (NPC npc : registry) {
+            String dialogue = npc.data().get(KEY, "");
+            if (DIALOGUE.equals(dialogue) || LEGACY_DIALOGUE.equals(dialogue)) guides.add(npc);
+        }
         guides.sort(java.util.Comparator.comparingInt(NPC::getId));
         NPC guide = guides.isEmpty() ? null : guides.getFirst();
         guides.stream().skip(1).forEach(NPC::destroy);
         if (guide == null) {
             guide = registry.createNPC(EntityType.PLAYER, "대화 안내인");
-            guide.data().setPersistent(KEY, DIALOGUE);
         }
-        if (!guide.isSpawned() && !guide.spawn(plugin.getServer().getWorlds().getFirst().getSpawnLocation()))
-            plugin.getLogger().warning("Citizens dialogue guide NPC could not be spawned.");
+        guide.data().setPersistent(KEY, DIALOGUE);
+        NPC installed = guide;
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            Location location = plugin.getServer().getWorlds().getFirst().getSpawnLocation().add(0, 0, -2);
+            if (installed.isSpawned()) installed.teleport(location, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
+            else if (!installed.spawn(location)) plugin.getLogger().warning("Citizens dialogue guide NPC could not be spawned.");
+            registry.saveToStore();
+        });
         registry.saveToStore();
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }

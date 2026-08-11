@@ -9,6 +9,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,6 +66,30 @@ public final class ProfileStore implements AutoCloseable {
                       balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
                       timestamp TEXT NOT NULL
                     )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS item_grants (
+                      grant_id TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      item BLOB NOT NULL,
+                      delivered INTEGER NOT NULL DEFAULT 0 CHECK (delivered IN (0, 1)),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS sale_intents (
+                      intent_id TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      item BLOB NOT NULL,
+                      item_id TEXT NOT NULL,
+                      quantity INTEGER NOT NULL CHECK (quantity > 0),
+                      unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+                      total_price INTEGER NOT NULL CHECK (total_price >= 0),
+                      state TEXT NOT NULL CHECK (state IN ('PREPARED', 'REMOVING', 'PAID', 'CANCELLED')),
+                      balance_after INTEGER,
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS one_active_sale_per_player
+                    ON sale_intents(player_uuid) WHERE state IN ('PREPARED', 'REMOVING')""");
         }
     }
 
@@ -179,6 +205,172 @@ public final class ProfileStore implements AutoCloseable {
         }, writer);
     }
 
+    public CompletableFuture<Long> purchase(PlayerProfile profile, long price, String itemId, byte[] item, String grantId) {
+        long expectedBalance = profile.money();
+        long balance;
+        try { balance = Math.subtractExact(expectedBalance, price); }
+        catch (ArithmeticException error) { return CompletableFuture.failedFuture(error); }
+        if (price <= 0 || balance < 0) return CompletableFuture.failedFuture(new IllegalArgumentException("Insufficient balance"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                transaction(() -> {
+                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
+                        update.setLong(1, balance);
+                        update.setString(2, Instant.now().toString());
+                        update.setString(3, profile.playerId().toString());
+                        update.setLong(4, expectedBalance);
+                        if (update.executeUpdate() != 1) throw new SQLException("Wallet changed concurrently");
+                    }
+                    try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions VALUES (?, ?, ?, 'TOOL_PURCHASE', ?, 1, ?, ?, ?, ?)")) {
+                        log.setString(1, UUID.randomUUID().toString());
+                        log.setString(2, "purchase:" + grantId);
+                        log.setString(3, profile.playerId().toString());
+                        log.setString(4, itemId);
+                        log.setLong(5, price);
+                        log.setLong(6, price);
+                        log.setLong(7, balance);
+                        log.setString(8, Instant.now().toString());
+                        log.executeUpdate();
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, grantId);
+                        grant.setString(2, profile.playerId().toString());
+                        grant.setBytes(3, item);
+                        grant.setString(4, Instant.now().toString());
+                        grant.executeUpdate();
+                    }
+                });
+                return balance;
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<List<ItemGrant>> pendingGrants(UUID playerId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT grant_id, item FROM item_grants WHERE player_uuid=? AND delivered=0 ORDER BY created_at")) {
+                query.setString(1, playerId.toString());
+                try (ResultSet rows = query.executeQuery()) {
+                    java.util.ArrayList<ItemGrant> result = new java.util.ArrayList<>();
+                    while (rows.next()) result.add(new ItemGrant(rows.getString(1), rows.getBytes(2)));
+                    return result;
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> acknowledgeGrant(String grantId) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE item_grants SET delivered=1 WHERE grant_id=?")) {
+                update.setString(1, grantId);
+                update.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> beginSale(PlayerProfile profile, String intentId, byte[] item, String itemId, int quantity, long unitPrice) {
+        long total;
+        try { total = Math.multiplyExact(quantity, unitPrice); }
+        catch (ArithmeticException error) { return CompletableFuture.failedFuture(error); }
+        if (quantity <= 0 || unitPrice <= 0) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid sale"));
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO sale_intents VALUES (?, ?, ?, ?, ?, ?, ?, 'PREPARED', NULL, ?)")) {
+                insert.setString(1, intentId);
+                insert.setString(2, profile.playerId().toString());
+                insert.setBytes(3, item);
+                insert.setString(4, itemId);
+                insert.setInt(5, quantity);
+                insert.setLong(6, unitPrice);
+                insert.setLong(7, total);
+                insert.setString(8, Instant.now().toString());
+                insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> markSaleRemoving(String intentId) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE sale_intents SET state='REMOVING' WHERE intent_id=? AND state='PREPARED'")) {
+                update.setString(1, intentId);
+                if (update.executeUpdate() != 1) throw new SQLException("Sale is not prepared: " + intentId);
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Long> completeSale(PlayerProfile profile, String intentId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                long[] result = new long[1];
+                transaction(() -> {
+                    String state;
+                    long total;
+                    Long paidBalance;
+                    try (PreparedStatement query = database.prepareStatement("SELECT player_uuid, state, total_price, balance_after FROM sale_intents WHERE intent_id=?")) {
+                        query.setString(1, intentId);
+                        try (ResultSet row = query.executeQuery()) {
+                            if (!row.next() || !profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Sale not found: " + intentId);
+                            state = row.getString(2);
+                            total = row.getLong(3);
+                            paidBalance = row.getObject(4) == null ? null : row.getLong(4);
+                        }
+                    }
+                    if (state.equals("PAID")) { result[0] = paidBalance; return; }
+                    if (!state.equals("REMOVING")) throw new SQLException("Sale is not removable: " + state);
+                    long current;
+                    try (PreparedStatement query = database.prepareStatement("SELECT money FROM players WHERE uuid=?")) {
+                        query.setString(1, profile.playerId().toString());
+                        try (ResultSet row = query.executeQuery()) {
+                            if (!row.next()) throw new SQLException("Player row missing: " + profile.playerId());
+                            current = row.getLong(1);
+                        }
+                    }
+                    long balance = Math.addExact(current, total);
+                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
+                        update.setLong(1, balance);
+                        update.setString(2, Instant.now().toString());
+                        update.setString(3, profile.playerId().toString());
+                        update.setLong(4, current);
+                        if (update.executeUpdate() != 1) throw new SQLException("Wallet changed concurrently");
+                    }
+                    try (PreparedStatement intent = database.prepareStatement("UPDATE sale_intents SET state='PAID', balance_after=? WHERE intent_id=? AND state='REMOVING'")) {
+                        intent.setLong(1, balance);
+                        intent.setString(2, intentId);
+                        if (intent.executeUpdate() != 1) throw new SQLException("Sale changed concurrently");
+                    }
+                    try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions SELECT ?, ?, player_uuid, 'NPC_SALE', item_id, quantity, unit_price, total_price, ?, ? FROM sale_intents WHERE intent_id=?")) {
+                        log.setString(1, UUID.randomUUID().toString());
+                        log.setString(2, "sale:" + intentId);
+                        log.setLong(3, balance);
+                        log.setString(4, Instant.now().toString());
+                        log.setString(5, intentId);
+                        if (log.executeUpdate() != 1) throw new SQLException("Sale log failed");
+                    }
+                    result[0] = balance;
+                });
+                return result[0];
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<SaleIntent>> pendingSale(UUID playerId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT intent_id, state FROM sale_intents WHERE player_uuid=? AND state IN ('PREPARED','REMOVING') ORDER BY created_at LIMIT 1")) {
+                query.setString(1, playerId.toString());
+                try (ResultSet row = query.executeQuery()) {
+                    return row.next() ? Optional.of(new SaleIntent(row.getString(1), row.getString(2))) : Optional.empty();
+                }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> cancelSale(String intentId) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE sale_intents SET state='CANCELLED' WHERE intent_id=? AND state IN ('PREPARED','REMOVING')")) {
+                update.setString(1, intentId);
+                update.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
     public CompletableFuture<Void> unload(UUID id) {
         PlayerProfile profile = loaded.remove(id);
         return profile == null ? CompletableFuture.completedFuture(null) : save(profile);
@@ -210,4 +402,7 @@ public final class ProfileStore implements AutoCloseable {
     }
 
     @FunctionalInterface private interface SqlWork { void run() throws Exception; }
+
+    public record ItemGrant(String id, byte[] item) {}
+    public record SaleIntent(String id, String state) {}
 }
