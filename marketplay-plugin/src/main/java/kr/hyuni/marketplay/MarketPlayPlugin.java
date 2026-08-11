@@ -24,9 +24,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Arrays;
 
 public final class MarketPlayPlugin extends JavaPlugin implements Listener {
@@ -38,7 +36,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private NamespacedKey itemSchemaKey;
     private double maximumVitality;
     private double activityCost;
-    private final Set<UUID> pendingSales = ConcurrentHashMap.newKeySet();
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -117,7 +114,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         if (args.length > 0 && args[0].equalsIgnoreCase("admin")) return admin(sender, args);
         if (!(sender instanceof Player player)) return true;
-        if (args.length > 0 && args[0].equalsIgnoreCase("sell")) return sellHand(player);
         showStatus(player);
         return true;
     }
@@ -138,7 +134,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             boolean set = args[2].equalsIgnoreCase("set");
             if ((!set && !args[2].equalsIgnoreCase("add")) || value < 0) { sender.sendMessage(Component.text("사용법: /mp admin money add|set <플레이어> <0 이상 금액> <사유>", NamedTextColor.RED)); return true; }
             String reason = String.join(" ", Arrays.copyOfRange(args, 5, args.length));
-            profiles.changeMoney(profile, value, set, reason).whenComplete((balance, error) -> getServer().getScheduler().runTask(this, () -> {
+            String requestId = UUID.randomUUID().toString();
+            profiles.changeMoney(profile, value, set, reason, requestId).whenComplete((balance, error) -> getServer().getScheduler().runTask(this, () -> {
                 if (error != null) { getLogger().severe("관리자 경제 변경 실패: " + error.getMessage()); sender.sendMessage(Component.text("경제 변경에 실패했습니다.", NamedTextColor.RED)); return; }
                 synchronized (profile) { profile.setMoney(balance); }
                 sender.sendMessage(Component.text(target.getName() + " 잔액: " + balance + "원", NamedTextColor.GREEN));
@@ -160,39 +157,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             return true;
         }
         sender.sendMessage(Component.text("사용법: /mp admin money add|set ... | /mp admin item give ...", NamedTextColor.YELLOW));
-        return true;
-    }
-
-    private boolean sellHand(Player player) {
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held.getType().isAir() || held.getAmount() <= 0) return message(player, "판매할 아이템을 손에 들어주세요.", NamedTextColor.RED);
-        long unitPrice = getConfig().getLong("market-prices." + held.getType().name(), -1);
-        if (unitPrice < 0) return message(player, "현재 시장에서 매입하지 않는 물품입니다.", NamedTextColor.RED);
-        int quality = held.getPersistentDataContainer().getOrDefault(qualityKey, PersistentDataType.INTEGER, 1);
-        double multiplier = getConfig().getDouble("quality-multipliers." + quality, 1.0);
-        unitPrice = Math.max(0, Math.round(unitPrice * multiplier));
-        int quantity = held.getAmount();
-        long total;
-        try { total = Math.multiplyExact(unitPrice, quantity); }
-        catch (ArithmeticException error) { return message(player, "판매 금액이 허용 범위를 넘었습니다.", NamedTextColor.RED); }
-        PlayerProfile profile = profiles.get(player.getUniqueId());
-        if (profile == null) return message(player, "플레이어 데이터를 불러오는 중입니다.", NamedTextColor.RED);
-        if (!pendingSales.add(player.getUniqueId())) return message(player, "이전 판매를 처리 중입니다.", NamedTextColor.RED);
-        ItemStack original = held.clone();
-        player.getInventory().setItemInMainHand(null);
-        String itemId = held.getPersistentDataContainer().getOrDefault(itemIdKey, PersistentDataType.STRING, held.getType().name().toLowerCase(Locale.ROOT));
-        profiles.sell(profile, itemId, quantity, unitPrice).whenComplete((balance, error) ->
-            getServer().getScheduler().runTask(this, () -> {
-                pendingSales.remove(player.getUniqueId());
-                if (error != null) {
-                    player.getInventory().addItem(original).values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-                    getLogger().severe("판매 저장 실패: " + error.getMessage());
-                    message(player, "저장 실패로 거래가 취소되었습니다.", NamedTextColor.RED);
-                    return;
-                }
-                synchronized (profile) { profile.setMoney(balance); }
-                message(player, quantity + "개 판매 · " + total + "원 획득", NamedTextColor.GOLD);
-            }));
         return true;
     }
 

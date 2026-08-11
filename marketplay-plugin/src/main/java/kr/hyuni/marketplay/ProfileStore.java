@@ -133,15 +133,7 @@ public final class ProfileStore implements AutoCloseable {
         });
     }
 
-    public CompletableFuture<Long> sell(PlayerProfile profile, String item, int quantity, long unitPrice) {
-        long expectedBalance = profile.money();
-        return CompletableFuture.supplyAsync(() -> {
-            try { return sellSync(profile.playerId(), expectedBalance, item, quantity, unitPrice); }
-            catch (SQLException error) { throw new RuntimeException(error); }
-        }, writer);
-    }
-
-    public CompletableFuture<Long> changeMoney(PlayerProfile profile, long value, boolean set, String reason) {
+    public CompletableFuture<Long> changeMoney(PlayerProfile profile, long value, boolean set, String reason, String idempotencyKey) {
         long expectedBalance = profile.money();
         long balance;
         try { balance = set ? value : Math.addExact(expectedBalance, value); }
@@ -149,6 +141,15 @@ public final class ProfileStore implements AutoCloseable {
         if (balance < 0) return CompletableFuture.failedFuture(new IllegalArgumentException("Balance cannot be negative"));
         return CompletableFuture.supplyAsync(() -> {
             try {
+                try (PreparedStatement existing = database.prepareStatement("SELECT player_uuid, balance_after FROM economy_transactions WHERE idempotency_key=?")) {
+                    existing.setString(1, idempotencyKey);
+                    try (ResultSet row = existing.executeQuery()) {
+                        if (row.next()) {
+                            if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Idempotency key belongs to another player");
+                            return row.getLong(2);
+                        }
+                    }
+                }
                 String transactionId = UUID.randomUUID().toString();
                 transaction(() -> {
                     try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
@@ -162,7 +163,7 @@ public final class ProfileStore implements AutoCloseable {
                         long delta = Math.subtractExact(balance, expectedBalance);
                         long absolute = Math.abs(delta);
                         log.setString(1, transactionId);
-                        log.setString(2, transactionId);
+                        log.setString(2, idempotencyKey);
                         log.setString(3, profile.playerId().toString());
                         log.setString(4, set ? "ADMIN_SET" : "ADMIN_ADD");
                         log.setString(5, reason);
@@ -176,34 +177,6 @@ public final class ProfileStore implements AutoCloseable {
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
-    }
-
-    private long sellSync(UUID playerId, long expectedBalance, String item, int quantity, long unitPrice) throws SQLException {
-        long total = Math.multiplyExact(unitPrice, quantity);
-        long balance = Math.addExact(expectedBalance, total);
-        String transactionId = UUID.randomUUID().toString();
-        transaction(() -> {
-            try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
-                update.setLong(1, balance);
-                update.setString(2, Instant.now().toString());
-                update.setString(3, playerId.toString());
-                update.setLong(4, expectedBalance);
-                if (update.executeUpdate() != 1) throw new SQLException("Wallet changed concurrently");
-            }
-            try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions VALUES (?, ?, ?, 'NPC_SELL', ?, ?, ?, ?, ?, ?)")) {
-                log.setString(1, transactionId);
-                log.setString(2, transactionId);
-                log.setString(3, playerId.toString());
-                log.setString(4, item);
-                log.setInt(5, quantity);
-                log.setLong(6, unitPrice);
-                log.setLong(7, total);
-                log.setLong(8, balance);
-                log.setString(9, Instant.now().toString());
-                log.executeUpdate();
-            }
-        });
-        return balance;
     }
 
     public CompletableFuture<Void> unload(UUID id) {

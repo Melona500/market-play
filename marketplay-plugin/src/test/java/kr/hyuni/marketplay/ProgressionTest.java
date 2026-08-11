@@ -35,13 +35,14 @@ class ProgressionTest {
             profile.addInnerPower(5);
             profile.addExperience(Skill.MINING, 10);
             store.save(profile).join();
-            profile.setMoney(store.sell(profile, "COAL", 2, 10).join());
-            profile.setMoney(store.changeMoney(profile, 30, false, "test").join());
-            assertThrows(Exception.class, () -> store.changeMoney(profile, Long.MAX_VALUE, false, "overflow").join());
+            String requestId = UUID.randomUUID().toString();
+            profile.setMoney(store.changeMoney(profile, 30, false, "test", requestId).join());
+            assertEquals(1030, store.changeMoney(profile, 30, false, "test", requestId).join());
+            assertThrows(Exception.class, () -> store.changeMoney(profile, Long.MAX_VALUE, false, "overflow", UUID.randomUUID().toString()).join());
         }
         try (ProfileStore reopened = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
             PlayerProfile profile = reopened.load(id).join();
-            assertEquals(1050, profile.money());
+            assertEquals(1030, profile.money());
             assertEquals(5, profile.innerPower());
             assertEquals(10, profile.experience(Skill.MINING));
         }
