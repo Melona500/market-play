@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,11 +66,18 @@ class ProgressionTest {
         UUID id = UUID.randomUUID();
         try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
             PlayerProfile profile = store.load(id).join();
-            String grantId = UUID.randomUUID().toString();
-            profile.setMoney(store.purchase(profile, 100, "tool:old_net", new byte[]{1, 2, 3}, grantId).join());
+            String netRequest = UUID.randomUUID().toString();
+            profile.setMoney(store.purchaseTool(profile, 100, "old_net", null, netRequest).join());
             assertEquals(900, profile.money());
+            assertTrue(store.pendingGrants(id).join().isEmpty());
+            assertEquals(900, store.purchaseTool(profile, 100, "old_net", null, netRequest).join());
+            assertThrows(Exception.class, () -> store.purchaseTool(profile, 100, "old_net", null, UUID.randomUUID().toString()).join());
+            profile.addTool("old_net");
+
+            String rodRequest = UUID.randomUUID().toString();
+            profile.setMoney(store.purchaseTool(profile, 100, "old_rod", new byte[]{1, 2, 3}, rodRequest).join());
             assertEquals(1, store.pendingGrants(id).join().size());
-            store.acknowledgeGrant(grantId).join();
+            store.migrateTools(profile, Set.of("old_rod"), Set.of(rodRequest)).join();
             assertTrue(store.pendingGrants(id).join().isEmpty());
 
             String intentId = UUID.randomUUID().toString();
@@ -77,12 +85,15 @@ class ProgressionTest {
             assertEquals("PREPARED", store.pendingSale(id).join().orElseThrow().state());
             store.markSaleRemoving(intentId).join();
             profile.setMoney(store.completeSale(profile, intentId).join());
-            assertEquals(930, profile.money());
-            assertEquals(930, store.completeSale(profile, intentId).join());
+            assertEquals(830, profile.money());
+            assertEquals(830, store.completeSale(profile, intentId).join());
             assertTrue(store.pendingSale(id).join().isEmpty());
         }
         try (ProfileStore reopened = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
-            assertEquals(930, reopened.load(id).join().money());
+            PlayerProfile profile = reopened.load(id).join();
+            assertEquals(830, profile.money());
+            assertTrue(profile.hasTool("old_net"));
+            assertTrue(profile.hasTool("old_rod"));
         }
     }
 }

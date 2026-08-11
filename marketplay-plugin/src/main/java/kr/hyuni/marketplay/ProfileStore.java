@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +66,13 @@ public final class ProfileStore implements AutoCloseable {
                       total_price INTEGER NOT NULL CHECK (total_price >= 0),
                       balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
                       timestamp TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS owned_tools (
+                      player_uuid TEXT NOT NULL REFERENCES players(uuid) ON DELETE CASCADE,
+                      tool_id TEXT NOT NULL,
+                      acquired_at TEXT NOT NULL,
+                      PRIMARY KEY (player_uuid, tool_id)
                     )""");
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS item_grants (
@@ -122,6 +130,12 @@ public final class ProfileStore implements AutoCloseable {
             query.setString(1, id.toString());
             try (ResultSet rows = query.executeQuery()) {
                 while (rows.next()) profile.setExperience(Skill.valueOf(rows.getString(1)), rows.getLong(2));
+            }
+        }
+        try (PreparedStatement query = database.prepareStatement("SELECT tool_id FROM owned_tools WHERE player_uuid=?")) {
+            query.setString(1, id.toString());
+            try (ResultSet rows = query.executeQuery()) {
+                while (rows.next()) profile.addTool(rows.getString(1));
             }
         }
         loaded.put(id, profile);
@@ -205,15 +219,29 @@ public final class ProfileStore implements AutoCloseable {
         }, writer);
     }
 
-    public CompletableFuture<Long> purchase(PlayerProfile profile, long price, String itemId, byte[] item, String grantId) {
-        long expectedBalance = profile.money();
-        long balance;
-        try { balance = Math.subtractExact(expectedBalance, price); }
-        catch (ArithmeticException error) { return CompletableFuture.failedFuture(error); }
-        if (price <= 0 || balance < 0) return CompletableFuture.failedFuture(new IllegalArgumentException("Insufficient balance"));
+    public CompletableFuture<Long> purchaseTool(PlayerProfile profile, long price, String toolId, byte[] physicalItem, String requestId) {
+        if (price <= 0) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid price"));
         return CompletableFuture.supplyAsync(() -> {
             try {
+                try (PreparedStatement existing = database.prepareStatement("SELECT player_uuid, balance_after FROM economy_transactions WHERE idempotency_key=?")) {
+                    existing.setString(1, "purchase:" + requestId);
+                    try (ResultSet row = existing.executeQuery()) {
+                        if (row.next()) {
+                            if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Purchase request belongs to another player");
+                            return row.getLong(2);
+                        }
+                    }
+                }
+                long expectedBalance = profile.money();
+                long balance = Math.subtractExact(expectedBalance, price);
+                if (balance < 0) throw new IllegalArgumentException("Insufficient balance");
                 transaction(() -> {
+                    try (PreparedStatement ownership = database.prepareStatement("INSERT OR IGNORE INTO owned_tools VALUES (?, ?, ?)")) {
+                        ownership.setString(1, profile.playerId().toString());
+                        ownership.setString(2, toolId);
+                        ownership.setString(3, Instant.now().toString());
+                        if (ownership.executeUpdate() != 1) throw new SQLException("Tool already owned: " + toolId);
+                    }
                     try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
                         update.setLong(1, balance);
                         update.setString(2, Instant.now().toString());
@@ -223,24 +251,50 @@ public final class ProfileStore implements AutoCloseable {
                     }
                     try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions VALUES (?, ?, ?, 'TOOL_PURCHASE', ?, 1, ?, ?, ?, ?)")) {
                         log.setString(1, UUID.randomUUID().toString());
-                        log.setString(2, "purchase:" + grantId);
+                        log.setString(2, "purchase:" + requestId);
                         log.setString(3, profile.playerId().toString());
-                        log.setString(4, itemId);
+                        log.setString(4, "tool:" + toolId);
                         log.setLong(5, price);
                         log.setLong(6, price);
                         log.setLong(7, balance);
                         log.setString(8, Instant.now().toString());
                         log.executeUpdate();
                     }
-                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
-                        grant.setString(1, grantId);
+                    if (physicalItem != null) try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, requestId);
                         grant.setString(2, profile.playerId().toString());
-                        grant.setBytes(3, item);
+                        grant.setBytes(3, physicalItem);
                         grant.setString(4, Instant.now().toString());
                         grant.executeUpdate();
                     }
                 });
                 return balance;
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> migrateTools(PlayerProfile profile, Set<String> toolIds, Set<String> absorbedGrantIds) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                transaction(() -> {
+                    try (PreparedStatement ownership = database.prepareStatement("INSERT OR IGNORE INTO owned_tools VALUES (?, ?, ?)")) {
+                        for (String toolId : toolIds) {
+                            ownership.setString(1, profile.playerId().toString());
+                            ownership.setString(2, toolId);
+                            ownership.setString(3, Instant.now().toString());
+                            ownership.addBatch();
+                        }
+                        ownership.executeBatch();
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("UPDATE item_grants SET delivered=1 WHERE grant_id=? AND player_uuid=?")) {
+                        for (String grantId : absorbedGrantIds) {
+                            grant.setString(1, grantId);
+                            grant.setString(2, profile.playerId().toString());
+                            grant.addBatch();
+                        }
+                        grant.executeBatch();
+                    }
+                });
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
     }
