@@ -256,6 +256,10 @@ class ProgressionTest {
             assertEquals("COMPLETE", store.guildFor(seller).join().orElseThrow().projectState());
 
             store.openRestaurant(seller, "시장식당").join();
+            UUID rival = UUID.randomUUID();
+            store.openRestaurant(rival, "경쟁식당").join();
+            store.assignRestaurantRole(seller, buyer, "Buyer", "CHEF").join();
+            assertThrows(Exception.class, () -> store.assignRestaurantRole(rival, buyer, "Buyer", "SERVER").join());
             ProfileStore.RestaurantOrder order = store.createRestaurantOrder(seller).join();
             int index = 0;
             for (String category : List.of("CROP", "PROTEIN", "EXTRA")) {

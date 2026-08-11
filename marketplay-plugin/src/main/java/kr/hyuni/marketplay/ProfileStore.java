@@ -1368,9 +1368,9 @@ public final class ProfileStore implements AutoCloseable {
     public CompletableFuture<Void> assignRestaurantRole(UUID owner, UUID member, String memberName, String role) {
         if (!Set.of("INGREDIENT","CHEF","SERVER").contains(role)) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid role"));
         return CompletableFuture.runAsync(() -> {
-            try (PreparedStatement ownerCheck = database.prepareStatement("SELECT 1 FROM restaurants WHERE owner_uuid=? AND owner_uuid<>?"); PreparedStatement insert = database.prepareStatement("INSERT INTO restaurant_members VALUES (?, ?, ?, ?) ON CONFLICT(member_uuid) DO UPDATE SET member_name=excluded.member_name,owner_uuid=excluded.owner_uuid,role=excluded.role")) {
+            try (PreparedStatement ownerCheck = database.prepareStatement("SELECT 1 FROM restaurants WHERE owner_uuid=? AND owner_uuid<>?"); PreparedStatement insert = database.prepareStatement("INSERT INTO restaurant_members VALUES (?, ?, ?, ?) ON CONFLICT(member_uuid) DO UPDATE SET member_name=excluded.member_name,role=excluded.role WHERE restaurant_members.owner_uuid=excluded.owner_uuid")) {
                 requireRestaurant(owner); ownerCheck.setString(1, member.toString()); ownerCheck.setString(2, owner.toString()); try (ResultSet row = ownerCheck.executeQuery()) { if (row.next()) throw new SQLException("Restaurant owner cannot join another restaurant"); }
-                insert.setString(1, member.toString()); insert.setString(2, memberName); insert.setString(3, owner.toString()); insert.setString(4, role); insert.executeUpdate();
+                insert.setString(1, member.toString()); insert.setString(2, memberName); insert.setString(3, owner.toString()); insert.setString(4, role); if (insert.executeUpdate() != 1) throw new SQLException("Restaurant member already belongs elsewhere");
             } catch (SQLException error) { throw new RuntimeException(error); }
         }, writer);
     }
