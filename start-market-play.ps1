@@ -4,6 +4,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
+[Console]::InputEncoding = $utf8NoBom
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
 
 # Resolve the repository root from this script's own location.
 $RepoPath          = $PSScriptRoot
@@ -356,7 +360,7 @@ try {
 
     Push-Location $ServerPath
     try {
-        & $ServerJava '-Xms2G' '-Xmx6G' '-Dfile.encoding=UTF-8' '-jar' 'paper.jar' '--nogui'
+        & $ServerJava '-Xms2G' '-Xmx6G' '-Dfile.encoding=UTF-8' '-Dstdin.encoding=UTF-8' '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' '-jar' 'paper.jar' '--nogui'
         $serverExitCode = $LASTEXITCODE
     }
     finally { Pop-Location }

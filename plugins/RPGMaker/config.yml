@@ -19,12 +19,12 @@ choice-vertical-offset: 1.600000000000001
 pack-server-port: 25566
 pack-file: MarketPlay-Pack-20260811-200806.zip
 content:
-  speaker: ?⑷툑 湲곕줉愿???섑샇??
-  message: ?ш린源뚯? ???멸컙? ?ㅻ옖留뚯씠援? 遊됱씤??湲곕줉???쎌쓣 ?먭꺽???덈뒗吏 ?듯빐??
-  choice-1: 湲곕줉??蹂댁뿬以?
-  response-1: 醫뗫떎. 吏꾩떎??媛먮떦??媛곸삤遺??利앸챸?대씪.
-  choice-2: ??붾? ?앸궦??
-  response-2: ?뚭쿋??
+  speaker: 황금 기록관의 수호자
+  message: 여기까지 온 인간은 오랜만이군. 봉인된 기록을 읽을 자격이 있는지 답해라.
+  choice-1: 기록을 보여줘
+  response-1: 좋다. 진실을 감당할 각오부터 증명해라.
+  choice-2: 대화를 끝낸다
+  response-2: 다음 기회에 다시 오너라.
 speaker-vertical-offset: 1.680000000000001
 speaker-scale: 0.66
 speaker-x-offset: -1.9400000000000008
