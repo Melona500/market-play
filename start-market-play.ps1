@@ -46,8 +46,6 @@ function Assert-MainBranch {
     if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
         throw "Automatic shutdown sync requires the main branch; current branch: $branch"
     }
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $SyncScript -CheckClean
-    if ($LASTEXITCODE -ne 0) { throw 'Automatic sync targets must be clean before server startup.' }
 }
 
 function Assert-ServerJava {
