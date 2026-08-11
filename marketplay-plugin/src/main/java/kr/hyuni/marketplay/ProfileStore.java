@@ -124,7 +124,58 @@ public final class ProfileStore implements AutoCloseable {
                       expires_at TEXT NOT NULL
                     )""");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS bulletin_posts_expiry ON bulletin_posts(expires_at, created_at)");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS royal_gift_claims (
+                      token TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      reputation_after INTEGER NOT NULL CHECK (reputation_after >= 0),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exploration_nodes (
+                      node_id TEXT PRIMARY KEY,
+                      ready_at INTEGER NOT NULL
+                    )""");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exploration_intents (
+                      intent_id TEXT PRIMARY KEY,
+                      player_uuid TEXT NOT NULL,
+                      kind TEXT NOT NULL CHECK (kind IN ('CRAFT','ROYAL')),
+                      input_a BLOB NOT NULL,
+                      input_b BLOB,
+                      output BLOB,
+                      token TEXT,
+                      grant_id TEXT,
+                      state TEXT NOT NULL CHECK (state IN ('PREPARED','REMOVING','COMPLETED','CANCELLED')),
+                      result_value INTEGER,
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS one_active_exploration_intent ON exploration_intents(player_uuid) WHERE state IN ('PREPARED','REMOVING')");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exploration_encounters (
+                      encounter_id TEXT PRIMARY KEY,
+                      state TEXT NOT NULL CHECK (state IN ('ACTIVE','DEFEATED')),
+                      hp REAL NOT NULL CHECK (hp >= 0),
+                      created_at TEXT NOT NULL
+                    )""");
+            statement.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS one_active_exploration_encounter ON exploration_encounters(state) WHERE state='ACTIVE'");
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS exploration_rewards (
+                      encounter_id TEXT NOT NULL,
+                      player_uuid TEXT NOT NULL,
+                      PRIMARY KEY (encounter_id, player_uuid)
+                    )""");
+            ensurePlayerColumn(statement, "deep_omen", "INTEGER NOT NULL DEFAULT 0 CHECK (deep_omen BETWEEN 0 AND 100)");
+            ensurePlayerColumn(statement, "royal_reputation", "INTEGER NOT NULL DEFAULT 0 CHECK (royal_reputation >= 0)");
+            ensurePlayerColumn(statement, "knight_state", "TEXT NOT NULL DEFAULT 'NONE' CHECK (knight_state IN ('NONE','ARCHERY','DUEL','APPRENTICE'))");
         }
+    }
+
+    private void ensurePlayerColumn(java.sql.Statement statement, String name, String definition) throws SQLException {
+        try (ResultSet columns = statement.executeQuery("PRAGMA table_info(players)")) {
+            while (columns.next()) if (name.equals(columns.getString("name"))) return;
+        }
+        statement.executeUpdate("ALTER TABLE players ADD COLUMN " + name + " " + definition);
     }
 
     public CompletableFuture<PlayerProfile> load(UUID id) {
@@ -137,7 +188,7 @@ public final class ProfileStore implements AutoCloseable {
     private PlayerProfile loadSync(UUID id) throws SQLException {
         PlayerProfile existing = loaded.get(id);
         if (existing != null) return existing;
-        try (PreparedStatement create = database.prepareStatement("INSERT OR IGNORE INTO players VALUES (?, ?, 0, ?, ?)")) {
+        try (PreparedStatement create = database.prepareStatement("INSERT OR IGNORE INTO players(uuid, money, inner_power, vitality, updated_at) VALUES (?, ?, 0, ?, ?)")) {
             create.setString(1, id.toString());
             create.setLong(2, startingMoney);
             create.setDouble(3, maximumVitality);
@@ -145,11 +196,14 @@ public final class ProfileStore implements AutoCloseable {
             create.executeUpdate();
         }
         PlayerProfile profile;
-        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality FROM players WHERE uuid=?")) {
+        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality, deep_omen, royal_reputation, knight_state FROM players WHERE uuid=?")) {
             query.setString(1, id.toString());
             try (ResultSet row = query.executeQuery()) {
                 if (!row.next()) throw new SQLException("Player row missing: " + id);
                 profile = new PlayerProfile(id, row.getLong(1), row.getLong(2), row.getDouble(3));
+                profile.setDeepOmen(row.getInt(4));
+                profile.addRoyalReputation(row.getInt(5));
+                profile.setKnightState(row.getString(6));
             }
         }
         try (PreparedStatement query = database.prepareStatement("SELECT skill, xp FROM masteries WHERE player_uuid=?")) {
@@ -171,20 +225,22 @@ public final class ProfileStore implements AutoCloseable {
     public PlayerProfile get(UUID id) { return loaded.get(id); }
 
     public CompletableFuture<Void> save(PlayerProfile profile) {
-        PlayerProfile snapshot = profile.copy();
         return CompletableFuture.runAsync(() -> {
-            try { saveSync(snapshot); }
+            try { saveSync(profile.copy()); }
             catch (SQLException error) { throw new RuntimeException(error); }
         }, writer);
     }
 
     private void saveSync(PlayerProfile profile) throws SQLException {
         transaction(() -> {
-            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, updated_at=? WHERE uuid=?")) {
+            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, deep_omen=?, royal_reputation=?, knight_state=?, updated_at=? WHERE uuid=?")) {
                 update.setLong(1, profile.innerPower());
                 update.setDouble(2, profile.vitality());
-                update.setString(3, Instant.now().toString());
-                update.setString(4, profile.playerId().toString());
+                update.setInt(3, profile.deepOmen());
+                update.setInt(4, profile.royalReputation());
+                update.setString(5, profile.knightState());
+                update.setString(6, Instant.now().toString());
+                update.setString(7, profile.playerId().toString());
                 if (update.executeUpdate() != 1) throw new SQLException("Player row missing: " + profile.playerId());
             }
             try (PreparedStatement upsert = database.prepareStatement("INSERT INTO masteries VALUES (?, ?, ?) ON CONFLICT(player_uuid, skill) DO UPDATE SET xp=excluded.xp")) {
@@ -212,7 +268,9 @@ public final class ProfileStore implements AutoCloseable {
                     try (ResultSet row = existing.executeQuery()) {
                         if (row.next()) {
                             if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Idempotency key belongs to another player");
-                            return row.getLong(2);
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
                         }
                     }
                 }
@@ -240,6 +298,7 @@ public final class ProfileStore implements AutoCloseable {
                         log.executeUpdate();
                     }
                 });
+                profile.setMoney(balance);
                 return balance;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -254,7 +313,9 @@ public final class ProfileStore implements AutoCloseable {
                     try (ResultSet row = existing.executeQuery()) {
                         if (row.next()) {
                             if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Purchase request belongs to another player");
-                            return row.getLong(2);
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
                         }
                     }
                 }
@@ -294,7 +355,266 @@ public final class ProfileStore implements AutoCloseable {
                         grant.executeUpdate();
                     }
                 });
+                profile.setMoney(balance);
                 return balance;
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Long> purchaseItem(PlayerProfile profile, long price, String itemId, byte[] item, String requestId) {
+        if (price <= 0 || item == null) return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid purchase"));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                try (PreparedStatement existing = database.prepareStatement("SELECT player_uuid, balance_after FROM economy_transactions WHERE idempotency_key=?")) {
+                    existing.setString(1, "item-purchase:" + requestId);
+                    try (ResultSet row = existing.executeQuery()) {
+                        if (row.next()) {
+                            if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Purchase request belongs to another player");
+                            long persisted = row.getLong(2);
+                            profile.setMoney(persisted);
+                            return persisted;
+                        }
+                    }
+                }
+                long expectedBalance = profile.money();
+                long balance = Math.subtractExact(expectedBalance, price);
+                if (balance < 0) throw new IllegalArgumentException("Insufficient balance");
+                transaction(() -> {
+                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET money=?, updated_at=? WHERE uuid=? AND money=?")) {
+                        update.setLong(1, balance);
+                        update.setString(2, Instant.now().toString());
+                        update.setString(3, profile.playerId().toString());
+                        update.setLong(4, expectedBalance);
+                        if (update.executeUpdate() != 1) throw new SQLException("Wallet changed concurrently");
+                    }
+                    try (PreparedStatement log = database.prepareStatement("INSERT INTO economy_transactions VALUES (?, ?, ?, 'ITEM_PURCHASE', ?, 1, ?, ?, ?, ?)")) {
+                        log.setString(1, UUID.randomUUID().toString());
+                        log.setString(2, "item-purchase:" + requestId);
+                        log.setString(3, profile.playerId().toString());
+                        log.setString(4, itemId);
+                        log.setLong(5, price);
+                        log.setLong(6, price);
+                        log.setLong(7, balance);
+                        log.setString(8, Instant.now().toString());
+                        log.executeUpdate();
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, requestId);
+                        grant.setString(2, profile.playerId().toString());
+                        grant.setBytes(3, item);
+                        grant.setString(4, Instant.now().toString());
+                        grant.executeUpdate();
+                    }
+                });
+                profile.setMoney(balance);
+                return balance;
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<NodeHarvest> harvestNode(PlayerProfile profile, String nodeId, long now, long readyAt,
+                                                       double vitalityCost, Skill skill, long experience, byte[] item, String grantId) {
+        if (vitalityCost < 0 || profile.vitality() < vitalityCost || readyAt <= now || experience <= 0)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid node harvest"));
+        double expectedVitality = profile.vitality(), remainingVitality = expectedVitality - vitalityCost;
+        long expectedPower = profile.innerPower(), newPower = Math.addExact(expectedPower, 1);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                transaction(() -> {
+                    try (PreparedStatement claim = database.prepareStatement("""
+                            INSERT INTO exploration_nodes(node_id, ready_at) VALUES (?, ?)
+                            ON CONFLICT(node_id) DO UPDATE SET ready_at=excluded.ready_at
+                            WHERE exploration_nodes.ready_at <= ?""")) {
+                        claim.setString(1, nodeId); claim.setLong(2, readyAt); claim.setLong(3, now);
+                        if (claim.executeUpdate() != 1) throw new SQLException("Node is cooling down");
+                    }
+                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET vitality=?, inner_power=?, updated_at=? WHERE uuid=? AND vitality=? AND inner_power=?")) {
+                        update.setDouble(1, remainingVitality); update.setLong(2, newPower); update.setString(3, Instant.now().toString());
+                        update.setString(4, profile.playerId().toString()); update.setDouble(5, expectedVitality); update.setLong(6, expectedPower);
+                        if (update.executeUpdate() != 1) throw new SQLException("Player progress changed concurrently");
+                    }
+                    try (PreparedStatement mastery = database.prepareStatement("""
+                            INSERT INTO masteries(player_uuid, skill, xp) VALUES (?, ?, ?)
+                            ON CONFLICT(player_uuid, skill) DO UPDATE SET xp=xp+excluded.xp""")) {
+                        mastery.setString(1, profile.playerId().toString()); mastery.setString(2, skill.name()); mastery.setLong(3, experience); mastery.executeUpdate();
+                    }
+                    try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                        grant.setString(1, grantId); grant.setString(2, profile.playerId().toString()); grant.setBytes(3, item); grant.setString(4, Instant.now().toString()); grant.executeUpdate();
+                    }
+                });
+                synchronized (profile) { profile.spendVitality(vitalityCost); profile.addExperience(skill, experience); profile.addInnerPower(1); }
+                return new NodeHarvest(remainingVitality, newPower);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> prepareExplorationIntent(ExplorationIntent intent) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement insert = database.prepareStatement("INSERT INTO exploration_intents VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PREPARED', NULL, ?)")) {
+                insert.setString(1, intent.id()); insert.setString(2, intent.player().toString()); insert.setString(3, intent.kind());
+                insert.setBytes(4, intent.inputA()); insert.setBytes(5, intent.inputB()); insert.setBytes(6, intent.output());
+                insert.setString(7, intent.token()); insert.setString(8, intent.grantId()); insert.setString(9, Instant.now().toString()); insert.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> markExplorationRemoving(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE exploration_intents SET state='REMOVING' WHERE intent_id=? AND state='PREPARED'")) {
+                update.setString(1, id); if (update.executeUpdate() != 1) throw new SQLException("Exploration intent is not prepared");
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<IntentResult> completeExplorationIntent(PlayerProfile profile, String id) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ExplorationIntent intent = explorationIntent(id).orElseThrow(() -> new SQLException("Exploration intent missing"));
+                if (intent.state().equals("COMPLETED")) return new IntentResult(intent.kind(), intent.resultValue());
+                if (!intent.state().equals("REMOVING")) throw new SQLException("Exploration intent is not removing");
+                int[] result = {profile.royalReputation()};
+                transaction(() -> {
+                    if (intent.kind().equals("CRAFT")) {
+                        try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                            grant.setString(1, intent.grantId()); grant.setString(2, profile.playerId().toString()); grant.setBytes(3, intent.output()); grant.setString(4, Instant.now().toString()); grant.executeUpdate();
+                        }
+                        try (PreparedStatement mastery = database.prepareStatement("""
+                                INSERT INTO masteries(player_uuid, skill, xp) VALUES (?, 'JEWELCRAFTING', 5)
+                                ON CONFLICT(player_uuid, skill) DO UPDATE SET xp=xp+5""")) {
+                            mastery.setString(1, profile.playerId().toString()); mastery.executeUpdate();
+                        }
+                    } else {
+                        try (PreparedStatement existing = database.prepareStatement("SELECT player_uuid, reputation_after FROM royal_gift_claims WHERE token=?")) {
+                            existing.setString(1, intent.token());
+                            try (ResultSet row = existing.executeQuery()) {
+                                if (row.next()) {
+                                    if (!profile.playerId().toString().equals(row.getString(1))) throw new SQLException("Royal token belongs to another player");
+                                    result[0] = row.getInt(2);
+                                } else {
+                                    result[0] = Math.addExact(profile.royalReputation(), 10);
+                                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET royal_reputation=?, updated_at=? WHERE uuid=? AND royal_reputation=?")) {
+                                        update.setInt(1, result[0]); update.setString(2, Instant.now().toString()); update.setString(3, profile.playerId().toString()); update.setInt(4, profile.royalReputation());
+                                        if (update.executeUpdate() != 1) throw new SQLException("Royal reputation changed concurrently");
+                                    }
+                                    try (PreparedStatement claim = database.prepareStatement("INSERT INTO royal_gift_claims VALUES (?, ?, ?, ?)")) {
+                                        claim.setString(1, intent.token()); claim.setString(2, profile.playerId().toString()); claim.setInt(3, result[0]); claim.setString(4, Instant.now().toString()); claim.executeUpdate();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    try (PreparedStatement update = database.prepareStatement("UPDATE exploration_intents SET state='COMPLETED', result_value=? WHERE intent_id=? AND state='REMOVING'")) {
+                        update.setInt(1, result[0]); update.setString(2, id); if (update.executeUpdate() != 1) throw new SQLException("Exploration intent completion race");
+                    }
+                });
+                synchronized (profile) {
+                    if (intent.kind().equals("CRAFT")) profile.addExperience(Skill.JEWELCRAFTING, 5);
+                    else profile.setRoyalReputation(result[0]);
+                }
+                return new IntentResult(intent.kind(), result[0]);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Void> cancelExplorationIntent(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE exploration_intents SET state='CANCELLED' WHERE intent_id=? AND state IN ('PREPARED','REMOVING')")) {
+                update.setString(1, id); update.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<ExplorationIntent>> activeExplorationIntent(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (PreparedStatement query = database.prepareStatement("SELECT * FROM exploration_intents WHERE player_uuid=? AND state IN ('PREPARED','REMOVING')")) {
+                query.setString(1, player.toString()); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(readExplorationIntent(row)) : Optional.empty(); }
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private Optional<ExplorationIntent> explorationIntent(String id) throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT * FROM exploration_intents WHERE intent_id=?")) {
+            query.setString(1, id); try (ResultSet row = query.executeQuery()) { return row.next() ? Optional.of(readExplorationIntent(row)) : Optional.empty(); }
+        }
+    }
+
+    private ExplorationIntent readExplorationIntent(ResultSet row) throws SQLException {
+        return new ExplorationIntent(row.getString("intent_id"), UUID.fromString(row.getString("player_uuid")), row.getString("kind"), row.getBytes("input_a"), row.getBytes("input_b"), row.getBytes("output"), row.getString("token"), row.getString("grant_id"), row.getString("state"), row.getInt("result_value"));
+    }
+
+    public CompletableFuture<Encounter> startEncounter(PlayerProfile trigger) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<Encounter> active = activeEncounterSync();
+                if (active.isPresent()) return active.get();
+                String id = UUID.randomUUID().toString();
+                int expectedOmen = trigger.deepOmen();
+                transaction(() -> {
+                    try (PreparedStatement insert = database.prepareStatement("INSERT INTO exploration_encounters VALUES (?, 'ACTIVE', 200, ?)")) {
+                        insert.setString(1, id); insert.setString(2, Instant.now().toString()); insert.executeUpdate();
+                    }
+                    try (PreparedStatement update = database.prepareStatement("UPDATE players SET deep_omen=0, updated_at=? WHERE uuid=? AND deep_omen=?")) {
+                        update.setString(1, Instant.now().toString()); update.setString(2, trigger.playerId().toString()); update.setInt(3, expectedOmen);
+                        if (update.executeUpdate() != 1) throw new SQLException("Deep omen changed concurrently");
+                    }
+                });
+                trigger.setDeepOmen(0);
+                return new Encounter(id, 200);
+            } catch (Exception error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Optional<Encounter>> activeEncounter() {
+        return CompletableFuture.supplyAsync(() -> {
+            try { return activeEncounterSync(); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    private Optional<Encounter> activeEncounterSync() throws SQLException {
+        try (PreparedStatement query = database.prepareStatement("SELECT encounter_id, hp FROM exploration_encounters WHERE state='ACTIVE' LIMIT 1"); ResultSet row = query.executeQuery()) {
+            return row.next() ? Optional.of(new Encounter(row.getString(1), row.getDouble(2))) : Optional.empty();
+        }
+    }
+
+    public CompletableFuture<Void> saveEncounterHp(String id, double hp) {
+        return CompletableFuture.runAsync(() -> {
+            try (PreparedStatement update = database.prepareStatement("UPDATE exploration_encounters SET hp=? WHERE encounter_id=? AND state='ACTIVE'")) {
+                update.setDouble(1, Math.max(0, hp)); update.setString(2, id); update.executeUpdate();
+            } catch (SQLException error) { throw new RuntimeException(error); }
+        }, writer);
+    }
+
+    public CompletableFuture<Map<UUID, Integer>> defeatEncounter(String id, List<BossReward> rewards) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Map<UUID, Integer> reputations = new HashMap<>();
+                transaction(() -> {
+                    try (PreparedStatement defeated = database.prepareStatement("UPDATE exploration_encounters SET state='DEFEATED', hp=0 WHERE encounter_id=? AND state='ACTIVE'")) {
+                        defeated.setString(1, id); if (defeated.executeUpdate() != 1) throw new SQLException("Encounter is not active");
+                    }
+                    for (BossReward reward : rewards) {
+                        try (PreparedStatement unique = database.prepareStatement("INSERT OR IGNORE INTO exploration_rewards VALUES (?, ?)")) {
+                            unique.setString(1, id); unique.setString(2, reward.player().toString());
+                            if (unique.executeUpdate() != 1) continue;
+                        }
+                        try (PreparedStatement update = database.prepareStatement("UPDATE players SET royal_reputation=royal_reputation+20, updated_at=? WHERE uuid=?")) {
+                            update.setString(1, Instant.now().toString()); update.setString(2, reward.player().toString());
+                            if (update.executeUpdate() != 1) throw new SQLException("Boss reward player missing");
+                        }
+                        try (PreparedStatement query = database.prepareStatement("SELECT royal_reputation FROM players WHERE uuid=?")) {
+                            query.setString(1, reward.player().toString()); try (ResultSet row = query.executeQuery()) { if (!row.next()) throw new SQLException("Boss reward player missing"); reputations.put(reward.player(), row.getInt(1)); }
+                        }
+                        try (PreparedStatement grant = database.prepareStatement("INSERT INTO item_grants VALUES (?, ?, ?, 0, ?)")) {
+                            grant.setString(1, reward.grantId()); grant.setString(2, reward.player().toString()); grant.setBytes(3, reward.item()); grant.setString(4, Instant.now().toString()); grant.executeUpdate();
+                        }
+                    }
+                });
+                reputations.forEach((player, reputation) -> {
+                    PlayerProfile profile = loaded.get(player);
+                    if (profile != null) profile.setRoyalReputation(reputation);
+                });
+                return reputations;
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
     }
@@ -426,6 +746,7 @@ public final class ProfileStore implements AutoCloseable {
                     }
                     result[0] = balance;
                 });
+                profile.setMoney(result[0]);
                 return result[0];
             } catch (Exception error) { throw new RuntimeException(error); }
         }, writer);
@@ -559,8 +880,13 @@ public final class ProfileStore implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unload(UUID id) {
-        PlayerProfile profile = loaded.remove(id);
-        return profile == null ? CompletableFuture.completedFuture(null) : save(profile);
+        PlayerProfile profile = loaded.get(id);
+        if (profile == null) return CompletableFuture.completedFuture(null);
+        return CompletableFuture.runAsync(() -> {
+            try { saveSync(profile.copy()); }
+            catch (SQLException error) { throw new RuntimeException(error); }
+            finally { loaded.remove(id, profile); }
+        }, writer);
     }
 
     @Override public void close() throws Exception {
@@ -592,6 +918,16 @@ public final class ProfileStore implements AutoCloseable {
 
     public record ItemGrant(String id, byte[] item) {}
     public record SaleIntent(String id, String state) {}
+    public record NodeHarvest(double vitality, long innerPower) {}
+    public record ExplorationIntent(String id, UUID player, String kind, byte[] inputA, byte[] inputB, byte[] output,
+                                    String token, String grantId, String state, int resultValue) {
+        public ExplorationIntent(String id, UUID player, String kind, byte[] inputA, byte[] inputB, byte[] output, String token, String grantId) {
+            this(id, player, kind, inputA, inputB, output, token, grantId, "PREPARED", 0);
+        }
+    }
+    public record IntentResult(String kind, int value) {}
+    public record Encounter(String id, double hp) {}
+    public record BossReward(UUID player, String grantId, byte[] item) {}
     public record BulletinPost(String id, UUID author, String authorName, String body, Instant createdAt, Instant expiresAt) {
         public String shortId() { return id.substring(0, 8); }
     }

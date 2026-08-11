@@ -35,6 +35,8 @@ class ProgressionTest {
         RankTable table = new RankTable(ranks);
         assertEquals("평민", table.rankFor(499));
         assertEquals("남작", table.rankFor(500));
+        assertTrue(table.atLeast(500, "남작"));
+        assertFalse(table.atLeast(499, "남작"));
 
         PlayerProfile profile = new PlayerProfile(UUID.randomUUID(), 1000, 0, 100);
         profile.addExperience(Skill.FISHING, 100);
@@ -52,6 +54,9 @@ class ProgressionTest {
             PlayerProfile profile = store.load(id).join();
             profile.addInnerPower(5);
             profile.addExperience(Skill.MINING, 10);
+            profile.setDeepOmen(72);
+            profile.addRoyalReputation(30);
+            profile.setKnightState("DUEL");
             store.save(profile).join();
             String requestId = UUID.randomUUID().toString();
             profile.setMoney(store.changeMoney(profile, 30, false, "test", requestId).join());
@@ -63,6 +68,9 @@ class ProgressionTest {
             assertEquals(1030, profile.money());
             assertEquals(5, profile.innerPower());
             assertEquals(10, profile.experience(Skill.MINING));
+            assertEquals(72, profile.deepOmen());
+            assertEquals(30, profile.royalReputation());
+            assertEquals("DUEL", profile.knightState());
         }
     }
 
@@ -98,6 +106,71 @@ class ProgressionTest {
             assertEquals(830, profile.money());
             assertTrue(profile.hasTool("old_net"));
             assertTrue(profile.hasTool("old_rod"));
+        }
+    }
+
+    @Test void explorationNodesAndIntentsAreRestartSafe(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID first = UUID.randomUUID(), second = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile a = store.load(first).join(), b = store.load(second).join();
+            ProfileStore.NodeHarvest harvest = store.harvestNode(a, "fairy:crystal", 1000, 2000, 1, Skill.MINING, 2, new byte[]{1}, "node-grant").join();
+            assertEquals(99, harvest.vitality());
+            assertThrows(Exception.class, () -> store.harvestNode(b, "fairy:crystal", 1001, 2001, 1, Skill.MINING, 2, new byte[]{2}, "duplicate-node").join());
+
+            ProfileStore.ExplorationIntent craft = new ProfileStore.ExplorationIntent("craft", first, "CRAFT", new byte[]{3}, new byte[]{4}, new byte[]{5}, null, "craft-grant");
+            store.prepareExplorationIntent(craft).join();
+            assertEquals("PREPARED", store.activeExplorationIntent(first).join().orElseThrow().state());
+            store.markExplorationRemoving("craft").join();
+            assertEquals("CRAFT", store.completeExplorationIntent(a, "craft").join().kind());
+            assertEquals("CRAFT", store.completeExplorationIntent(a, "craft").join().kind());
+
+            ProfileStore.ExplorationIntent royal = new ProfileStore.ExplorationIntent("royal", first, "ROYAL", new byte[]{6}, null, null, "gift-token", null);
+            store.prepareExplorationIntent(royal).join(); store.markExplorationRemoving("royal").join();
+            ProfileStore.IntentResult result = store.completeExplorationIntent(a, "royal").join();
+            assertEquals(10, result.value());
+            a.setRoyalReputation(result.value());
+            ProfileStore.Encounter encounter = store.startEncounter(a).join();
+            store.saveEncounterHp(encounter.id(), 75).join();
+        }
+        try (ProfileStore reopened = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile a = reopened.load(first).join();
+            assertEquals(1, a.innerPower());
+            assertEquals(2, a.experience(Skill.MINING));
+            assertEquals(5, a.experience(Skill.JEWELCRAFTING));
+            assertEquals(10, a.royalReputation());
+            assertEquals(75, reopened.activeEncounter().join().orElseThrow().hp());
+            String encounter = reopened.activeEncounter().join().orElseThrow().id();
+            assertEquals(30, reopened.defeatEncounter(encounter, List.of(new ProfileStore.BossReward(first, "boss-grant", new byte[]{9}))).join().get(first));
+            assertTrue(reopened.activeEncounter().join().isEmpty());
+            assertEquals(3, reopened.pendingGrants(first).join().size());
+            assertThrows(Exception.class, () -> reopened.harvestNode(reopened.load(second).join(), "fairy:crystal", 1500, 2500, 1, Skill.MINING, 2, new byte[]{7}, "restart-duplicate").join());
+            assertDoesNotThrow(() -> reopened.harvestNode(reopened.load(second).join(), "fairy:crystal", 2000, 3000, 1, Skill.MINING, 2, new byte[]{8}, "after-cooldown").join());
+        }
+    }
+
+    @Test void queuedSaveAndUnloadKeepCommittedExplorationProgress(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID id = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile profile = store.load(id).join();
+            var harvest = store.harvestNode(profile, "joy:ruby", 1000, 2000, 1, Skill.MINING, 2, new byte[]{1}, "queued-node");
+            store.save(profile).join();
+            harvest.join();
+            var purchase = store.purchaseItem(profile, 100, "oxygen_device", new byte[]{2}, "queued-purchase");
+            String encounter = store.startEncounter(profile).join().id();
+            var defeat = store.defeatEncounter(encounter, List.of(new ProfileStore.BossReward(id, "queued-boss", new byte[]{3})));
+            store.unload(id).join();
+            purchase.join();
+            defeat.join();
+        }
+        try (ProfileStore reopened = new ProfileStore(database, 1000, 100)) {
+            PlayerProfile profile = reopened.load(id).join();
+            assertEquals(900, profile.money());
+            assertEquals(1, profile.innerPower());
+            assertEquals(2, profile.experience(Skill.MINING));
+            assertEquals(20, profile.royalReputation());
+            assertEquals(3, reopened.pendingGrants(id).join().size());
         }
     }
 
