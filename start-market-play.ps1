@@ -35,6 +35,13 @@ $webProcess = $null
 $tunnelProcess = $null
 $serverExitCode = $null
 
+function Assert-MainBranch {
+    $branch = (& git -C $RepoPath branch --show-current).Trim()
+    if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
+        throw "Automatic shutdown sync requires the main branch; current branch: $branch"
+    }
+}
+
 function Assert-PortsAvailable {
     $busy = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
         Where-Object { $_.LocalPort -in @(25565, 25566, 25567, 5173) } |
@@ -280,6 +287,7 @@ function Deploy-RpgMakerPlugin {
 }
 
 try {
+    if (-not $BuildOnly -and -not $SkipMerge) { Assert-MainBranch }
     if (-not $BuildOnly) { Assert-PortsAvailable }
 
     if (-not (Test-Path -LiteralPath $PluginProjectPath)) {
