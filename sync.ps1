@@ -76,6 +76,12 @@ try {
     & gh pr merge $prUrl --repo 'Melona500/market-play' --auto --squash
     if ($LASTEXITCODE -ne 0) { throw "Pull request was preserved for manual review: $prUrl" }
 
+    $prState = (& gh pr view $prUrl --repo 'Melona500/market-play' --json state --jq '.state').Trim()
+    if ($LASTEXITCODE -ne 0 -or $prState -ne 'MERGED') {
+        Write-Host "Automatic merge is queued; local changes remain on $syncBranch`: $prUrl"
+        return
+    }
+
     Invoke-Git @('switch', 'main')
     Invoke-Git @('pull', '--ff-only', 'origin', 'main')
     Write-Host "Merged: $prUrl"
