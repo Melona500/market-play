@@ -183,4 +183,45 @@ class ProgressionTest {
             assertEquals(1, reopened.mail(visitor).join().size());
         }
     }
+
+    @Test void artworkPublishingOwnershipAndTradeAreAtomic(@TempDir Path directory) throws Exception {
+        Path database = directory.resolve("marketplay.db");
+        UUID artist = UUID.randomUUID();
+        UUID buyer = UUID.randomUUID();
+        try (ProfileStore profiles = new ProfileStore(database, 1000, 100);
+             HousingStore housing = new HousingStore(database);
+             ArtStore art = new ArtStore(database)) {
+            profiles.load(artist).join();
+            profiles.load(buyer).join();
+            ArtStore.Artwork draft = art.create(artist, "Artist", "첫 작품", 77).join();
+            byte[] pixels = new byte[45];
+            pixels[0] = 2;
+            art.saveDraft(draft.id(), artist, pixels).join();
+            ArtStore.Artwork published = art.publish(draft.id(), artist).join();
+            assertEquals("PUBLISHED", published.state());
+            assertThrows(Exception.class, () -> art.saveDraft(draft.id(), artist, new byte[45]).join());
+            assertEquals(0, art.exhibit(draft.id(), artist).join());
+
+            art.listForSale(draft.id(), artist, 250).join();
+            ArtStore.Artwork rotated = art.rotateToken(draft.id(), artist, "seller-token").join();
+            assertNotEquals(published.itemToken(), rotated.itemToken());
+            ArtStore.BuyResult bought = art.buy(draft.id(), buyer, "buyer-token", "buy-grant", new byte[]{1, 2, 3}).join();
+            assertEquals(buyer, bought.artwork().owner());
+            assertEquals(750, bought.buyerBalance());
+            assertEquals(1250, bought.sellerBalance());
+            assertEquals(1, profiles.pendingGrants(buyer).join().size());
+            assertThrows(Exception.class, () -> art.buy(draft.id(), buyer, "duplicate-token", "duplicate", new byte[]{1}).join());
+
+            ArtStore.Artwork gifted = art.gift(draft.id(), buyer, "Buyer", artist, "gift-token", "gift-grant", new byte[]{4, 5, 6}).join();
+            assertEquals(artist, gifted.owner());
+            assertEquals(1, housing.mail(artist).join().size());
+            assertEquals(1, profiles.pendingGrants(artist).join().size());
+        }
+        try (ArtStore reopened = new ArtStore(database)) {
+            ArtStore.Artwork artwork = reopened.all().join().getFirst();
+            assertEquals(artist, artwork.owner());
+            assertEquals(2, artwork.pixels()[0]);
+            assertEquals(1, reopened.exhibits().join().size());
+        }
+    }
 }

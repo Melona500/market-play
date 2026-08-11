@@ -51,6 +51,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private ProfileStore profiles;
     private HousingStore housingStore;
     private HousingManager housing;
+    private ArtStore artStore;
+    private ArtManager art;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
@@ -86,6 +88,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             var database = getDataFolder().toPath().resolve("marketplay.db");
             profiles = new ProfileStore(database, getConfig().getLong("starting-money", 1000), maximumVitality);
             housingStore = new HousingStore(database);
+            artStore = new ArtStore(database);
         }
         catch (Exception error) {
             getLogger().severe("데이터베이스 시작 실패: " + error.getMessage());
@@ -96,6 +99,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         hubReady = hub.ensure(getServer().getWorlds().getFirst());
         housing = new HousingManager(this, housingStore);
         housing.start();
+        art = new ArtManager(this, artStore, housingStore);
+        art.start();
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
@@ -113,6 +118,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (profiles == null) return;
         try {
             if (housing != null) housing.stop();
+            if (artStore != null) artStore.close();
             if (housingStore != null) housingStore.close();
             profiles.close();
         }
@@ -273,6 +279,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("board")) return board(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("home")) return housing.command(player, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("mail")) return housing.mail(player, args);
+        if (args.length > 0 && args[0].equalsIgnoreCase("art")) return art.command(player, args);
         showStatus(player);
         return true;
     }
