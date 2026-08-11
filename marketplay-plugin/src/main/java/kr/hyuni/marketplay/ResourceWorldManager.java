@@ -256,6 +256,7 @@ final class ResourceWorldManager implements Listener {
         Location target = new Location(world, x, y, z);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
+        npc.getEntity().setPersistent(false);
     }
 
     private static void validateLayout() {

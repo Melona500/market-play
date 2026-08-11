@@ -272,6 +272,7 @@ final class HubBuilder {
             Location target = new Location(world, .5, 65, 8.5, 180, 0);
             if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
             else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
+            guide.getEntity().setPersistent(false);
         }
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
@@ -294,6 +295,7 @@ final class HubBuilder {
         Location target = new Location(world, x, y, z);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
+        npc.getEntity().setPersistent(false);
     }
 
     void updateDisplays(World world) {
