@@ -55,6 +55,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private ArtManager art;
     private ExplorationManager exploration;
     private SocialEconomyManager socialEconomy;
+    private EndgameManager endgame;
     private RankTable ranks;
     private final Map<Material, Skill> activityBlocks = new EnumMap<>(Material.class);
     private NamespacedKey qualityKey;
@@ -107,6 +108,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         exploration.start();
         socialEconomy = new SocialEconomyManager(this, profiles);
         socialEconomy.start();
+        endgame = new EndgameManager(this, profiles);
+        endgame.start();
         art = new ArtManager(this, artStore, housingStore);
         art.start();
         refreshMarketDay();
@@ -128,6 +131,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             if (housing != null) housing.stop();
             if (exploration != null) exploration.stop();
             if (socialEconomy != null) socialEconomy.stop();
+            if (endgame != null) endgame.stop();
             if (artStore != null) artStore.close();
             if (housingStore != null) housingStore.close();
             profiles.close();
@@ -294,6 +298,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (args.length > 0 && args[0].equalsIgnoreCase("art")) return art.command(player, args);
         if (args.length > 0 && socialEconomy.command(player, args)) return true;
         if (args.length > 0 && exploration.command(player, args)) return true;
+        if (args.length > 0 && endgame.command(player, args)) return true;
         showStatus(player);
         return true;
     }
@@ -424,7 +429,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     private void recoverPlayerSystems(Player player) {
-        housing.recover(player, () -> exploration.recover(player, () -> socialEconomy.recover(player, () -> deliverPendingGrants(player))));
+        housing.recover(player, () -> exploration.recover(player, () -> socialEconomy.recover(player, () -> endgame.recover(player, () -> deliverPendingGrants(player)))));
     }
 
     void deliverPendingGrants(Player player) {
