@@ -268,7 +268,7 @@ final class ResourceWorldManager implements Listener {
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
-        target.getChunk().load();
+        target.getChunk().addPluginChunkTicket(plugin);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
