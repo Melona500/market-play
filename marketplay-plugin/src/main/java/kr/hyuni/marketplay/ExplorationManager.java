@@ -631,7 +631,7 @@ final class ExplorationManager implements Listener {
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x + .5, 65, z + .5);
-        target.getChunk().load();
+        target.getChunk().addPluginChunkTicket(plugin);
         if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
         npc.getEntity().getPersistentDataContainer().set(entityRole, PersistentDataType.STRING, role);

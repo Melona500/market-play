@@ -380,7 +380,7 @@ final class TutorialManager implements Listener {
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, GUIDE_X + .5, GUIDE_Y, GUIDE_Z + .5, 180, 0);
-        target.getChunk().load();
+        target.getChunk().addPluginChunkTicket(plugin);
         if (npc.isSpawned()) npc.teleport(target, PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException("튜토리얼 안내인 생성 실패");
         npc.getEntity().setPersistent(false);
