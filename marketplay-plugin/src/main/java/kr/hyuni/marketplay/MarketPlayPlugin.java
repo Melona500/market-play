@@ -359,6 +359,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("help")) return MarketPlayHelp.show(sender, args);
         if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
             if (!sender.hasPermission("marketplay.admin")) return true;
             reloadConfig();
