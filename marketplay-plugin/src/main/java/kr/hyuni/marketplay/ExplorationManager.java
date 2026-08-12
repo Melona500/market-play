@@ -610,8 +610,10 @@ final class ExplorationManager implements Listener {
         List<NPC> previous = new ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> {
             Location stored = npc.getStoredLocation();
-            if (npc.data().has("marketplay_role") && stored != null && stored.getWorld() != null
-                    && WORLD.equals(stored.getWorld().getName())) previous.add(npc);
+            String worldName = npc.isSpawned() && npc.getEntity() != null && npc.getEntity().getWorld() != null
+                    ? npc.getEntity().getWorld().getName()
+                    : stored == null || stored.getWorld() == null ? null : stored.getWorld().getName();
+            if (npc.data().has("marketplay_role") && WORLD.equals(worldName)) previous.add(npc);
         });
         previous.forEach(NPC::destroy);
         world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(entityRole, PersistentDataType.STRING)).forEach(Entity::remove);

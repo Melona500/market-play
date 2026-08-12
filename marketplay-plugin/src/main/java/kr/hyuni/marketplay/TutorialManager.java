@@ -368,8 +368,10 @@ final class TutorialManager implements Listener {
         List<NPC> found = new java.util.ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> {
             Location stored = npc.getStoredLocation();
-            if ("guide".equals(npc.data().get(NPC_KEY, "")) && stored != null && stored.getWorld() != null
-                    && WORLD.equals(stored.getWorld().getName())) found.add(npc);
+            String worldName = npc.isSpawned() && npc.getEntity() != null && npc.getEntity().getWorld() != null
+                    ? npc.getEntity().getWorld().getName()
+                    : stored == null || stored.getWorld() == null ? null : stored.getWorld().getName();
+            if ("guide".equals(npc.data().get(NPC_KEY, "")) && WORLD.equals(worldName)) found.add(npc);
         });
         NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, "시장놀이 안내인") : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
