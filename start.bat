@@ -1,6 +1,14 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0cleanup-stale-web-editor.ps1" -RepoPath "%~dp0"
+set "PRECHECK_EXIT_CODE=%errorlevel%"
+if not "%PRECHECK_EXIT_CODE%"=="0" (
+    echo.
+    echo Web editor cleanup failed with exit code %PRECHECK_EXIT_CODE%. Review the message above.
+    pause
+    exit /b %PRECHECK_EXIT_CODE%
+)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-market-play.ps1"
 set "LAUNCH_EXIT_CODE=%errorlevel%"
 if not "%LAUNCH_EXIT_CODE%"=="0" (
