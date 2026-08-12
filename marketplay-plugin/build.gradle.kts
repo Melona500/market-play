@@ -14,6 +14,9 @@ dependencies {
         exclude(group = "org.slf4j", module = "slf4j-api")
     }
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    // MarketPlayHelp creates Adventure components in pure unit tests. Paper exposes
+    // this API at runtime on a server, but tests need the API explicitly.
+    testImplementation("net.kyori:adventure-api:4.24.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

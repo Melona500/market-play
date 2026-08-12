@@ -80,6 +80,7 @@ final class HubBuilder implements Listener {
 
     boolean ensure() {
         boolean existed = Files.exists(plugin.getServer().getWorldContainer().toPath().resolve(WORLD).resolve("level.dat"));
+        boolean generatedNow = false;
         world = Bukkit.getWorld(WORLD);
         if (world == null) world = Bukkit.createWorld(new WorldCreator(WORLD).type(WorldType.FLAT).generateStructures(false)
                 .generatorSettings("{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2},{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\",\"features\":false,\"lakes\":false}"));
@@ -88,9 +89,12 @@ final class HubBuilder implements Listener {
         if (marker.getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 로비 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             paste(world);
+            generatedNow = true;
             plugin.getLogger().info("FAWE schematic으로 시장놀이 중앙광장을 설치했습니다.");
         }
-        if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        if (generatedNow && world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        else if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 로비 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect(world);
         world.getWorldBorder().setCenter(0, 0);
         world.getWorldBorder().setSize(BUILD_LIMIT * 2.0);
@@ -348,7 +352,9 @@ final class HubBuilder implements Listener {
         ArrayList<NPC> stale = new ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> {
             String legacyRole = npc.data().get(LEGACY_NPC_KEY, "");
-            if (!legacyRole.isBlank()) stale.add(npc);
+            // Legacy roles were shared with the resource world. Only remove legacy
+            // lobby NPCs; a lobby restart must not delete NPCs owned by another world.
+            if (!legacyRole.isBlank() && storedInWorld(npc, WORLD)) stale.add(npc);
         });
         stale.forEach(NPC::destroy);
 
@@ -367,9 +373,20 @@ final class HubBuilder implements Listener {
         CitizensAPI.getNPCRegistry().saveToStore();
     }
 
+    private boolean storedInWorld(NPC npc, String worldName) {
+        if (npc.isSpawned() && npc.getEntity() != null && npc.getEntity().getWorld() != null)
+            return worldName.equals(npc.getEntity().getWorld().getName());
+        Location stored = npc.getStoredLocation();
+        return stored != null && stored.getWorld() != null && worldName.equals(stored.getWorld().getName());
+    }
+
     private void ensureNpc(String role, String name, double x, double y, double z) {
         ArrayList<NPC> found = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (role.equals(npc.data().get(NPC_KEY, ""))) found.add(npc); });
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            // Citizens is global across worlds. Never adopt or destroy an NPC
+            // whose persisted location belongs to another world.
+            if (role.equals(npc.data().get(NPC_KEY, "")) && storedInWorld(npc, WORLD)) found.add(npc);
+        });
         NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
         if (npc.isSpawned() && npc.getEntity().getType() != EntityType.PLAYER) npc.despawn();

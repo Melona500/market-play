@@ -92,7 +92,8 @@ final class EndgameManager implements Listener {
         if (marker.getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 후반 콘텐츠 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             buildPersistent();
-        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION) buildPersistent();
+        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 후반 콘텐츠 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect(); Bukkit.getPluginManager().registerEvents(this, plugin);
         for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) world.setChunkForceLoaded(x, z, true);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
@@ -325,7 +326,8 @@ final class EndgameManager implements Listener {
     @EventHandler(ignoreCancelled=true) public void onDamage(EntityDamageByEntityEvent event) {
         boolean victimPlayer=event.getEntity() instanceof Player; String session=event.getEntity().getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING); Run run=session==null?(victimPlayer?runAt(event.getEntity().getLocation()):null):runs.get(session); if(run==null)return;
         Entity source=event.getDamager(); if(source instanceof Projectile projectile&&projectile.getShooter() instanceof Entity shooter)source=shooter; Player attacker=source instanceof Player p?p:null; String sourceSession=source.getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING);
-        if(!ProfileStore.allowsEndgameDamage(run.members,attacker==null?null:attacker.getUniqueId(),sourceSession,run.session.id(),victimPlayer)){event.setCancelled(true);return;} if(victimPlayer)return;
+        if (attacker == null) { event.setCancelled(true); return; }
+        if(!ProfileStore.allowsEndgameDamage(run.members,attacker.getUniqueId(),sourceSession,run.session.id(),victimPlayer)){event.setCancelled(true);return;} if(victimPlayer)return;
         if(run.session.content().equals("TRASH")&&run.session.stage().equals("VERMIN")&&!attacker.getInventory().getItemInMainHand().getPersistentDataContainer().has(sprayerKey,PersistentDataType.BYTE)){event.setCancelled(true);attacker.sendActionBar(Component.text("해충 살충기를 사용하세요.",NamedTextColor.RED));return;}
         String path=warriorPaths.get(attacker.getUniqueId());if(path!=null)switch(path){case "WARRIOR"->event.setDamage(event.getDamage()*1.08);case "GLADIATOR"->event.setDamage(event.getDamage()*(attacker.getHealth()<attacker.getAttribute(Attribute.MAX_HEALTH).getValue()/2?1.15:1));case "HUNTER"->{if(event.getDamager() instanceof Arrow)event.setDamage(event.getDamage()*1.12);}case "MAGE"->{if(attacker.getInventory().getItemInMainHand().getType()==Material.BLAZE_ROD)event.setDamage(event.getDamage()*1.12);}}
     }

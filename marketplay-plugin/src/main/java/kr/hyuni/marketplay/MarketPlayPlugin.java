@@ -20,6 +20,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -28,6 +29,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -79,6 +81,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private NamespacedKey hubActionKey;
     private HubBuilder hub;
     private boolean hubReady;
+    private boolean contentInitializationStarted;
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> nodeCooldowns = new ConcurrentHashMap<>();
     private final Map<UUID, Long> fishingDeadlines = new ConcurrentHashMap<>();
@@ -127,6 +130,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getScheduler().runTask(this, this::initializeContent);
         for (Player player : getServer().getOnlinePlayers()) {
             housingStore.remember(player.getUniqueId(), player.getName());
             load(player);
@@ -135,9 +139,17 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         getServer().getScheduler().runTaskTimer(this, this::regenerateVitality, period, period);
         getServer().getScheduler().runTaskTimer(this, this::refreshMarketDay, period, period);
         getServer().getScheduler().runTaskTimer(this, this::refreshBulletins, period, period);
+        getServer().getScheduler().runTaskTimer(this, this::updateActionBars, 20L, 20L);
     }
 
     @EventHandler public void onCitizensEnable(CitizensEnableEvent event) {
+        initializeContent();
+    }
+
+    private void initializeContent() {
+        if (contentInitializationStarted || !isEnabled()) return;
+        contentInitializationStarted = true;
+        getLogger().info("콘텐츠 초기화 경로: " + getServer().getWorldContainer().getAbsolutePath());
         try {
             hubReady = hub.ensure();
             art.start();
@@ -246,6 +258,48 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         Skill skill = activityBlocks.get(event.getBlock().getType());
         if (skill != null) rewardActivity(event.getPlayer(), skill);
     }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onLobbyFunctionBlockInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
+        if (!HubBuilder.WORLD.equals(event.getClickedBlock().getWorld().getName())) return;
+        Material type = event.getClickedBlock().getType();
+        if (!Set.of(Material.CHEST, Material.BARREL, Material.HOPPER, Material.DISPENSER, Material.DROPPER,
+                Material.LECTERN, Material.CARTOGRAPHY_TABLE, Material.STONECUTTER, Material.GRINDSTONE,
+                Material.SMITHING_TABLE, Material.LOOM, Material.COMPOSTER, Material.SMOKER,
+                Material.CRAFTING_TABLE, Material.ANVIL, Material.CHISELED_BOOKSHELF).contains(type)) return;
+        event.setCancelled(true);
+        event.getPlayer().sendActionBar(Component.text("로비 시설은 해당 NPC와 대화해 이용하세요.", NamedTextColor.YELLOW));
+    }
+
+    private void updateActionBars() {
+        if (profiles == null) return;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            PlayerProfile profile = profiles.get(player.getUniqueId());
+            if (profile == null || busy.contains(player.getUniqueId())) continue;
+            String context;
+            if (TutorialManager.WORLD.equals(player.getWorld().getName())) context = "튜토리얼 " + tutorialLabel(profile.tutorialStep());
+            else if (ResourceWorldManager.WORLD.equals(player.getWorld().getName())) context = "채집소";
+            else if (ExplorationManager.WORLD.equals(player.getWorld().getName())) context = "탐험";
+            else if (player.getWorld().getName().startsWith("mp_house_")) context = "개인 집";
+            else if ("mp_endgame".equals(player.getWorld().getName())) context = "전투";
+            else context = "계급 " + ranks.rankFor(profile.innerPower());
+            player.sendActionBar(Component.text("활력 " + format(profile.vitality()) + "/" + format(maximumVitality)
+                    + " | " + profile.money() + "원 | " + context, NamedTextColor.AQUA));
+        }
+    }
+
+    private String tutorialLabel(int step) {
+        return switch (step) {
+            case TutorialProgress.DIALOGUE -> "대화";
+            case TutorialProgress.OPEN_MENU -> "통합 메뉴";
+            case TutorialProgress.OPEN_MARKET -> "시장";
+            case TutorialProgress.SELL_SAMPLE -> "판매";
+            default -> "완료";
+        };
+    }
+
+    private String format(double value) { return String.format(Locale.ROOT, "%.0f", value); }
 
     @EventHandler(ignoreCancelled = true) public void onMobDeath(EntityDeathEvent event) {
         Player player = event.getEntity().getKiller();

@@ -95,9 +95,10 @@ final class ExplorationManager implements Listener {
         if (world == null) throw new IllegalStateException("탐험 월드를 만들 수 없습니다.");
         Block marker = world.getBlockAt(0, Y - 1, 0);
         if (marker.getType() != Material.LODESTONE) {
-            if (!existed || isLegacyWorld()) build();
+            if (!existed) build();
             else throw new IllegalStateException("기존 탐험 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
-        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION) build();
+        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 탐험 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect();
         spawnNpcs();
         for (int x = -5; x <= 4; x++) for (int z = -4; z <= 4; z++) world.setChunkForceLoaded(x, z, true);
@@ -607,7 +608,13 @@ final class ExplorationManager implements Listener {
     private void spawnNpcs() {
         if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 왕성 NPC를 만들 수 없습니다.");
         List<NPC> previous = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("marketplay_role")) previous.add(npc); });
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            Location stored = npc.getStoredLocation();
+            String worldName = npc.isSpawned() && npc.getEntity() != null && npc.getEntity().getWorld() != null
+                    ? npc.getEntity().getWorld().getName()
+                    : stored == null || stored.getWorld() == null ? null : stored.getWorld().getName();
+            if (npc.data().has("marketplay_role") && WORLD.equals(worldName)) previous.add(npc);
+        });
         previous.forEach(NPC::destroy);
         world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(entityRole, PersistentDataType.STRING)).forEach(Entity::remove);
         npc("steward", "왕실 시종 · 의뢰", 22, -35);
