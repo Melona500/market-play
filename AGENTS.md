@@ -11,6 +11,19 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 
 @C:\Users\hyun\.codex\RTK.md
 
+## Mandatory Git workflow
+
+For every ChatGPT/Codex task that modifies repository files, regardless of which GitHub tool, connector, writer app, MCP, shell, or fallback path is used:
+
+1. Never modify or push directly to `main`.
+2. Create or reuse a `chatgpt/*` branch from the latest `main`.
+3. Commit and push all requested changes to that branch.
+4. Always create or update a pull request targeting `main`.
+5. Never finish a modification task without reporting the pull request number and URL.
+6. If required checks pass and repository rules permit it, squash-merge the pull request.
+7. If merge is blocked, leave the pull request open and report the exact blocker.
+8. A writer/tool failure does not waive this workflow; use another available GitHub method and still complete the branch -> commit -> push -> pull request sequence.
+
 When the Web ChatGPT Git writer app is selected, Web ChatGPT is the primary autonomous coding agent.
 It must translate the user's natural-language request into a complete implementation without waiting
 for another orchestrator. It must read this file, investigate and reproduce material findings, change
