@@ -7,6 +7,7 @@ import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.trait.LookClose;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -250,11 +251,13 @@ final class ResourceWorldManager implements Listener {
     private void ensureNpc(String role, String name, double x, double y, double z) {
         ArrayList<NPC> found = new ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> { if (role.equals(npc.data().get(NPC_KEY, ""))) found.add(npc); });
-        NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.VILLAGER, name) : found.getFirst();
+        NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
+        npc.setBukkitEntityType(EntityType.PLAYER);
         npc.data().setPersistent(NPC_KEY, role);
         npc.data().setPersistent("rpgmaker-guide-dialogue", role.equals("lobby") ? "시장놀이_여행안내" : "시장놀이_시설안내");
         npc.setProtected(true);
+        npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");

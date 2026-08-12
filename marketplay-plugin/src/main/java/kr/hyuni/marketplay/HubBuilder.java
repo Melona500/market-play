@@ -15,6 +15,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.trait.LookClose;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -269,10 +270,12 @@ final class HubBuilder {
         CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("rpgmaker-guide-dialogue")) guides.add(npc); });
         if (!guides.isEmpty()) {
             NPC guide = guides.getFirst();
+            guide.setBukkitEntityType(EntityType.PLAYER);
             Location target = new Location(world, .5, 65, 8.5, 180, 0);
             if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
             else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
             guide.getEntity().setPersistent(false);
+            guide.getOrAddTrait(LookClose.class).lookClose(true);
         }
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
@@ -288,8 +291,9 @@ final class HubBuilder {
     private void ensureNpc(String role, String name, double x, double y, double z) {
         ArrayList<NPC> found = new ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> { if (role.equals(npc.data().get(NPC_KEY, ""))) found.add(npc); });
-        NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.VILLAGER, name) : found.getFirst();
+        NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
+        npc.setBukkitEntityType(EntityType.PLAYER);
         npc.data().setPersistent(NPC_KEY, role);
         npc.data().setPersistent("rpgmaker-guide-dialogue", switch (role) {
             case "market" -> "시장놀이_시장안내";
@@ -300,6 +304,7 @@ final class HubBuilder {
             default -> "시장놀이_시설안내";
         });
         npc.setProtected(true);
+        npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");

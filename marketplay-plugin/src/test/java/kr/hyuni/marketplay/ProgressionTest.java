@@ -74,6 +74,16 @@ class ProgressionTest {
         }
     }
 
+    @Test void playerDataIsIsolatedByUuid(@TempDir Path directory) throws Exception {
+        UUID first = UUID.randomUUID(), second = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            PlayerProfile a = store.load(first).join(), b = store.load(second).join();
+            a.setMoney(store.changeMoney(a, 250, false, "isolation", "first-player").join());
+            assertEquals(1250, a.money());
+            assertEquals(1000, b.money());
+        }
+    }
+
     @Test void purchaseGrantAndCrashSafeSaleAreIdempotent(@TempDir Path directory) throws Exception {
         UUID id = UUID.randomUUID();
         try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
