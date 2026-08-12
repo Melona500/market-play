@@ -270,8 +270,10 @@ final class HubBuilder {
         CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("rpgmaker-guide-dialogue")) guides.add(npc); });
         if (!guides.isEmpty()) {
             NPC guide = guides.getFirst();
+            if (guide.isSpawned() && guide.getEntity().getType() != EntityType.PLAYER) guide.despawn();
             guide.setBukkitEntityType(EntityType.PLAYER);
             Location target = new Location(world, .5, 65, 8.5, 180, 0);
+            target.getChunk().load();
             if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
             else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
             guide.getEntity().setPersistent(false);
@@ -293,6 +295,7 @@ final class HubBuilder {
         CitizensAPI.getNPCRegistry().forEach(npc -> { if (role.equals(npc.data().get(NPC_KEY, ""))) found.add(npc); });
         NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
+        if (npc.isSpawned() && npc.getEntity().getType() != EntityType.PLAYER) npc.despawn();
         npc.setBukkitEntityType(EntityType.PLAYER);
         npc.data().setPersistent(NPC_KEY, role);
         npc.data().setPersistent("rpgmaker-guide-dialogue", switch (role) {
@@ -306,6 +309,7 @@ final class HubBuilder {
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
+        target.getChunk().load();
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
