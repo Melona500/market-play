@@ -86,6 +86,18 @@ class ProgressionTest {
         }
     }
 
+    @Test void tutorialSupportsAllHandsOnStages(@TempDir Path directory) throws Exception {
+        UUID id = UUID.randomUUID();
+        try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            PlayerProfile profile = store.load(id).join();
+            profile.setTutorialStep(7);
+            store.save(profile).join();
+        }
+        try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {
+            assertEquals(7, store.load(id).join().tutorialStep());
+        }
+    }
+
     @Test void purchaseGrantAndCrashSafeSaleAreIdempotent(@TempDir Path directory) throws Exception {
         UUID id = UUID.randomUUID();
         try (ProfileStore store = new ProfileStore(directory.resolve("marketplay.db"), 1000, 100)) {

@@ -14,6 +14,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
 import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.event.NPCRightClickEvent;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.trait.LookClose;
 import net.kyori.adventure.text.Component;
@@ -28,7 +29,11 @@ import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.io.InputStream;
@@ -36,11 +41,14 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-final class HubBuilder {
+final class HubBuilder implements Listener {
     static final String WORLD = "mp_lobby";
     static final int FLOOR_Y = 64;
-    private static final Material MAP_VERSION = Material.WAXED_CUT_COPPER;
-    private static final String NPC_KEY = "marketplay_hub_role";
+    private static final int BUILD_LIMIT = 96;
+    private static final int TRAVEL_GATE = 76;
+    private static final Material MAP_VERSION = Material.WAXED_OXIDIZED_COPPER;
+    private static final String NPC_KEY = "marketplay_lobby_role_v2";
+    private static final String LEGACY_NPC_KEY = "marketplay_hub_role";
     static final LocationKey MARKET = new LocationKey(0, 65, -17);
     static final LocationKey SELL = new LocationKey(3, 65, -17);
     static final Area MOUNTAIN = new Area(-24, -24, -10, -8);
@@ -67,6 +75,7 @@ final class HubBuilder {
         this.displayKey = new NamespacedKey(plugin, "hub_display");
         this.tutorial = new TutorialManager(plugin);
         plugin.getServer().getPluginManager().registerEvents(tutorial, plugin);
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     boolean ensure() {
@@ -83,6 +92,9 @@ final class HubBuilder {
         }
         if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
         protect(world);
+        world.getWorldBorder().setCenter(0, 0);
+        world.getWorldBorder().setSize(BUILD_LIMIT * 2.0);
+        world.getWorldBorder().setWarningDistance(0);
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
         updateDisplays(world);
         spawnNpcs();
@@ -120,22 +132,22 @@ final class HubBuilder {
     }
 
     private void buildExpansion() {
-        for (int x = -80; x <= 80; x++) for (int z = -80; z <= 80; z++) {
+        for (int x = -BUILD_LIMIT; x <= BUILD_LIMIT; x++) for (int z = -BUILD_LIMIT; z <= BUILD_LIMIT; z++) {
             if (Math.abs(x) <= 25 && Math.abs(z) <= 25) continue;
             world.getBlockAt(x, 63, z).setType(Material.DIRT, false);
             world.getBlockAt(x, 64, z).setType(Material.GRASS_BLOCK, false);
             for (int y = 65; y <= 84; y++) world.getBlockAt(x, y, z).setType(Material.AIR, false);
         }
-        road(-74, 74, 0, true); road(-74, 74, 0, false);
-        marketDistrict(); housingDistrict(); artDistrict(); transitDistrict(); communityDistrict();
-        for (int p = -80; p <= 80; p++) for (int y = 65; y <= 70 + Math.floorMod(p, 3); y++) {
-            world.getBlockAt(p, y, -80).setType(Material.STONE_BRICKS, false);
-            world.getBlockAt(p, y, 80).setType(Material.MOSSY_STONE_BRICKS, false);
-            world.getBlockAt(-80, y, p).setType(Material.STONE_BRICKS, false);
-            world.getBlockAt(80, y, p).setType(Material.MOSSY_STONE_BRICKS, false);
-        }
-        for (int x = -72; x <= 72; x += 12) for (int z : List.of(-72, 72)) tree(x, z);
-        for (int z = -60; z <= 60; z += 12) for (int x : List.of(-72, 72)) tree(x, z);
+        road(-90, 90, 0, true);
+        road(-90, 90, 0, false);
+        outerPromenade();
+        marketDistrict();
+        housingDistrict();
+        artDistrict();
+        transitDistrict();
+        communityDistrict();
+        buildTravelGates();
+        cornerGardens();
         world.getBlockAt(1, FLOOR_Y - 2, 0).setType(MAP_VERSION, false);
     }
 
@@ -169,8 +181,8 @@ final class HubBuilder {
         workstations(55, -12, List.of(Material.DECORATED_POT, Material.CHISELED_BOOKSHELF, Material.CARTOGRAPHY_TABLE, Material.LOOM));
         workstations(55, 18, List.of(Material.JUKEBOX, Material.NOTE_BLOCK, Material.LECTERN, Material.DECORATED_POT));
         for (int z = -18; z <= 22; z += 8) {
-            world.getBlockAt(75, 65, z).setType(Material.SEA_LANTERN, false);
-            world.getBlockAt(75, 66, z).setType(Material.GLASS, false);
+            world.getBlockAt(70, 65, z).setType(Material.SEA_LANTERN, false);
+            world.getBlockAt(70, 66, z).setType(Material.GLASS, false);
         }
     }
 
@@ -184,14 +196,66 @@ final class HubBuilder {
     }
 
     private void communityDistrict() {
-        building(-22, -76, 20, 9, Material.RED_NETHER_BRICKS, Material.DARK_OAK_PLANKS);
-        building(3, -76, 20, 9, Material.SPRUCE_PLANKS, Material.BRICKS);
-        for (int x = -18; x <= 18; x += 4) {
-            world.getBlockAt(x, 65, 70).setType(Material.OAK_STAIRS, false);
-            world.getBlockAt(x, 65, 74).setType(Material.SPRUCE_STAIRS, false);
+        fill(-24, 64, 66, 24, 64, 74, Material.STONE_BRICKS);
+        fill(-5, 64, 64, 5, 64, 80, Material.POLISHED_ANDESITE);
+        fill(-22, 65, 68, -10, 65, 73, Material.OAK_PLANKS);
+        fill(10, 65, 68, 22, 65, 73, Material.SPRUCE_PLANKS);
+        for (int x = -20; x <= -12; x += 4) world.getBlockAt(x, 66, 70).setType(Material.LANTERN, false);
+        for (int x = 12; x <= 20; x += 4) world.getBlockAt(x, 66, 70).setType(Material.LANTERN, false);
+    }
+
+    private void outerPromenade() {
+        for (int p = -88; p <= 88; p++) for (int width = -2; width <= 2; width++) {
+            world.getBlockAt(p, 64, -86 + width).setType(Material.SMOOTH_STONE, false);
+            world.getBlockAt(p, 64, 86 + width).setType(Material.SMOOTH_STONE, false);
+            world.getBlockAt(-86 + width, 64, p).setType(Material.SMOOTH_STONE, false);
+            world.getBlockAt(86 + width, 64, p).setType(Material.SMOOTH_STONE, false);
         }
-        fill(-24, 64, 66, 24, 64, 78, Material.STONE_BRICKS);
-        fill(-6, 65, 68, 6, 66, 76, Material.OAK_PLANKS);
+        for (int p = -84; p <= 84; p += 12) {
+            lamp(p, -83); lamp(p, 83);
+            lamp(-83, p); lamp(83, p);
+        }
+    }
+
+    private void buildTravelGates() {
+        portalAcrossZ(0, -TRAVEL_GATE, Material.DEEPSLATE_BRICKS, Material.SOUL_LANTERN);
+        portalAcrossZ(0, TRAVEL_GATE, Material.MOSSY_STONE_BRICKS, Material.SEA_LANTERN);
+        portalAcrossX(TRAVEL_GATE, -12, Material.RED_NETHER_BRICKS, Material.SHROOMLIGHT);
+        portalAcrossX(TRAVEL_GATE, 0, Material.POLISHED_DEEPSLATE, Material.END_ROD);
+        portalAcrossX(TRAVEL_GATE, 12, Material.PURPUR_BLOCK, Material.SEA_LANTERN);
+        portalAcrossX(-TRAVEL_GATE, 0, Material.MUD_BRICKS, Material.LANTERN);
+        fill(-5, 64, -80, 5, 64, -73, Material.POLISHED_DEEPSLATE);
+        fill(-5, 64, 73, 5, 64, 80, Material.MOSSY_STONE_BRICKS);
+        fill(73, 64, -18, 80, 64, 18, Material.POLISHED_ANDESITE);
+        fill(-80, 64, -5, -73, 64, 5, Material.PACKED_MUD);
+    }
+
+    private void portalAcrossZ(int centerX, int z, Material frame, Material light) {
+        fill(centerX - 6, 65, z, centerX - 6, 72, z, frame);
+        fill(centerX + 6, 65, z, centerX + 6, 72, z, frame);
+        fill(centerX - 6, 72, z, centerX + 6, 72, z, frame);
+        world.getBlockAt(centerX - 6, 70, z).setType(light, false);
+        world.getBlockAt(centerX + 6, 70, z).setType(light, false);
+        world.getBlockAt(centerX, 72, z).setType(light, false);
+        fill(centerX - 4, 65, z, centerX + 4, 71, z, Material.AIR);
+    }
+
+    private void portalAcrossX(int x, int centerZ, Material frame, Material light) {
+        fill(x, 65, centerZ - 5, x, 72, centerZ - 5, frame);
+        fill(x, 65, centerZ + 5, x, 72, centerZ + 5, frame);
+        fill(x, 72, centerZ - 5, x, 72, centerZ + 5, frame);
+        world.getBlockAt(x, 70, centerZ - 5).setType(light, false);
+        world.getBlockAt(x, 70, centerZ + 5).setType(light, false);
+        world.getBlockAt(x, 72, centerZ).setType(light, false);
+        fill(x, 65, centerZ - 4, x, 71, centerZ + 4, Material.AIR);
+    }
+
+    private void cornerGardens() {
+        for (int x : List.of(-90, 90)) for (int z : List.of(-90, 90)) {
+            fill(x - 4, 64, z - 4, x + 4, 64, z + 4, Material.MOSS_BLOCK);
+            tree(x, z);
+            for (int dx : List.of(-5, 5)) for (int dz : List.of(-5, 5)) world.getBlockAt(x + dx, 65, z + dz).setType(Material.LANTERN, false);
+        }
     }
 
     private void building(int x, int z, int width, int depth, Material wall, Material roof) {
@@ -212,6 +276,11 @@ final class HubBuilder {
             world.getBlockAt(xAxis ? value : fixed + side, 64, xAxis ? fixed + side : value).setType(Material.POLISHED_ANDESITE, false);
     }
 
+    private void lamp(int x, int z) {
+        fill(x, 65, z, x, 67, z, Material.DARK_OAK_FENCE);
+        world.getBlockAt(x, 68, z).setType(Material.LANTERN, false);
+    }
+
     private void tree(int x, int z) {
         fill(x, 65, z, x, 70, z, Material.OAK_LOG);
         fill(x - 2, 69, z - 2, x + 2, 71, z + 2, Material.OAK_LEAVES);
@@ -226,7 +295,13 @@ final class HubBuilder {
     private void protect(World world) {
         RegionManager regions = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
         if (regions == null) throw new IllegalStateException("WorldGuard region manager를 열 수 없습니다.");
-        ProtectedRegion lobby = ensureRegion(regions, "marketplay_lobby", new Area(-80, -80, 80, 80), FLOOR_Y - 2, FLOOR_Y + 24);
+        Area expanded = new Area(-BUILD_LIMIT, -BUILD_LIMIT, BUILD_LIMIT, BUILD_LIMIT);
+        ProtectedRegion current = regions.getRegion("marketplay_lobby");
+        BlockVector3 expectedMin = BlockVector3.at(expanded.minX(), FLOOR_Y - 2, expanded.minZ());
+        BlockVector3 expectedMax = BlockVector3.at(expanded.maxX(), FLOOR_Y + 24, expanded.maxZ());
+        if (current != null && (!current.getMinimumPoint().equals(expectedMin) || !current.getMaximumPoint().equals(expectedMax)))
+            regions.removeRegion("marketplay_lobby");
+        ProtectedRegion lobby = ensureRegion(regions, "marketplay_lobby", expanded, FLOOR_Y - 2, FLOOR_Y + 24);
         lobby.setFlag(Flags.USE, StateFlag.State.ALLOW);
         lobby.setFlag(Flags.INTERACT, StateFlag.State.ALLOW);
         lobby.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
@@ -270,25 +345,23 @@ final class HubBuilder {
 
     private void spawnNpcs() {
         if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 로비 NPC를 만들 수 없습니다.");
-        ArrayList<NPC> guides = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("rpgmaker-guide-dialogue")) guides.add(npc); });
-        if (!guides.isEmpty()) {
-            NPC guide = guides.getFirst();
-            if (guide.isSpawned() && guide.getEntity().getType() != EntityType.PLAYER) guide.despawn();
-            guide.setBukkitEntityType(EntityType.PLAYER);
-            Location target = new Location(world, .5, 65, 8.5, 180, 0);
-            target.getChunk().load();
-            if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
-            else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
-            guide.getEntity().setPersistent(false);
-            guide.getOrAddTrait(LookClose.class).lookClose(true);
-        }
+        ArrayList<NPC> stale = new ArrayList<>();
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            String legacyRole = npc.data().get(LEGACY_NPC_KEY, "");
+            if (!legacyRole.isBlank()) stale.add(npc);
+        });
+        stale.forEach(NPC::destroy);
+
+        ensureNpc("mentor", "생활 조합 상담원", .5, 65, 8.5);
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
-        ensureNpc("housing", "주택 안내원", -43.5, 65, .5);
+        ensureNpc("exchange", "거래소 중개인", 17.5, 65, -33.5);
+        ensureNpc("service", "서비스 중개인", -17.5, 65, -33.5);
+        ensureNpc("housing", "주택 관리인", -43.5, 65, .5);
+        ensureNpc("mail", "우편 집배원", -43.5, 65, 8.5);
         ensureNpc("art", "미술관 큐레이터", 43.5, 65, .5);
-        ensureNpc("travel", "여행 안내원", .5, 65, 33.5);
-        ensureNpc("adventure", "모험가 길드 안내원", 12.5, 65, 43.5);
+        ensureNpc("explore", "탐험 접수원", .5, 65, 33.5);
+        ensureNpc("dungeon", "던전 접수원", 12.5, 65, 43.5);
         ensureNpc("restaurant", "레스토랑 지배인", -12.5, 65, -69.5);
         ensureNpc("guild", "상단 관리인", 12.5, 65, -69.5);
         CitizensAPI.getNPCRegistry().saveToStore();
@@ -302,14 +375,14 @@ final class HubBuilder {
         if (npc.isSpawned() && npc.getEntity().getType() != EntityType.PLAYER) npc.despawn();
         npc.setBukkitEntityType(EntityType.PLAYER);
         npc.data().setPersistent(NPC_KEY, role);
-        npc.data().setPersistent("rpgmaker-guide-dialogue", switch (role) {
+        String rpgDialogue = switch (role) {
             case "market" -> "시장놀이_시장안내";
             case "board" -> "시장놀이_게시판안내";
             case "housing" -> "시장놀이_주택안내";
-            case "travel" -> "시장놀이_여행안내";
-            case "adventure" -> "시장놀이_모험안내";
-            default -> "시장놀이_시설안내";
-        });
+            default -> "";
+        };
+        if (rpgDialogue.isBlank()) npc.data().remove("rpgmaker-guide-dialogue");
+        else npc.data().setPersistent("rpgmaker-guide-dialogue", rpgDialogue);
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
@@ -319,8 +392,43 @@ final class HubBuilder {
         npc.getEntity().setPersistent(false);
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onNpcRightClick(NPCRightClickEvent event) {
+        String role = event.getNPC().data().get(NPC_KEY, "");
+        if (role.isBlank() || event.getNPC().data().has("rpgmaker-guide-dialogue")) return;
+        event.setCancelled(true);
+        Player player = event.getClicker();
+        switch (role) {
+            case "mentor" -> interact(player, "생활 조합 상담원",
+                    "무엇을 해야 할지 막혔다면 생활·시장·모험 중 지금 할 일을 먼저 고르세요.", "menu");
+            case "exchange" -> interact(player, "거래소 중개인",
+                    "직접 팔기 어려운 물건은 거래소에 맡기세요. 가격과 수량을 비교하고 거래할 수 있습니다.", "exchange");
+            case "service" -> interact(player, "서비스 중개인",
+                    "물건이 아니라 시간과 일을 사고파는 곳입니다. 필요한 서비스를 등록하거나 찾아보세요.", "service");
+            case "mail" -> interact(player, "우편 집배원",
+                    "접속하지 않은 사람에게도 편지와 선물을 남길 수 있습니다. 우편함을 확인해보세요.", "mail");
+            case "art" -> interact(player, "미술관 큐레이터",
+                    "작품은 만들고 끝이 아닙니다. 저장하고 전시하고 거래해 작가 기록을 남겨보세요.", "art");
+            case "explore" -> interact(player, "탐험 접수원",
+                    "채집과 탐험은 성장 방식이 다릅니다. 준비 상태에 맞는 탐험 콘텐츠를 골라보세요.", "explore");
+            case "dungeon" -> interact(player, "던전 접수원",
+                    "활력과 장비가 부족하면 오래 버티기 어렵습니다. 준비가 됐다면 도전할 던전을 선택하세요.", "dungeon");
+            case "restaurant" -> interact(player, "레스토랑 지배인",
+                    "재료만 모아서는 장사가 되지 않습니다. 주문·조리·서빙 흐름을 직접 운영해보세요.", "restaurant");
+            case "guild" -> interact(player, "상단 관리인",
+                    "상단은 이름표가 아닙니다. 공동 창고와 프로젝트를 함께 굴릴 사람들과 조직을 만드세요.", "guild");
+            default -> interact(player, "생활 조합 상담원", "이 기능은 생활 조합 메뉴에서 확인할 수 있습니다.", "menu");
+        }
+    }
+
+    private void interact(Player player, String speaker, String dialogue, String command) {
+        player.sendMessage(Component.text("[" + speaker + "] ", NamedTextColor.GOLD)
+                .append(Component.text(dialogue, NamedTextColor.WHITE)));
+        player.performCommand("marketplay " + command);
+    }
+
     void updateDisplays(World world) {
-        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 40, 20, 40).stream()
+        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 110, 24, 110).stream()
                 .filter(TextDisplay.class::isInstance).map(TextDisplay.class::cast)
                 .filter(display -> display.getPersistentDataContainer().has(displayKey, PersistentDataType.STRING))
                 .forEach(TextDisplay::remove);
@@ -329,14 +437,17 @@ final class HubBuilder {
         display(world, new Location(world, 12.5, FLOOR_Y + 3.0, 8.5), "bulletin",
                 Component.text(MarketText.bulletinPosts(plugin.bulletins()), NamedTextColor.AQUA));
         display(world, new Location(world, 0.5, FLOOR_Y + 3.0, 10.5), "welcome",
-                Component.text("시장놀이 중앙광장\n분수 앞에서 안내인을 만나세요", NamedTextColor.YELLOW));
+                Component.text("시장놀이 중앙광장\nNPC와 대화해 기능을 바로 이용하세요", NamedTextColor.YELLOW));
         display(world, new Location(world, .5, FLOOR_Y + 4, -34.5), "market-district", Component.text("시장 거리 · 도구 / 거래 / 상단", NamedTextColor.GOLD));
         display(world, new Location(world, -43.5, FLOOR_Y + 4, .5), "housing-district", Component.text("주택 거리 · 집 / 우편 / 가구", NamedTextColor.GREEN));
         display(world, new Location(world, 43.5, FLOOR_Y + 4, .5), "art-district", Component.text("문화 거리 · 그림 / 전시 / 공연", NamedTextColor.LIGHT_PURPLE));
-        display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("여행소 · 채집소 / 탐험 지역", NamedTextColor.AQUA));
-        display(world, new Location(world, .5, FLOOR_Y + 4, 75.5), "resource-exit", Component.text("남쪽 끝 → 자원 채집소", NamedTextColor.GREEN));
-        display(world, new Location(world, .5, FLOOR_Y + 4, -75.5), "exploration-exit", Component.text("북쪽 끝 → 탐험과 사냥", NamedTextColor.RED));
-        display(world, new Location(world, 75.5, FLOOR_Y + 4, .5), "endgame-exit", Component.text("동쪽 끝 → 던전 / 무한 탑 / 후반 마을", NamedTextColor.LIGHT_PURPLE));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("탐험 접수소 · 채집 / 탐험 / 던전", NamedTextColor.AQUA));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 74.5), "resource-exit", Component.text("자원 채집 포탈 · 채집 / 농사 / 벌목", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, -74.5), "exploration-exit", Component.text("탐험 포탈 · 탐험 / 사냥", NamedTextColor.RED));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, -12.0), "dungeon-exit", Component.text("던전 포탈 · 파티 / 보스", NamedTextColor.RED));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, 0.0), "tower-exit", Component.text("무한 탑 포탈 · 단계별 도전", NamedTextColor.AQUA));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, 12.0), "endgame-exit", Component.text("후반 마을 포탈 · 고급 콘텐츠", NamedTextColor.LIGHT_PURPLE));
+        display(world, new Location(world, -74.5, FLOOR_Y + 4, .5), "west-gate", Component.text("생활 포탈 · 주택 / 우편 / 가구", NamedTextColor.GREEN));
     }
 
     private void display(World world, Location location, String id, Component text) {

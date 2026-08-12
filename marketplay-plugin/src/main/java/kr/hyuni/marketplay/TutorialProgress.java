@@ -6,11 +6,11 @@ final class TutorialProgress {
     static final int LEGACY_HUNT = 2;
     static final int LEGACY_COMPLETE = 3;
 
-    static final int DIALOGUE = 10;
-    static final int OPEN_MENU = 11;
-    static final int OPEN_MARKET = 12;
-    static final int SELL_SAMPLE = 13;
-    static final int COMPLETE = 14;
+    static final int DIALOGUE = 4;
+    static final int OPEN_MENU = 5;
+    static final int OPEN_MARKET = 6;
+    static final int SELL_SAMPLE = 7;
+    static final int COMPLETE = 8;
 
     enum Action {
         DIALOGUE_COMPLETE,

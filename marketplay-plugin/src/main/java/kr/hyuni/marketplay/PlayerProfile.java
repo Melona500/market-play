@@ -51,7 +51,7 @@ public final class PlayerProfile {
         if (!Set.of("NONE", "ARCHERY", "DUEL", "APPRENTICE").contains(value)) throw new IllegalArgumentException("Unknown knight state: " + value);
         knightState = value;
     }
-    public void setTutorialStep(int value) { tutorialStep = Math.max(0, Math.min(3, value)); }
+    public void setTutorialStep(int value) { tutorialStep = Math.max(0, Math.min(8, value)); }
     public void addTool(String toolId) { tools.add(toolId); }
     public boolean spendVitality(double value) {
         if (value < 0 || vitality < value) return false;
