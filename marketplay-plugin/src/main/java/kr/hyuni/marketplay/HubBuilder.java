@@ -14,6 +14,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
 import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.event.NPCRightClickEvent;
 import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.trait.LookClose;
 import net.kyori.adventure.text.Component;
@@ -28,7 +29,11 @@ import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.io.InputStream;
@@ -36,13 +41,14 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-final class HubBuilder {
+final class HubBuilder implements Listener {
     static final String WORLD = "mp_lobby";
     static final int FLOOR_Y = 64;
     private static final int BUILD_LIMIT = 96;
     private static final int TRAVEL_GATE = 76;
     private static final Material MAP_VERSION = Material.WAXED_OXIDIZED_COPPER;
-    private static final String NPC_KEY = "marketplay_hub_role";
+    private static final String NPC_KEY = "marketplay_lobby_role_v2";
+    private static final String LEGACY_NPC_KEY = "marketplay_hub_role";
     static final LocationKey MARKET = new LocationKey(0, 65, -17);
     static final LocationKey SELL = new LocationKey(3, 65, -17);
     static final Area MOUNTAIN = new Area(-24, -24, -10, -8);
@@ -66,6 +72,7 @@ final class HubBuilder {
     HubBuilder(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         this.displayKey = new NamespacedKey(plugin, "hub_display");
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     boolean ensure() {
@@ -334,25 +341,23 @@ final class HubBuilder {
 
     private void spawnNpcs() {
         if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 로비 NPC를 만들 수 없습니다.");
-        ArrayList<NPC> guides = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("rpgmaker-guide-dialogue")) guides.add(npc); });
-        if (!guides.isEmpty()) {
-            NPC guide = guides.getFirst();
-            if (guide.isSpawned() && guide.getEntity().getType() != EntityType.PLAYER) guide.despawn();
-            guide.setBukkitEntityType(EntityType.PLAYER);
-            Location target = new Location(world, .5, 65, 8.5, 180, 0);
-            target.getChunk().load();
-            if (guide.isSpawned()) guide.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
-            else if (!guide.spawn(target)) throw new IllegalStateException("광장 안내인 Citizens NPC 생성 실패");
-            guide.getEntity().setPersistent(false);
-            guide.getOrAddTrait(LookClose.class).lookClose(true);
-        }
+        ArrayList<NPC> stale = new ArrayList<>();
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            String legacyRole = npc.data().get(LEGACY_NPC_KEY, "");
+            if (!legacyRole.isBlank()) stale.add(npc);
+        });
+        stale.forEach(NPC::destroy);
+
+        ensureNpc("mentor", "생활 조합 상담원", .5, 65, 8.5);
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
-        ensureNpc("housing", "주택 안내원", -43.5, 65, .5);
+        ensureNpc("exchange", "거래소 중개인", 17.5, 65, -33.5);
+        ensureNpc("service", "서비스 중개인", -17.5, 65, -33.5);
+        ensureNpc("housing", "주택 관리인", -43.5, 65, .5);
+        ensureNpc("mail", "우편 집배원", -43.5, 65, 8.5);
         ensureNpc("art", "미술관 큐레이터", 43.5, 65, .5);
-        ensureNpc("travel", "여행 안내원", .5, 65, 33.5);
-        ensureNpc("adventure", "모험가 길드 안내원", 12.5, 65, 43.5);
+        ensureNpc("explore", "탐험 접수원", .5, 65, 33.5);
+        ensureNpc("dungeon", "던전 접수원", 12.5, 65, 43.5);
         ensureNpc("restaurant", "레스토랑 지배인", -12.5, 65, -69.5);
         ensureNpc("guild", "상단 관리인", 12.5, 65, -69.5);
         CitizensAPI.getNPCRegistry().saveToStore();
@@ -366,14 +371,14 @@ final class HubBuilder {
         if (npc.isSpawned() && npc.getEntity().getType() != EntityType.PLAYER) npc.despawn();
         npc.setBukkitEntityType(EntityType.PLAYER);
         npc.data().setPersistent(NPC_KEY, role);
-        npc.data().setPersistent("rpgmaker-guide-dialogue", switch (role) {
+        String rpgDialogue = switch (role) {
             case "market" -> "시장놀이_시장안내";
             case "board" -> "시장놀이_게시판안내";
             case "housing" -> "시장놀이_주택안내";
-            case "travel" -> "시장놀이_여행안내";
-            case "adventure" -> "시장놀이_모험안내";
-            default -> "시장놀이_시설안내";
-        });
+            default -> "";
+        };
+        if (rpgDialogue.isBlank()) npc.data().remove("rpgmaker-guide-dialogue");
+        else npc.data().setPersistent("rpgmaker-guide-dialogue", rpgDialogue);
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
         Location target = new Location(world, x, y, z);
@@ -381,6 +386,41 @@ final class HubBuilder {
         if (npc.isSpawned()) npc.teleport(target, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
         else if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onNpcRightClick(NPCRightClickEvent event) {
+        String role = event.getNPC().data().get(NPC_KEY, "");
+        if (role.isBlank() || event.getNPC().data().has("rpgmaker-guide-dialogue")) return;
+        event.setCancelled(true);
+        Player player = event.getClicker();
+        switch (role) {
+            case "mentor" -> interact(player, "생활 조합 상담원",
+                    "무엇을 해야 할지 막혔다면 생활·시장·모험 중 지금 할 일을 먼저 고르세요.", "menu");
+            case "exchange" -> interact(player, "거래소 중개인",
+                    "직접 팔기 어려운 물건은 거래소에 맡기세요. 가격과 수량을 비교하고 거래할 수 있습니다.", "exchange");
+            case "service" -> interact(player, "서비스 중개인",
+                    "물건이 아니라 시간과 일을 사고파는 곳입니다. 필요한 서비스를 등록하거나 찾아보세요.", "service");
+            case "mail" -> interact(player, "우편 집배원",
+                    "접속하지 않은 사람에게도 편지와 선물을 남길 수 있습니다. 우편함을 확인해보세요.", "mail");
+            case "art" -> interact(player, "미술관 큐레이터",
+                    "작품은 만들고 끝이 아닙니다. 저장하고 전시하고 거래해 작가 기록을 남겨보세요.", "art");
+            case "explore" -> interact(player, "탐험 접수원",
+                    "채집과 탐험은 성장 방식이 다릅니다. 준비 상태에 맞는 탐험 콘텐츠를 골라보세요.", "explore");
+            case "dungeon" -> interact(player, "던전 접수원",
+                    "활력과 장비가 부족하면 오래 버티기 어렵습니다. 준비가 됐다면 도전할 던전을 선택하세요.", "dungeon");
+            case "restaurant" -> interact(player, "레스토랑 지배인",
+                    "재료만 모아서는 장사가 되지 않습니다. 주문·조리·서빙 흐름을 직접 운영해보세요.", "restaurant");
+            case "guild" -> interact(player, "상단 관리인",
+                    "상단은 이름표가 아닙니다. 공동 창고와 프로젝트를 함께 굴릴 사람들과 조직을 만드세요.", "guild");
+            default -> interact(player, "생활 조합 상담원", "이 기능은 생활 조합 메뉴에서 확인할 수 있습니다.", "menu");
+        }
+    }
+
+    private void interact(Player player, String speaker, String dialogue, String command) {
+        player.sendMessage(Component.text("[" + speaker + "] ", NamedTextColor.GOLD)
+                .append(Component.text(dialogue, NamedTextColor.WHITE)));
+        player.performCommand("marketplay " + command);
     }
 
     void updateDisplays(World world) {
@@ -393,17 +433,17 @@ final class HubBuilder {
         display(world, new Location(world, 12.5, FLOOR_Y + 3.0, 8.5), "bulletin",
                 Component.text(MarketText.bulletinPosts(plugin.bulletins()), NamedTextColor.AQUA));
         display(world, new Location(world, 0.5, FLOOR_Y + 3.0, 10.5), "welcome",
-                Component.text("시장놀이 중앙광장\n분수 앞에서 안내인을 만나세요", NamedTextColor.YELLOW));
+                Component.text("시장놀이 중앙광장\nNPC와 대화해 기능을 바로 이용하세요", NamedTextColor.YELLOW));
         display(world, new Location(world, .5, FLOOR_Y + 4, -34.5), "market-district", Component.text("시장 거리 · 도구 / 거래 / 상단", NamedTextColor.GOLD));
         display(world, new Location(world, -43.5, FLOOR_Y + 4, .5), "housing-district", Component.text("주택 거리 · 집 / 우편 / 가구", NamedTextColor.GREEN));
         display(world, new Location(world, 43.5, FLOOR_Y + 4, .5), "art-district", Component.text("문화 거리 · 그림 / 전시 / 공연", NamedTextColor.LIGHT_PURPLE));
-        display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("여행소 · 채집소 / 탐험 지역", NamedTextColor.AQUA));
-        display(world, new Location(world, .5, FLOOR_Y + 4, 74.5), "resource-exit", Component.text("남쪽 관문 → 자원 채집소", NamedTextColor.GREEN));
-        display(world, new Location(world, .5, FLOOR_Y + 4, -74.5), "exploration-exit", Component.text("북쪽 관문 → 탐험과 사냥", NamedTextColor.RED));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, -12.0), "dungeon-exit", Component.text("동쪽 붉은 관문 → 던전", NamedTextColor.RED));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, 0.0), "tower-exit", Component.text("동쪽 중앙 관문 → 무한 탑", NamedTextColor.AQUA));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, 12.0), "endgame-exit", Component.text("동쪽 보랏빛 관문 → 후반 마을", NamedTextColor.LIGHT_PURPLE));
-        display(world, new Location(world, -74.5, FLOOR_Y + 4, .5), "west-gate", Component.text("서쪽 생활 관문 · 주택 / 우편 / 가구", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("탐험 접수소 · 채집 / 탐험 / 던전", NamedTextColor.AQUA));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 74.5), "resource-exit", Component.text("자원 채집 포탈 · 채집 / 농사 / 벌목", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, -74.5), "exploration-exit", Component.text("탐험 포탈 · 탐험 / 사냥", NamedTextColor.RED));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, -12.0), "dungeon-exit", Component.text("던전 포탈 · 파티 / 보스", NamedTextColor.RED));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, 0.0), "tower-exit", Component.text("무한 탑 포탈 · 단계별 도전", NamedTextColor.AQUA));
+        display(world, new Location(world, 74.5, FLOOR_Y + 4, 12.0), "endgame-exit", Component.text("후반 마을 포탈 · 고급 콘텐츠", NamedTextColor.LIGHT_PURPLE));
+        display(world, new Location(world, -74.5, FLOOR_Y + 4, .5), "west-gate", Component.text("생활 포탈 · 주택 / 우편 / 가구", NamedTextColor.GREEN));
     }
 
     private void display(World world, Location location, String id, Component text) {
