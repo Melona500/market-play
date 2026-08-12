@@ -621,7 +621,9 @@ final class ExplorationManager implements Listener {
         npc.data().setPersistent("marketplay_role", role);
         npc.setProtected(true);
         npc.getOrAddTrait(LookClose.class).lookClose(true);
-        if (!npc.spawn(new Location(world, x + .5, 65, z + .5))) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
+        Location target = new Location(world, x + .5, 65, z + .5);
+        target.getChunk().load();
+        if (!npc.spawn(target)) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
         npc.getEntity().getPersistentDataContainer().set(entityRole, PersistentDataType.STRING, role);
     }
