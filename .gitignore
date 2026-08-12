@@ -16,6 +16,7 @@ mp_lobby/
 mp_exploration/
 mp_resources/
 mp_endgame/
+mp_tutorial/
 crash-reports/
 eula.txt
 usercache.json
@@ -38,8 +39,11 @@ wepif.yml
 whitelist.json
 plugins/.paper-remapped/
 plugins/Citizens/saves.yml
+plugins/GSit/data/
+plugins/GSit/lang/
 plugins/RPGMaker/backups/
 plugins/RPGMaker/players/
 plugins/RPGMaker/shares.yml
 plugins/Skript/backups/
 plugins/Skript/variables.csv
+plugins/WorldGuard/worlds/
