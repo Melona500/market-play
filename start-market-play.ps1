@@ -1,7 +1,4 @@
-param(
-    [switch]$BuildOnly,
-    [switch]$SkipMerge
-)
+param([switch]$BuildOnly)
 
 $ErrorActionPreference = 'Stop'
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
@@ -17,7 +14,6 @@ $PluginProjectPath = Join-Path $RepoPath 'dialogue-display-plugin'
 $PluginJar         = Join-Path $ServerPath 'plugins\RPGMaker.jar'
 $MarketPlayProjectPath = Join-Path $RepoPath 'marketplay-plugin'
 $MarketPlayJar     = Join-Path $ServerPath 'plugins\MarketPlay.jar'
-$SyncScript        = Join-Path $RepoPath 'sync.ps1'
 $PackBuildScript   = Join-Path $RepoPath 'build-resource-pack.ps1'
 
 $GradleVersion = '9.1.0'
@@ -40,13 +36,6 @@ $ServerJava    = (Get-Command java.exe -ErrorAction SilentlyContinue).Source
 $webProcess = $null
 $tunnelProcess = $null
 $serverExitCode = $null
-
-function Assert-MainBranch {
-    $branch = (& git -C $RepoPath branch --show-current).Trim()
-    if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
-        throw "Automatic shutdown sync requires the main branch; current branch: $branch"
-    }
-}
 
 function Assert-ServerJava {
     if (-not $ServerJava) {
@@ -318,7 +307,6 @@ function Deploy-Plugin([string]$Name, [string]$ProjectPath, [string]$JarPath) {
 }
 
 try {
-    if (-not $BuildOnly -and -not $SkipMerge) { Assert-MainBranch }
     if (-not $BuildOnly) { Assert-ServerJava }
     if (-not $BuildOnly) { Assert-PortsAvailable }
 
@@ -407,27 +395,6 @@ finally {
 
         Write-Host 'Web editor stopped.'
 
-    }
-}
-
-if (-not $BuildOnly) {
-    Write-Host ''
-    Write-Host '========================================'
-    Write-Host ' Automatic Git Merge'
-    Write-Host '========================================'
-
-    if ($SkipMerge) {
-        Write-Host 'Automatic merge skipped by request.'
-    }
-    elseif ($serverExitCode -ne 0) {
-        Write-Warning "Server exit code $serverExitCode; automatic merge skipped to preserve failure state."
-    }
-    elseif (-not (Test-Path -LiteralPath $SyncScript)) {
-        Write-Warning "Merge script not found: $SyncScript"
-    }
-    else {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SyncScript
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Automatic merge failed with exit code $LASTEXITCODE" }
     }
 }
 
