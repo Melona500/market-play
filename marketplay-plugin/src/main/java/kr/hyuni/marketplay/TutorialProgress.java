@@ -2,11 +2,15 @@ package kr.hyuni.marketplay;
 
 final class TutorialProgress {
     static final int NOT_STARTED = 0;
-    static final int DIALOGUE = 1;
-    static final int OPEN_MENU = 2;
-    static final int OPEN_MARKET = 3;
-    static final int SELL_SAMPLE = 4;
-    static final int COMPLETE = 5;
+    static final int LEGACY_GATHER = 1;
+    static final int LEGACY_HUNT = 2;
+    static final int LEGACY_COMPLETE = 3;
+
+    static final int DIALOGUE = 10;
+    static final int OPEN_MENU = 11;
+    static final int OPEN_MARKET = 12;
+    static final int SELL_SAMPLE = 13;
+    static final int COMPLETE = 14;
 
     enum Action {
         DIALOGUE_COMPLETE,
@@ -28,5 +32,13 @@ final class TutorialProgress {
 
     static boolean active(int step) {
         return step >= DIALOGUE && step < COMPLETE;
+    }
+
+    static boolean shouldRestartLegacy(int step) {
+        return step == LEGACY_GATHER || step == LEGACY_HUNT;
+    }
+
+    static boolean completed(int step) {
+        return step == LEGACY_COMPLETE || step >= COMPLETE;
     }
 }
