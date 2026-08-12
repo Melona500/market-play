@@ -381,7 +381,9 @@ try {
 
     Push-Location $ServerPath
     try {
-        & $ServerJava '-Xms2G' '-Xmx2G' '-Dfile.encoding=UTF-8' '-Dstdin.encoding=UTF-8' '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' '-jar' 'paper.jar' '--nogui'
+        # Keep normal console `stop` available, but reject external Attach API
+        # injections that can terminate Paper without an operator command.
+        & $ServerJava '-XX:+DisableAttachMechanism' '-Xms2G' '-Xmx2G' '-Dfile.encoding=UTF-8' '-Dstdin.encoding=UTF-8' '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' '-jar' 'paper.jar' '--nogui'
         $serverExitCode = $LASTEXITCODE
     }
     finally { Pop-Location }
