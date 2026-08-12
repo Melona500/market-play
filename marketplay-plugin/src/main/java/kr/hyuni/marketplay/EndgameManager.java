@@ -323,7 +323,7 @@ final class EndgameManager implements Listener {
     }
 
     @EventHandler(ignoreCancelled=true) public void onDamage(EntityDamageByEntityEvent event) {
-        boolean victimPlayer=event.getEntity() instanceof Player; String session=event.getEntity().getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING); Run run=session==null&&victimPlayer?runAt(event.getEntity().getLocation()):runs.get(session); if(run==null)return;
+        boolean victimPlayer=event.getEntity() instanceof Player; String session=event.getEntity().getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING); Run run=session==null?(victimPlayer?runAt(event.getEntity().getLocation()):null):runs.get(session); if(run==null)return;
         Entity source=event.getDamager(); if(source instanceof Projectile projectile&&projectile.getShooter() instanceof Entity shooter)source=shooter; Player attacker=source instanceof Player p?p:null; String sourceSession=source.getPersistentDataContainer().get(sessionKey,PersistentDataType.STRING);
         if(!ProfileStore.allowsEndgameDamage(run.members,attacker==null?null:attacker.getUniqueId(),sourceSession,run.session.id(),victimPlayer)){event.setCancelled(true);return;} if(victimPlayer)return;
         if(run.session.content().equals("TRASH")&&run.session.stage().equals("VERMIN")&&!attacker.getInventory().getItemInMainHand().getPersistentDataContainer().has(sprayerKey,PersistentDataType.BYTE)){event.setCancelled(true);attacker.sendActionBar(Component.text("해충 살충기를 사용하세요.",NamedTextColor.RED));return;}
