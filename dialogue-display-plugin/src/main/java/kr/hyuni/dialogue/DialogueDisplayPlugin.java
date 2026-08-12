@@ -736,7 +736,9 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            sendHelp(sender);
+            if (sender instanceof Player player && !player.hasPermission("rpgmaker.admin"))
+                player.sendMessage(Component.text("NPC를 우클릭하면 대화창이 열립니다.", NamedTextColor.AQUA));
+            else sendHelp(sender);
             return true;
         }
         if (args[0].equalsIgnoreCase("variable")) return handleVariableCommand(sender, args);
@@ -745,6 +747,13 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
             return true;
         }
         String sub = args[0].toLowerCase();
+        if (!player.hasPermission("rpgmaker.admin")) {
+            if (sub.equals("play") && args.length == 2) showNpcDialogue(player, args[1]);
+            else if (sub.equals("close")) close(player);
+            else if (sub.equals("choose") && args.length == 2) choose(player, args[1]);
+            else player.sendMessage(Component.text("RPGMaker 편집 기능은 OP 전용입니다.", NamedTextColor.RED));
+            return true;
+        }
         if (sub.equals("settings")) {
             openPlayerSettings(player);
             return true;
@@ -1091,10 +1100,7 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
         syncRpgVariables(player);
         if (!player.isOp()) player.setGameMode(GameMode.ADVENTURE);
         Bukkit.getScheduler().runTaskLater(this, () -> {
-            ensureExamples(player);
-            player.sendMessage(Component.text("[RPGMaker] /rpgmaker help · /rpgmaker editor · /rpgmaker settings · /rpgmaker web", NamedTextColor.GOLD));
-            player.sendMessage(Component.text("G키: 대화문·아이템 편집 및 새 대화문 만들기", NamedTextColor.GREEN));
-            player.sendMessage(Component.text("대화 중 Space: 대화문 스킵 · Shift: 다음 대사", NamedTextColor.AQUA));
+            if (player.hasPermission("rpgmaker.admin")) ensureExamples(player);
         }, 30L);
     }
 
@@ -1104,8 +1110,12 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
         boolean admin = sender.hasPermission("rpgmaker.admin");
         List<String> commands = admin
                 ? List.of("help", "editor", "settings", "items", "examples", "load", "play", "delete", "share", "publish", "public", "list", "edit", "edit2", "edit3", "edit4", "save", "show", "close", "npc", "admin")
-                : List.of("help", "editor", "settings", "items", "examples", "load", "play", "delete", "share", "publish", "public", "list", "close");
+                : List.of("help", "play", "close");
         if (args.length == 1) return complete(args[0], commands);
+        if (!admin) {
+            if (args.length == 2 && args[0].equalsIgnoreCase("play")) return complete(args[1], publicDialogueNames());
+            return List.of();
+        }
         if (args.length == 2 && args[0].equalsIgnoreCase("editor")) return complete(args[1], List.of("help", "list", "variables"));
         if (args.length == 2 && args[0].equalsIgnoreCase("examples")) return complete(args[1], List.of("restore"));
         if (args.length == 2 && sender instanceof Player player
@@ -1438,6 +1448,7 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
     }
 
     private void openQuickActions(Player player) {
+        if (!player.hasPermission("rpgmaker.admin")) return;
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "dialog show " + player.getName() + " rpgmaker:editor");
     }
 
@@ -3478,8 +3489,16 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
                 default -> player.getName();
             };
             String resolved = command.replace("{target}", target).replace("{player}", player.getName());
+            Dialogue dialogue = active.get(player.getUniqueId());
+            if (effect.commandTarget.equals("PLAYER") && resolved.startsWith("marketplay dialogue-") && dialogue != null) {
+                dialogue.deferredPlayerCommand = resolved;
+                return;
+            }
             try {
-                if (!Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved))
+                boolean executed = effect.commandTarget.equals("PLAYER")
+                        ? player.performCommand(resolved)
+                        : Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
+                if (!executed)
                     player.sendMessage(Component.text("서버 명령어를 실행하지 못했습니다.", NamedTextColor.RED));
             } catch (org.bukkit.command.CommandException error) {
                 Throwable cause = error.getCause();
@@ -4330,6 +4349,10 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
         Dialogue old = active.remove(player.getUniqueId());
         if (old != null) old.remove();
         if (player.isOnline()) player.sendActionBar(Component.empty());
+        if (old != null && !old.deferredPlayerCommand.isBlank()) {
+            String command = old.deferredPlayerCommand;
+            Bukkit.getScheduler().runTask(this, () -> { if (player.isOnline()) player.performCommand(command); });
+        }
     }
 
     private void startPackServer() {
@@ -4446,6 +4469,7 @@ public final class DialogueDisplayPlugin extends JavaPlugin implements Listener 
         boolean finished;
         int finishCloseAt = Integer.MAX_VALUE;
         boolean editing;
+        String deferredPlayerCommand = "";
 
         Dialogue(Player player, TextDisplay frame, TextDisplay choiceFrame, TextDisplay portrait, TextDisplay speakerDisplay, TextDisplay[] bodyLines,
                  TextDisplay choiceDisplay, boolean showPortrait, boolean showSpeaker,
