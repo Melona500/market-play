@@ -67,11 +67,14 @@ final class HubBuilder implements Listener {
 
     private final MarketPlayPlugin plugin;
     private final NamespacedKey displayKey;
+    private final TutorialManager tutorial;
     private World world;
 
     HubBuilder(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         this.displayKey = new NamespacedKey(plugin, "hub_display");
+        this.tutorial = new TutorialManager(plugin);
+        plugin.getServer().getPluginManager().registerEvents(tutorial, plugin);
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -95,6 +98,7 @@ final class HubBuilder implements Listener {
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
         updateDisplays(world);
         spawnNpcs();
+        tutorial.ensure();
         return true;
     }
 
