@@ -250,7 +250,11 @@ final class ResourceWorldManager implements Listener {
 
     private void ensureNpc(String role, String name, double x, double y, double z) {
         ArrayList<NPC> found = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (role.equals(npc.data().get(NPC_KEY, ""))) found.add(npc); });
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            Location stored = npc.getStoredLocation();
+            if (role.equals(npc.data().get(NPC_KEY, "")) && stored != null && stored.getWorld() != null
+                    && WORLD.equals(stored.getWorld().getName())) found.add(npc);
+        });
         NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name) : found.getFirst();
         found.stream().skip(1).forEach(NPC::destroy);
         if (npc.isSpawned() && npc.getEntity().getType() != EntityType.PLAYER) npc.despawn();

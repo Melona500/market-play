@@ -348,7 +348,9 @@ final class HubBuilder implements Listener {
         ArrayList<NPC> stale = new ArrayList<>();
         CitizensAPI.getNPCRegistry().forEach(npc -> {
             String legacyRole = npc.data().get(LEGACY_NPC_KEY, "");
-            if (!legacyRole.isBlank()) stale.add(npc);
+            // Legacy roles were shared with the resource world. Only remove legacy
+            // lobby NPCs; a lobby restart must not delete NPCs owned by another world.
+            if (!legacyRole.isBlank() && storedInWorld(npc, WORLD)) stale.add(npc);
         });
         stale.forEach(NPC::destroy);
 
@@ -365,6 +367,11 @@ final class HubBuilder implements Listener {
         ensureNpc("restaurant", "레스토랑 지배인", -12.5, 65, -69.5);
         ensureNpc("guild", "상단 관리인", 12.5, 65, -69.5);
         CitizensAPI.getNPCRegistry().saveToStore();
+    }
+
+    private boolean storedInWorld(NPC npc, String worldName) {
+        Location stored = npc.getStoredLocation();
+        return stored != null && stored.getWorld() != null && worldName.equals(stored.getWorld().getName());
     }
 
     private void ensureNpc(String role, String name, double x, double y, double z) {

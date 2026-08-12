@@ -149,6 +149,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void initializeContent() {
         if (contentInitializationStarted || !isEnabled()) return;
         contentInitializationStarted = true;
+        getLogger().info("콘텐츠 초기화 경로: " + getServer().getWorldContainer().getAbsolutePath());
         try {
             hubReady = hub.ensure();
             art.start();

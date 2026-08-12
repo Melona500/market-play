@@ -607,7 +607,11 @@ final class ExplorationManager implements Listener {
     private void spawnNpcs() {
         if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 왕성 NPC를 만들 수 없습니다.");
         List<NPC> previous = new ArrayList<>();
-        CitizensAPI.getNPCRegistry().forEach(npc -> { if (npc.data().has("marketplay_role")) previous.add(npc); });
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            Location stored = npc.getStoredLocation();
+            if (npc.data().has("marketplay_role") && stored != null && stored.getWorld() != null
+                    && WORLD.equals(stored.getWorld().getName())) previous.add(npc);
+        });
         previous.forEach(NPC::destroy);
         world.getEntities().stream().filter(entity -> entity.getPersistentDataContainer().has(entityRole, PersistentDataType.STRING)).forEach(Entity::remove);
         npc("steward", "왕실 시종 · 의뢰", 22, -35);
