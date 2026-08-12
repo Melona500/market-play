@@ -61,6 +61,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
     private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
     private static final Component STATUS_TITLE = Component.text("내 상태", NamedTextColor.GREEN);
+    private static final Component HELP_TITLE = Component.text("시장놀이 도움말", NamedTextColor.AQUA);
     private ProfileStore profiles;
     private HousingStore housingStore;
     private HousingManager housing;
@@ -184,6 +185,29 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (!hubReady || event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
+        PlayerProfile profile = profiles.get(event.getPlayer().getUniqueId());
+        if (HubBuilder.TUTORIAL_TOOL.matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            if (profile != null && profile.tutorialStep() == 3) {
+                profile.addTool("old_axe");
+                profile.addTool("old_net");
+                saveProfile(profile);
+                advanceTutorial(event.getPlayer(), 3, 4, "튜토리얼 3/6", "도구 준비 완료 · 앞의 통나무를 우클릭");
+            }
+            return;
+        }
+        if (HubBuilder.TUTORIAL_LOG.matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            if (profile != null && profile.tutorialStep() == 4 && profile.hasTool("old_axe"))
+                advanceTutorial(event.getPlayer(), 4, 5, "튜토리얼 4/6", "도구 사용 완료 · 앞의 열매를 채집하세요");
+            return;
+        }
+        if (HubBuilder.TUTORIAL_CROP.matches(event.getClickedBlock())) {
+            event.setCancelled(true);
+            if (profile != null && profile.tutorialStep() == 5)
+                harvest(event.getPlayer(), "tutorial:berry", "sweet_berries", "튜토리얼 열매", Material.SWEET_BERRIES, Skill.FORAGING, "old_net");
+            return;
+        }
         if (HubBuilder.MARKET.matches(event.getClickedBlock())) {
             event.setCancelled(true);
             openMarket(event.getPlayer());
@@ -225,7 +249,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
         boolean hubMenu = event.getView().title().equals(HUB_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
-                || event.getView().title().equals(STATUS_TITLE);
+                || event.getView().title().equals(STATUS_TITLE) || event.getView().title().equals(HELP_TITLE);
         if (!market && !toolbox && !hubMenu) return;
         event.setCancelled(true);
         if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
@@ -245,7 +269,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)
                 || event.getView().title().equals(HUB_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
-                || event.getView().title().equals(STATUS_TITLE)) event.setCancelled(true);
+                || event.getView().title().equals(STATUS_TITLE) || event.getView().title().equals(HELP_TITLE)) event.setCancelled(true);
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
@@ -254,6 +278,12 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
         if (!player.isSneaking()) return;
         event.setCancelled(true);
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (profile != null && profile.tutorialStep() == 2) {
+            openHelpMenu(player, 1);
+            advanceTutorial(player, 2, 3, "튜토리얼 2/6", "GUI 확인 완료 · 도구 상자를 우클릭");
+            return;
+        }
         openHubMenu(player, "hub");
     }
     @EventHandler public void onHeld(PlayerItemHeldEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
@@ -266,14 +296,21 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(ignoreCancelled = true) public void onMobDeath(EntityDeathEvent event) {
         Player player = event.getEntity().getKiller();
-        if (player != null && event.getEntity() instanceof Monster)
-            advanceTutorial(player, 2, 3, "튜토리얼 완료", "채집과 사냥을 익혔습니다 · Shift+F 메뉴");
+        if (player != null && event.getEntity() instanceof Monster && hub.isTutorialMonster(event.getEntity()))
+            advanceTutorial(player, 6, 7, "튜토리얼 6/6", "사냥 완료 · 길 끝 출구로 이동하세요");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onMapEdge(PlayerMoveEvent event) {
         Location to = event.getTo();
         if (!event.hasChangedBlock() || to == null || busy.contains(event.getPlayer().getUniqueId())) return;
+        PlayerProfile profile = profiles.get(event.getPlayer().getUniqueId());
+        if (profile != null && profile.tutorialStep() == 7 && HubBuilder.WORLD.equals(to.getWorld().getName())
+                && to.getBlockX() >= -66 && to.getBlockX() <= -62 && to.getBlockZ() >= 74) {
+            advanceTutorial(event.getPlayer(), 7, 8, "튜토리얼 완료", "NPC·GUI·도구·채집·사냥을 익혔습니다");
+            hub.teleport(event.getPlayer());
+            return;
+        }
         String destination = ProfileStore.mapEdgeDestination(to.getWorld().getName(), to.getBlockX(), to.getBlockZ());
         if (destination == null) return;
         switch (destination) {
@@ -355,7 +392,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             });
         }
         player.sendActionBar(Component.text(skill.displayName() + " 숙련도 +1 · 내공 +1", NamedTextColor.GREEN));
-        advanceTutorial(player, 1, 2, "튜토리얼 2/2", "채집 완료 · 채집소 북쪽→로비, 로비 북쪽→사냥터");
+        if (profile.tutorialStep() == 5) {
+            advanceTutorial(player, 5, 6, "튜토리얼 5/6", "채집 완료 · 앞의 몬스터를 처치하세요");
+            hub.spawnTutorialMonster();
+        }
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -370,11 +410,18 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (!(sender instanceof Player player)) return true;
         if (args.length > 1 && args[0].equalsIgnoreCase("dialogue-menu")) {
             String section = args[1].toLowerCase(Locale.ROOT);
-            player.performCommand("rpgmaker close");
-            getServer().getScheduler().runTask(this, () -> {
-                if (section.equals("market")) openMarket(player);
-                else openHubMenu(player, section);
-            });
+            if (section.equals("market")) openMarket(player);
+            else openHubMenu(player, section);
+            return true;
+        }
+        if (args.length > 0 && args[0].equalsIgnoreCase("dialogue-tutorial")) {
+            advanceTutorial(player, 1, 2, "튜토리얼 1/6", "대화 완료 · Shift+손 바꾸기로 GUI 열기");
+            return true;
+        }
+        if (args.length > 0 && args[0].equalsIgnoreCase("help")) {
+            int page = 1;
+            try { if (args.length > 1) page = Integer.parseInt(args[1]); } catch (NumberFormatException ignored) { }
+            openHelpMenu(player, page);
             return true;
         }
         if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
@@ -566,6 +613,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 remaining.forEach(grant -> deliverGrant(player, grant));
                 busy.remove(player.getUniqueId());
                 if (profile.tutorialStep() == 0) startTutorial(player, profile);
+                else if (profile.tutorialStep() < 8) resumeTutorial(player, profile);
             }));
         }));
     }
@@ -608,6 +656,32 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
         menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "동쪽 끝 던전·무한 탑·후반 마을"));
         menu.setItem(20, menuItem(Material.PLAYER_HEAD, "내 상태", "status", "돈·계급·내공·활력·숙련도"));
+        menu.setItem(18, menuItem(Material.KNOWLEDGE_BOOK, "도움말", "help:1", "기능과 명령어를 페이지별로 확인"));
+        player.openInventory(menu);
+    }
+
+    private void openHelpMenu(Player player, int requestedPage) {
+        int page = Math.max(1, Math.min(3, requestedPage));
+        Inventory menu = Bukkit.createInventory(null, 27, HELP_TITLE);
+        if (page == 1) {
+            menu.setItem(10, menuItem(Material.COMPASS, "기본 조작", "none", "Shift+손 바꾸기: 메뉴 · NPC 우클릭: 대화"));
+            menu.setItem(12, menuItem(Material.EMERALD, "/mp market · sell", "none", "도구 구매 · 손에 든 자원 판매"));
+            menu.setItem(14, menuItem(Material.CHEST, "/mp tools · menu", "none", "도구함 · 종합 메뉴"));
+            menu.setItem(16, menuItem(Material.PLAYER_HEAD, "/mp", "none", "돈·계급·활력·숙련도 확인"));
+        } else if (page == 2) {
+            menu.setItem(10, menuItem(Material.WRITABLE_BOOK, "/mp board", "none", "게시판 읽기·작성·삭제"));
+            menu.setItem(12, menuItem(Material.OAK_DOOR, "/mp home · mail", "none", "개인 주택·우편·초대"));
+            menu.setItem(14, menuItem(Material.FILLED_MAP, "/mp art", "none", "작품 제작·전시·거래"));
+            menu.setItem(16, menuItem(Material.CHEST_MINECART, "exchange · stall", "none", "교환 목록·개인 상점"));
+        } else {
+            menu.setItem(10, menuItem(Material.COOKED_BEEF, "restaurant · service", "none", "협동 식당·주민 서비스"));
+            menu.setItem(12, menuItem(Material.CHEST_MINECART, "/mp guild", "none", "상단 가입·창고·공동 프로젝트"));
+            menu.setItem(14, menuItem(Material.IRON_SWORD, "explore · dungeon", "none", "탐험·사냥·던전"));
+            menu.setItem(16, menuItem(Material.NETHER_STAR, "tower · dragon · heaven", "none", "무한 탑·용·후반 성장"));
+        }
+        menu.setItem(18, menuItem(Material.ARROW, "이전 페이지", "help:" + Math.max(1, page - 1), page + " / 3"));
+        menu.setItem(22, menuItem(Material.BARRIER, "종합 메뉴", "hub", "시장놀이 메뉴로 돌아가기"));
+        menu.setItem(26, menuItem(Material.ARROW, "다음 페이지", "help:" + Math.min(3, page + 1), page + " / 3"));
         player.openInventory(menu);
     }
 
@@ -660,6 +734,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     private void runHubAction(Player player, String action) {
+        if (action.startsWith("help:")) { openHelpMenu(player, Integer.parseInt(action.substring(5))); return; }
         switch (action) {
             case "market" -> openMarket(player);
             case "tools" -> openToolbox(player);
@@ -676,6 +751,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "art" -> player.performCommand("marketplay art");
             case "restaurant" -> player.performCommand("marketplay restaurant");
             case "guild" -> player.performCommand("marketplay guild");
+            case "none" -> { }
             default -> openHubMenu(player, "hub");
         }
     }
@@ -685,8 +761,23 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void startTutorial(Player player, PlayerProfile profile) {
         profile.setTutorialStep(1);
         saveProfile(profile);
-        player.performCommand("rpgmaker play 시장놀이_첫걸음");
-        tutorialDisplay(player, "튜토리얼 1/2", "로비 남쪽 끝으로 이동해 자원을 직접 채집하세요");
+        player.teleportAsync(hub.tutorialSpawn());
+        tutorialDisplay(player, "튜토리얼 시작", "안내인에게 우클릭해 대화를 시작하세요");
+    }
+
+    private void resumeTutorial(Player player, PlayerProfile profile) {
+        player.teleportAsync(hub.tutorialSpawn());
+        String instruction = switch (profile.tutorialStep()) {
+            case 1 -> "안내인에게 우클릭하세요";
+            case 2 -> "Shift+손 바꾸기로 GUI를 여세요";
+            case 3 -> "도구 상자를 우클릭하세요";
+            case 4 -> "통나무를 우클릭하세요";
+            case 5 -> "열매를 우클릭해 채집하세요";
+            case 6 -> "훈련용 몬스터를 처치하세요";
+            default -> "길 끝 출구로 이동하세요";
+        };
+        tutorialDisplay(player, "튜토리얼 이어하기", instruction);
+        if (profile.tutorialStep() == 6) hub.spawnTutorialMonster();
     }
 
     private void advanceTutorial(Player player, int expected, int next, String title, String subtitle) {

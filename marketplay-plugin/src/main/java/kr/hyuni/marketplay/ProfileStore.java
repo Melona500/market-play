@@ -376,6 +376,7 @@ public final class ProfileStore implements AutoCloseable {
             ensurePlayerColumn(statement, "royal_reputation", "INTEGER NOT NULL DEFAULT 0 CHECK (royal_reputation >= 0)");
             ensurePlayerColumn(statement, "knight_state", "TEXT NOT NULL DEFAULT 'NONE' CHECK (knight_state IN ('NONE','ARCHERY','DUEL','APPRENTICE'))");
             ensurePlayerColumn(statement, "tutorial_step", "INTEGER NOT NULL DEFAULT 0 CHECK (tutorial_step BETWEEN 0 AND 3)");
+            ensurePlayerColumn(statement, "tutorial_stage", "INTEGER NOT NULL DEFAULT -1 CHECK (tutorial_stage BETWEEN -1 AND 8)");
         }
     }
 
@@ -404,7 +405,7 @@ public final class ProfileStore implements AutoCloseable {
             create.executeUpdate();
         }
         PlayerProfile profile;
-        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality, deep_omen, royal_reputation, knight_state, tutorial_step FROM players WHERE uuid=?")) {
+        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality, deep_omen, royal_reputation, knight_state, tutorial_step, tutorial_stage FROM players WHERE uuid=?")) {
             query.setString(1, id.toString());
             try (ResultSet row = query.executeQuery()) {
                 if (!row.next()) throw new SQLException("Player row missing: " + id);
@@ -412,7 +413,8 @@ public final class ProfileStore implements AutoCloseable {
                 profile.setDeepOmen(row.getInt(4));
                 profile.addRoyalReputation(row.getInt(5));
                 profile.setKnightState(row.getString(6));
-                profile.setTutorialStep(row.getInt(7));
+                int legacy = row.getInt(7), stage = row.getInt(8);
+                profile.setTutorialStep(stage >= 0 ? stage : legacy == 3 ? 8 : legacy);
             }
         }
         try (PreparedStatement query = database.prepareStatement("SELECT skill, xp FROM masteries WHERE player_uuid=?")) {
@@ -442,15 +444,16 @@ public final class ProfileStore implements AutoCloseable {
 
     private void saveSync(PlayerProfile profile) throws SQLException {
         transaction(() -> {
-            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, deep_omen=?, royal_reputation=?, knight_state=?, tutorial_step=?, updated_at=? WHERE uuid=?")) {
+            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, deep_omen=?, royal_reputation=?, knight_state=?, tutorial_step=?, tutorial_stage=?, updated_at=? WHERE uuid=?")) {
                 update.setLong(1, profile.innerPower());
                 update.setDouble(2, profile.vitality());
                 update.setInt(3, profile.deepOmen());
                 update.setInt(4, profile.royalReputation());
                 update.setString(5, profile.knightState());
-                update.setInt(6, profile.tutorialStep());
-                update.setString(7, Instant.now().toString());
-                update.setString(8, profile.playerId().toString());
+                update.setInt(6, Math.min(3, profile.tutorialStep()));
+                update.setInt(7, profile.tutorialStep());
+                update.setString(8, Instant.now().toString());
+                update.setString(9, profile.playerId().toString());
                 if (update.executeUpdate() != 1) throw new SQLException("Player row missing: " + profile.playerId());
             }
             try (PreparedStatement upsert = database.prepareStatement("INSERT INTO masteries VALUES (?, ?, ?) ON CONFLICT(player_uuid, skill) DO UPDATE SET xp=excluded.xp")) {

@@ -117,7 +117,7 @@ final class DialogueWebApi implements Listener {
         command.setTabCompleter((sender, currentCommand, alias, args) -> {
             List<String> inherited = plugin.onTabComplete(sender, currentCommand, alias, args);
             ArrayList<String> result = new ArrayList<>(inherited == null ? List.of() : inherited);
-            if (args.length == 1 && "web".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))
+            if (sender.hasPermission("rpgmaker.admin") && args.length == 1 && "web".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))
                     && result.stream().noneMatch(value -> value.equalsIgnoreCase("web"))) result.add("web");
             result.sort(String.CASE_INSENSITIVE_ORDER);
             return result;
@@ -170,12 +170,14 @@ final class DialogueWebApi implements Listener {
         if (!event.getIdentifier().equals(Key.key("rpgmakerweb", "open_editor"))) return;
         if (!(event.getCommonConnection() instanceof PlayerGameConnection connection)) return;
         Player player = connection.getPlayer();
+        if (!player.hasPermission("rpgmaker.admin")) return;
         editorMenuBypass.add(player.getUniqueId());
         Bukkit.getScheduler().runTask(plugin, () -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
                 "dialog show " + player.getName() + " rpgmaker:editor"));
     }
 
     private void showEditorLauncher(Player player) {
+        if (!player.hasPermission("rpgmaker.admin")) return;
         ActionButton web = ActionButton.builder(Component.text("웹 열기", NamedTextColor.AQUA)).width(200)
                 .tooltip(Component.text("이 플레이어 계정으로 RPGMaker 웹 편집기를 엽니다."))
                 .action(DialogAction.staticAction(ClickEvent.openUrl(issuePlayerLink(player))))

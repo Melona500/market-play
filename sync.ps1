@@ -5,7 +5,8 @@ $RepoPath = $PSScriptRoot
 
 function Test-SyncPath([string]$Path) {
     $path = $Path.Replace('\', '/')
-    return $path -match '^(start\.bat|start-market-play\.ps1|build-resource-pack\.ps1|sync\.ps1|server\.properties|\.gitignore)$' -or
+    if ($path -match '(^|/)logs?/' -or $path -match '\.(log|lock)$' -or $path -match '\.properties$') { return $false }
+    return $path -match '^(start\.bat|start-market-play\.ps1|build-resource-pack\.ps1|sync\.ps1|\.gitignore)$' -or
         $path -match '^MarketPlay-Pack-[^/]+\.zip$' -or
         $path -match '^plugins/RPGMaker(\.jar|/config\.yml)$' -or
         $path -match '^dialogue-display-plugin/(src/|build\.gradle\.kts$|settings\.gradle\.kts$)' -or
@@ -31,7 +32,8 @@ function Get-ChangedPaths {
 
 if ($SelfTest) {
     $cases = @{
-        'server.properties' = $true
+        'server.properties' = $false
+        'config/server.properties' = $false
         'MarketPlay-Pack-20260811-120000.zip' = $true
         'dialogue-resource-pack/pack.mcmeta' = $true
         'rpgmaker-web-editor/src/App.tsx' = $true
@@ -41,6 +43,8 @@ if ($SelfTest) {
         'plugins/MarketPlay/marketplay.db' = $false
         'world/level.dat' = $false
         'logs/latest.log' = $false
+        'latest.log' = $false
+        'world/session.lock' = $false
         'plugins/Citizens/saves.yml' = $false
         'plugins/RPGMaker/backups/config.yml.bak' = $false
     }

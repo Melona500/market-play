@@ -37,6 +37,7 @@ final class WebPlayerSessions {
     IssuedSession issueByAddress(InetAddress address) {
         Player match = null;
         for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!player.hasPermission("rpgmaker.admin")) continue;
             if (player.getAddress() == null || !player.getAddress().getAddress().equals(address)) continue;
             if (match != null) return null;
             match = player;

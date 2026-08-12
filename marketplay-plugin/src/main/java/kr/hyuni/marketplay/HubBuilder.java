@@ -29,6 +29,8 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.entity.Zombie;
+import org.bukkit.entity.Entity;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.io.InputStream;
@@ -40,9 +42,13 @@ final class HubBuilder {
     static final String WORLD = "mp_lobby";
     static final int FLOOR_Y = 64;
     private static final Material MAP_VERSION = Material.WAXED_CUT_COPPER;
+    private static final Material TUTORIAL_VERSION = Material.WAXED_EXPOSED_COPPER;
     private static final String NPC_KEY = "marketplay_hub_role";
     static final LocationKey MARKET = new LocationKey(0, 65, -17);
     static final LocationKey SELL = new LocationKey(3, 65, -17);
+    static final LocationKey TUTORIAL_TOOL = new LocationKey(-64, 65, 54);
+    static final LocationKey TUTORIAL_LOG = new LocationKey(-64, 65, 61);
+    static final LocationKey TUTORIAL_CROP = new LocationKey(-64, 65, 68);
     static final Area MOUNTAIN = new Area(-24, -24, -10, -8);
     static final Area GROVE = new Area(-23, -7, -12, 8);
     static final Area FIELD = new Area(10, -8, 24, 8);
@@ -59,11 +65,13 @@ final class HubBuilder {
 
     private final MarketPlayPlugin plugin;
     private final NamespacedKey displayKey;
+    private final NamespacedKey tutorialMobKey;
     private World world;
 
     HubBuilder(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         this.displayKey = new NamespacedKey(plugin, "hub_display");
+        this.tutorialMobKey = new NamespacedKey(plugin, "tutorial_mob");
     }
 
     boolean ensure() {
@@ -79,6 +87,8 @@ final class HubBuilder {
             plugin.getLogger().info("FAWE schematic으로 시장놀이 중앙광장을 설치했습니다.");
         }
         if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        repairExpansionFloor();
+        if (world.getBlockAt(-76, FLOOR_Y - 1, 40).getType() != TUTORIAL_VERSION) buildTutorialZone();
         protect(world);
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
         updateDisplays(world);
@@ -88,6 +98,7 @@ final class HubBuilder {
 
     World world() { return world; }
     Location spawn() { return new Location(world, .5, FLOOR_Y + 1, 10.5, 180, 0); }
+    Location tutorialSpawn() { return new Location(world, -64.5, FLOOR_Y + 1, 42.5, 0, 0); }
     void teleport(org.bukkit.entity.Player player) { player.teleportAsync(spawn()); }
 
     private boolean isEmpty(World world) {
@@ -133,6 +144,42 @@ final class HubBuilder {
         for (int x = -72; x <= 72; x += 12) for (int z : List.of(-72, 72)) tree(x, z);
         for (int z = -60; z <= 60; z += 12) for (int x : List.of(-72, 72)) tree(x, z);
         world.getBlockAt(1, FLOOR_Y - 2, 0).setType(MAP_VERSION, false);
+    }
+
+    private void repairExpansionFloor() {
+        for (int x = -80; x <= 80; x++) for (int z = -80; z <= 80; z++) {
+            if (Math.abs(x) <= 25 && Math.abs(z) <= 25) continue;
+            if (world.getBlockAt(x, 63, z).isEmpty()) world.getBlockAt(x, 63, z).setType(Material.DIRT, false);
+            if (world.getBlockAt(x, 64, z).isEmpty()) world.getBlockAt(x, 64, z).setType(Material.GRASS_BLOCK, false);
+        }
+    }
+
+    private void buildTutorialZone() {
+        fill(-76, 64, 40, -52, 64, 74, Material.SMOOTH_STONE);
+        for (int z = 40; z <= 74; z++) for (int x : List.of(-76, -52))
+            world.getBlockAt(x, 65, z).setType(Material.OAK_FENCE, false);
+        for (int x = -76; x <= -52; x++) for (int z : List.of(40, 74))
+            world.getBlockAt(x, 65, z).setType(Material.OAK_FENCE, false);
+        fill(-66, 64, 40, -62, 64, 74, Material.LIGHT_GRAY_CONCRETE);
+        world.getBlockAt(-64, 65, 54).setType(Material.CHEST, false);
+        world.getBlockAt(-64, 65, 61).setType(Material.OAK_LOG, false);
+        world.getBlockAt(-64, 65, 68).setType(Material.SWEET_BERRY_BUSH, false);
+        world.getBlockAt(-64, 65, 74).setType(Material.AIR, false);
+        world.getBlockAt(-76, FLOOR_Y - 1, 40).setType(TUTORIAL_VERSION, false);
+    }
+
+    void spawnTutorialMonster() {
+        if (world.getEntitiesByClass(Zombie.class).stream().anyMatch(this::isTutorialMonster)) return;
+        Zombie zombie = world.spawn(new Location(world, -64.5, 65, 71.5), Zombie.class);
+        zombie.customName(Component.text("훈련용 몬스터", NamedTextColor.RED));
+        zombie.setCustomNameVisible(true);
+        zombie.setPersistent(false);
+        zombie.setAI(false);
+        zombie.getPersistentDataContainer().set(tutorialMobKey, PersistentDataType.BYTE, (byte) 1);
+    }
+
+    boolean isTutorialMonster(Entity entity) {
+        return entity.getPersistentDataContainer().has(tutorialMobKey, PersistentDataType.BYTE);
     }
 
     private void marketDistrict() {
@@ -280,6 +327,7 @@ final class HubBuilder {
             guide.getOrAddTrait(LookClose.class).lookClose(true);
         }
         ensureNpc("market", "생활도구 상인", -7.5, 65, -33.5);
+        ensureNpc("tutorial", "튜토리얼 안내인", -64.5, 65, 45.5);
         ensureNpc("board", "시장 게시판 관리인", 7.5, 65, -33.5);
         ensureNpc("housing", "주택 안내원", -43.5, 65, .5);
         ensureNpc("art", "미술관 큐레이터", 43.5, 65, .5);
@@ -304,6 +352,7 @@ final class HubBuilder {
             case "housing" -> "시장놀이_주택안내";
             case "travel" -> "시장놀이_여행안내";
             case "adventure" -> "시장놀이_모험안내";
+            case "tutorial" -> "시장놀이_튜토리얼안내";
             default -> "시장놀이_시설안내";
         });
         npc.setProtected(true);
@@ -316,7 +365,7 @@ final class HubBuilder {
     }
 
     void updateDisplays(World world) {
-        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 40, 20, 40).stream()
+        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 90, 20, 90).stream()
                 .filter(TextDisplay.class::isInstance).map(TextDisplay.class::cast)
                 .filter(display -> display.getPersistentDataContainer().has(displayKey, PersistentDataType.STRING))
                 .forEach(TextDisplay::remove);
@@ -333,6 +382,12 @@ final class HubBuilder {
         display(world, new Location(world, .5, FLOOR_Y + 4, 75.5), "resource-exit", Component.text("남쪽 끝 → 자원 채집소", NamedTextColor.GREEN));
         display(world, new Location(world, .5, FLOOR_Y + 4, -75.5), "exploration-exit", Component.text("북쪽 끝 → 탐험과 사냥", NamedTextColor.RED));
         display(world, new Location(world, 75.5, FLOOR_Y + 4, .5), "endgame-exit", Component.text("동쪽 끝 → 던전 / 무한 탑 / 후반 마을", NamedTextColor.LIGHT_PURPLE));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 42.5), "tutorial-start", Component.text("튜토리얼 안내인에게 우클릭", NamedTextColor.YELLOW));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 54.5), "tutorial-tool", Component.text("도구함 사용", NamedTextColor.AQUA));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 61.5), "tutorial-log", Component.text("도구 사용", NamedTextColor.GOLD));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 68.5), "tutorial-crop", Component.text("자원 채집", NamedTextColor.GREEN));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 71.5), "tutorial-hunt", Component.text("몬스터 사냥", NamedTextColor.RED));
+        display(world, new Location(world, -64.5, FLOOR_Y + 3, 74.5), "tutorial-exit", Component.text("출구 · 맵 이동", NamedTextColor.LIGHT_PURPLE));
     }
 
     private void display(World world, Location location, String id, Component text) {
