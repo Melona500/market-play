@@ -59,11 +59,14 @@ final class HubBuilder {
 
     private final MarketPlayPlugin plugin;
     private final NamespacedKey displayKey;
+    private final TutorialManager tutorial;
     private World world;
 
     HubBuilder(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         this.displayKey = new NamespacedKey(plugin, "hub_display");
+        this.tutorial = new TutorialManager(plugin);
+        plugin.getServer().getPluginManager().registerEvents(tutorial, plugin);
     }
 
     boolean ensure() {
@@ -83,6 +86,7 @@ final class HubBuilder {
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
         updateDisplays(world);
         spawnNpcs();
+        tutorial.ensure();
         return true;
     }
 
