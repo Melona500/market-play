@@ -3,6 +3,7 @@ package kr.hyuni.marketplay;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.citizensnpcs.api.event.NPCRightClickEvent;
+import net.citizensnpcs.api.event.CitizensEnableEvent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Bukkit;
@@ -127,16 +128,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
-        getServer().getScheduler().runTask(this, () -> {
-            try {
-                hubReady = hub.ensure();
-                resources.start();
-                exploration.start();
-            } catch (RuntimeException error) {
-                getLogger().severe("Citizens NPC 및 월드 시작 실패: " + error.getMessage());
-                getServer().getPluginManager().disablePlugin(this);
-            }
-        });
         for (Player player : getServer().getOnlinePlayers()) {
             housingStore.remember(player.getUniqueId(), player.getName());
             load(player);
@@ -145,6 +136,17 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         getServer().getScheduler().runTaskTimer(this, this::regenerateVitality, period, period);
         getServer().getScheduler().runTaskTimer(this, this::refreshMarketDay, period, period);
         getServer().getScheduler().runTaskTimer(this, this::refreshBulletins, period, period);
+    }
+
+    @EventHandler public void onCitizensEnable(CitizensEnableEvent event) {
+        try {
+            hubReady = hub.ensure();
+            resources.start();
+            exploration.start();
+        } catch (RuntimeException error) {
+            getLogger().severe("Citizens NPC 및 월드 시작 실패: " + error.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+        }
     }
 
     @Override public void onDisable() {
