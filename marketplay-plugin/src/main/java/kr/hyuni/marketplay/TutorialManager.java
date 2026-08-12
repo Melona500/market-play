@@ -27,6 +27,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -46,7 +47,8 @@ final class TutorialManager implements Listener {
     static final int FLOOR_Y = 64;
     private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
-    private static final String DIALOGUE = "시장놀이_첫걸음";
+    private static final String DIALOGUE = "시장놀이_시설안내";
+    private static final String LEGACY_DIALOGUE_COMMAND = "/rpgmaker play 시장놀이_첫걸음";
     private static final int MIN = -18;
     private static final int MAX = 18;
     private static final int GUIDE_X = 0;
@@ -96,6 +98,15 @@ final class TutorialManager implements Listener {
 
     @EventHandler public void onRespawn(PlayerRespawnEvent event) {
         plugin.getServer().getScheduler().runTask(plugin, () -> recoverWhenLoaded(event.getPlayer()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onLegacyTutorialDialogue(PlayerCommandPreprocessEvent event) {
+        if (!event.getMessage().trim().equalsIgnoreCase(LEGACY_DIALOGUE_COMMAND)) return;
+        PlayerProfile profile = plugin.profile(event.getPlayer().getUniqueId());
+        if (profile == null || profile.tutorialStep() == TutorialProgress.NOT_STARTED || TutorialProgress.shouldRestartLegacy(profile.tutorialStep()) || TutorialProgress.active(profile.tutorialStep())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
