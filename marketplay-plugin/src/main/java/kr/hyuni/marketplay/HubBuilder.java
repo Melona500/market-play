@@ -39,9 +39,7 @@ import java.util.List;
 final class HubBuilder {
     static final String WORLD = "mp_lobby";
     static final int FLOOR_Y = 64;
-    private static final int BUILD_LIMIT = 96;
-    private static final int TRAVEL_GATE = 76;
-    private static final Material MAP_VERSION = Material.WAXED_OXIDIZED_COPPER;
+    private static final Material MAP_VERSION = Material.WAXED_CUT_COPPER;
     private static final String NPC_KEY = "marketplay_hub_role";
     static final LocationKey MARKET = new LocationKey(0, 65, -17);
     static final LocationKey SELL = new LocationKey(3, 65, -17);
@@ -61,11 +59,14 @@ final class HubBuilder {
 
     private final MarketPlayPlugin plugin;
     private final NamespacedKey displayKey;
+    private final TutorialManager tutorial;
     private World world;
 
     HubBuilder(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         this.displayKey = new NamespacedKey(plugin, "hub_display");
+        this.tutorial = new TutorialManager(plugin);
+        plugin.getServer().getPluginManager().registerEvents(tutorial, plugin);
     }
 
     boolean ensure() {
@@ -82,12 +83,10 @@ final class HubBuilder {
         }
         if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
         protect(world);
-        world.getWorldBorder().setCenter(0, 0);
-        world.getWorldBorder().setSize(BUILD_LIMIT * 2.0);
-        world.getWorldBorder().setWarningDistance(0);
         world.setSpawnLocation(new Location(world, 0.5, FLOOR_Y + 1, 10.5));
         updateDisplays(world);
         spawnNpcs();
+        tutorial.ensure();
         return true;
     }
 
@@ -121,22 +120,22 @@ final class HubBuilder {
     }
 
     private void buildExpansion() {
-        for (int x = -BUILD_LIMIT; x <= BUILD_LIMIT; x++) for (int z = -BUILD_LIMIT; z <= BUILD_LIMIT; z++) {
+        for (int x = -80; x <= 80; x++) for (int z = -80; z <= 80; z++) {
             if (Math.abs(x) <= 25 && Math.abs(z) <= 25) continue;
             world.getBlockAt(x, 63, z).setType(Material.DIRT, false);
             world.getBlockAt(x, 64, z).setType(Material.GRASS_BLOCK, false);
             for (int y = 65; y <= 84; y++) world.getBlockAt(x, y, z).setType(Material.AIR, false);
         }
-        road(-90, 90, 0, true);
-        road(-90, 90, 0, false);
-        outerPromenade();
-        marketDistrict();
-        housingDistrict();
-        artDistrict();
-        transitDistrict();
-        communityDistrict();
-        buildTravelGates();
-        cornerGardens();
+        road(-74, 74, 0, true); road(-74, 74, 0, false);
+        marketDistrict(); housingDistrict(); artDistrict(); transitDistrict(); communityDistrict();
+        for (int p = -80; p <= 80; p++) for (int y = 65; y <= 70 + Math.floorMod(p, 3); y++) {
+            world.getBlockAt(p, y, -80).setType(Material.STONE_BRICKS, false);
+            world.getBlockAt(p, y, 80).setType(Material.MOSSY_STONE_BRICKS, false);
+            world.getBlockAt(-80, y, p).setType(Material.STONE_BRICKS, false);
+            world.getBlockAt(80, y, p).setType(Material.MOSSY_STONE_BRICKS, false);
+        }
+        for (int x = -72; x <= 72; x += 12) for (int z : List.of(-72, 72)) tree(x, z);
+        for (int z = -60; z <= 60; z += 12) for (int x : List.of(-72, 72)) tree(x, z);
         world.getBlockAt(1, FLOOR_Y - 2, 0).setType(MAP_VERSION, false);
     }
 
@@ -170,8 +169,8 @@ final class HubBuilder {
         workstations(55, -12, List.of(Material.DECORATED_POT, Material.CHISELED_BOOKSHELF, Material.CARTOGRAPHY_TABLE, Material.LOOM));
         workstations(55, 18, List.of(Material.JUKEBOX, Material.NOTE_BLOCK, Material.LECTERN, Material.DECORATED_POT));
         for (int z = -18; z <= 22; z += 8) {
-            world.getBlockAt(70, 65, z).setType(Material.SEA_LANTERN, false);
-            world.getBlockAt(70, 66, z).setType(Material.GLASS, false);
+            world.getBlockAt(75, 65, z).setType(Material.SEA_LANTERN, false);
+            world.getBlockAt(75, 66, z).setType(Material.GLASS, false);
         }
     }
 
@@ -185,66 +184,14 @@ final class HubBuilder {
     }
 
     private void communityDistrict() {
-        fill(-24, 64, 66, 24, 64, 74, Material.STONE_BRICKS);
-        fill(-5, 64, 64, 5, 64, 80, Material.POLISHED_ANDESITE);
-        fill(-22, 65, 68, -10, 65, 73, Material.OAK_PLANKS);
-        fill(10, 65, 68, 22, 65, 73, Material.SPRUCE_PLANKS);
-        for (int x = -20; x <= -12; x += 4) world.getBlockAt(x, 66, 70).setType(Material.LANTERN, false);
-        for (int x = 12; x <= 20; x += 4) world.getBlockAt(x, 66, 70).setType(Material.LANTERN, false);
-    }
-
-    private void outerPromenade() {
-        for (int p = -88; p <= 88; p++) for (int width = -2; width <= 2; width++) {
-            world.getBlockAt(p, 64, -86 + width).setType(Material.SMOOTH_STONE, false);
-            world.getBlockAt(p, 64, 86 + width).setType(Material.SMOOTH_STONE, false);
-            world.getBlockAt(-86 + width, 64, p).setType(Material.SMOOTH_STONE, false);
-            world.getBlockAt(86 + width, 64, p).setType(Material.SMOOTH_STONE, false);
+        building(-22, -76, 20, 9, Material.RED_NETHER_BRICKS, Material.DARK_OAK_PLANKS);
+        building(3, -76, 20, 9, Material.SPRUCE_PLANKS, Material.BRICKS);
+        for (int x = -18; x <= 18; x += 4) {
+            world.getBlockAt(x, 65, 70).setType(Material.OAK_STAIRS, false);
+            world.getBlockAt(x, 65, 74).setType(Material.SPRUCE_STAIRS, false);
         }
-        for (int p = -84; p <= 84; p += 12) {
-            lamp(p, -83); lamp(p, 83);
-            lamp(-83, p); lamp(83, p);
-        }
-    }
-
-    private void buildTravelGates() {
-        portalAcrossZ(0, -TRAVEL_GATE, Material.DEEPSLATE_BRICKS, Material.SOUL_LANTERN);
-        portalAcrossZ(0, TRAVEL_GATE, Material.MOSSY_STONE_BRICKS, Material.SEA_LANTERN);
-        portalAcrossX(TRAVEL_GATE, -12, Material.RED_NETHER_BRICKS, Material.SHROOMLIGHT);
-        portalAcrossX(TRAVEL_GATE, 0, Material.POLISHED_DEEPSLATE, Material.END_ROD);
-        portalAcrossX(TRAVEL_GATE, 12, Material.PURPUR_BLOCK, Material.SEA_LANTERN);
-        portalAcrossX(-TRAVEL_GATE, 0, Material.MUD_BRICKS, Material.LANTERN);
-        fill(-5, 64, -80, 5, 64, -73, Material.POLISHED_DEEPSLATE);
-        fill(-5, 64, 73, 5, 64, 80, Material.MOSSY_STONE_BRICKS);
-        fill(73, 64, -18, 80, 64, 18, Material.POLISHED_ANDESITE);
-        fill(-80, 64, -5, -73, 64, 5, Material.PACKED_MUD);
-    }
-
-    private void portalAcrossZ(int centerX, int z, Material frame, Material light) {
-        fill(centerX - 6, 65, z, centerX - 6, 72, z, frame);
-        fill(centerX + 6, 65, z, centerX + 6, 72, z, frame);
-        fill(centerX - 6, 72, z, centerX + 6, 72, z, frame);
-        world.getBlockAt(centerX - 6, 70, z).setType(light, false);
-        world.getBlockAt(centerX + 6, 70, z).setType(light, false);
-        world.getBlockAt(centerX, 72, z).setType(light, false);
-        fill(centerX - 4, 65, z, centerX + 4, 71, z, Material.AIR);
-    }
-
-    private void portalAcrossX(int x, int centerZ, Material frame, Material light) {
-        fill(x, 65, centerZ - 5, x, 72, centerZ - 5, frame);
-        fill(x, 65, centerZ + 5, x, 72, centerZ + 5, frame);
-        fill(x, 72, centerZ - 5, x, 72, centerZ + 5, frame);
-        world.getBlockAt(x, 70, centerZ - 5).setType(light, false);
-        world.getBlockAt(x, 70, centerZ + 5).setType(light, false);
-        world.getBlockAt(x, 72, centerZ).setType(light, false);
-        fill(x, 65, centerZ - 4, x, 71, centerZ + 4, Material.AIR);
-    }
-
-    private void cornerGardens() {
-        for (int x : List.of(-90, 90)) for (int z : List.of(-90, 90)) {
-            fill(x - 4, 64, z - 4, x + 4, 64, z + 4, Material.MOSS_BLOCK);
-            tree(x, z);
-            for (int dx : List.of(-5, 5)) for (int dz : List.of(-5, 5)) world.getBlockAt(x + dx, 65, z + dz).setType(Material.LANTERN, false);
-        }
+        fill(-24, 64, 66, 24, 64, 78, Material.STONE_BRICKS);
+        fill(-6, 65, 68, 6, 66, 76, Material.OAK_PLANKS);
     }
 
     private void building(int x, int z, int width, int depth, Material wall, Material roof) {
@@ -265,11 +212,6 @@ final class HubBuilder {
             world.getBlockAt(xAxis ? value : fixed + side, 64, xAxis ? fixed + side : value).setType(Material.POLISHED_ANDESITE, false);
     }
 
-    private void lamp(int x, int z) {
-        fill(x, 65, z, x, 67, z, Material.DARK_OAK_FENCE);
-        world.getBlockAt(x, 68, z).setType(Material.LANTERN, false);
-    }
-
     private void tree(int x, int z) {
         fill(x, 65, z, x, 70, z, Material.OAK_LOG);
         fill(x - 2, 69, z - 2, x + 2, 71, z + 2, Material.OAK_LEAVES);
@@ -284,13 +226,7 @@ final class HubBuilder {
     private void protect(World world) {
         RegionManager regions = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
         if (regions == null) throw new IllegalStateException("WorldGuard region manager를 열 수 없습니다.");
-        Area expanded = new Area(-BUILD_LIMIT, -BUILD_LIMIT, BUILD_LIMIT, BUILD_LIMIT);
-        ProtectedRegion current = regions.getRegion("marketplay_lobby");
-        BlockVector3 expectedMin = BlockVector3.at(expanded.minX(), FLOOR_Y - 2, expanded.minZ());
-        BlockVector3 expectedMax = BlockVector3.at(expanded.maxX(), FLOOR_Y + 24, expanded.maxZ());
-        if (current != null && (!current.getMinimumPoint().equals(expectedMin) || !current.getMaximumPoint().equals(expectedMax)))
-            regions.removeRegion("marketplay_lobby");
-        ProtectedRegion lobby = ensureRegion(regions, "marketplay_lobby", expanded, FLOOR_Y - 2, FLOOR_Y + 24);
+        ProtectedRegion lobby = ensureRegion(regions, "marketplay_lobby", new Area(-80, -80, 80, 80), FLOOR_Y - 2, FLOOR_Y + 24);
         lobby.setFlag(Flags.USE, StateFlag.State.ALLOW);
         lobby.setFlag(Flags.INTERACT, StateFlag.State.ALLOW);
         lobby.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
@@ -384,7 +320,7 @@ final class HubBuilder {
     }
 
     void updateDisplays(World world) {
-        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 110, 24, 110).stream()
+        world.getNearbyEntities(new Location(world, 0, FLOOR_Y + 4, 0), 40, 20, 40).stream()
                 .filter(TextDisplay.class::isInstance).map(TextDisplay.class::cast)
                 .filter(display -> display.getPersistentDataContainer().has(displayKey, PersistentDataType.STRING))
                 .forEach(TextDisplay::remove);
@@ -398,12 +334,9 @@ final class HubBuilder {
         display(world, new Location(world, -43.5, FLOOR_Y + 4, .5), "housing-district", Component.text("주택 거리 · 집 / 우편 / 가구", NamedTextColor.GREEN));
         display(world, new Location(world, 43.5, FLOOR_Y + 4, .5), "art-district", Component.text("문화 거리 · 그림 / 전시 / 공연", NamedTextColor.LIGHT_PURPLE));
         display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("여행소 · 채집소 / 탐험 지역", NamedTextColor.AQUA));
-        display(world, new Location(world, .5, FLOOR_Y + 4, 74.5), "resource-exit", Component.text("남쪽 관문 → 자원 채집소", NamedTextColor.GREEN));
-        display(world, new Location(world, .5, FLOOR_Y + 4, -74.5), "exploration-exit", Component.text("북쪽 관문 → 탐험과 사냥", NamedTextColor.RED));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, -12.0), "dungeon-exit", Component.text("동쪽 붉은 관문 → 던전", NamedTextColor.RED));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, 0.0), "tower-exit", Component.text("동쪽 중앙 관문 → 무한 탑", NamedTextColor.AQUA));
-        display(world, new Location(world, 74.5, FLOOR_Y + 4, 12.0), "endgame-exit", Component.text("동쪽 보랏빛 관문 → 후반 마을", NamedTextColor.LIGHT_PURPLE));
-        display(world, new Location(world, -74.5, FLOOR_Y + 4, .5), "west-gate", Component.text("서쪽 생활 관문 · 주택 / 우편 / 가구", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 75.5), "resource-exit", Component.text("남쪽 끝 → 자원 채집소", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, -75.5), "exploration-exit", Component.text("북쪽 끝 → 탐험과 사냥", NamedTextColor.RED));
+        display(world, new Location(world, 75.5, FLOOR_Y + 4, .5), "endgame-exit", Component.text("동쪽 끝 → 던전 / 무한 탑 / 후반 마을", NamedTextColor.LIGHT_PURPLE));
     }
 
     private void display(World world, Location location, String id, Component text) {
