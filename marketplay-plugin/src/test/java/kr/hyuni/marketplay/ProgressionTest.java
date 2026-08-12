@@ -57,6 +57,7 @@ class ProgressionTest {
             profile.setDeepOmen(72);
             profile.addRoyalReputation(30);
             profile.setKnightState("DUEL");
+            profile.setTutorialStep(2);
             store.save(profile).join();
             String requestId = UUID.randomUUID().toString();
             profile.setMoney(store.changeMoney(profile, 30, false, "test", requestId).join());
@@ -71,6 +72,7 @@ class ProgressionTest {
             assertEquals(72, profile.deepOmen());
             assertEquals(30, profile.royalReputation());
             assertEquals("DUEL", profile.knightState());
+            assertEquals(2, profile.tutorialStep());
         }
     }
 
@@ -487,6 +489,12 @@ class ProgressionTest {
     }
 
     @Test void explorationAndEndgameMovementStayInsideBuiltContent() {
+        assertEquals("resources", ProfileStore.mapEdgeDestination("mp_lobby", 0, 76));
+        assertEquals("exploration", ProfileStore.mapEdgeDestination("mp_lobby", 0, -76));
+        assertEquals("tower-gate", ProfileStore.mapEdgeDestination("mp_lobby", 76, 0));
+        assertEquals("lobby", ProfileStore.mapEdgeDestination("mp_resources", 0, -92));
+        assertEquals("lobby", ProfileStore.mapEdgeDestination("mp_exploration", -62, 8));
+        assertNull(ProfileStore.mapEdgeDestination("mp_lobby", 0, 0));
         assertTrue(ProfileStore.insideExplorationMap(-4,70));
         assertFalse(ProfileStore.insideExplorationMap(-5,70));
         assertTrue(ProfileStore.insideExplorationMap(-65,12));

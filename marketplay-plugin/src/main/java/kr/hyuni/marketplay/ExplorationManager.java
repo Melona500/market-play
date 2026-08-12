@@ -123,6 +123,8 @@ final class ExplorationManager implements Listener {
         return false;
     }
 
+    void teleportEntrance(Player player) { player.teleport(new Location(world, -58.5, 65, 8.5)); }
+
     private boolean explore(Player player, String[] args) {
         PlayerProfile profile = plugin.profile(player.getUniqueId());
         if (profile == null) return message(player, "플레이어 데이터를 불러오는 중입니다.", false);

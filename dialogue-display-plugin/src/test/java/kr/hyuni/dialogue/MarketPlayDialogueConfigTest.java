@@ -28,5 +28,8 @@ class MarketPlayDialogueConfigTest {
             assertFalse(yaml.getString(root + ".page-choices.0.choice-1", "").contains("열기"));
             assertFalse(yaml.getString(root + ".page-choices.0.choice-2", "").matches(".*(나가기|다음에).*"));
         });
+        String tutorial = "public-dialogues.시장놀이_첫걸음";
+        assertTrue(yaml.getStringList(tutorial + ".message-pages").stream().anyMatch(page -> page.contains("직접 채집") && page.contains("사냥")));
+        assertFalse(yaml.isConfigurationSection(tutorial + ".page-choices"));
     }
 }

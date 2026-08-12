@@ -330,6 +330,9 @@ final class HubBuilder {
         display(world, new Location(world, -43.5, FLOOR_Y + 4, .5), "housing-district", Component.text("주택 거리 · 집 / 우편 / 가구", NamedTextColor.GREEN));
         display(world, new Location(world, 43.5, FLOOR_Y + 4, .5), "art-district", Component.text("문화 거리 · 그림 / 전시 / 공연", NamedTextColor.LIGHT_PURPLE));
         display(world, new Location(world, .5, FLOOR_Y + 4, 34.5), "travel-district", Component.text("여행소 · 채집소 / 탐험 지역", NamedTextColor.AQUA));
+        display(world, new Location(world, .5, FLOOR_Y + 4, 75.5), "resource-exit", Component.text("남쪽 끝 → 자원 채집소", NamedTextColor.GREEN));
+        display(world, new Location(world, .5, FLOOR_Y + 4, -75.5), "exploration-exit", Component.text("북쪽 끝 → 탐험과 사냥", NamedTextColor.RED));
+        display(world, new Location(world, 75.5, FLOOR_Y + 4, .5), "endgame-exit", Component.text("동쪽 끝 → 던전 / 무한 탑 / 후반 마을", NamedTextColor.LIGHT_PURPLE));
     }
 
     private void display(World world, Location location, String id, Component text) {
