@@ -35,7 +35,7 @@ $JdkChecksum   = Join-Path $ToolsPath 'temurin-jdk-21.zip.sha256.txt'
 $JdkExtract    = Join-Path $ToolsPath '.temurin-jdk-21-extract'
 $JdkApiUrl     = "https://api.adoptium.net/v3/binary/latest/$JdkMajor/ga/windows/x64/jdk/hotspot/normal/eclipse"
 $BuildLog      = Join-Path $ToolsPath 'rpgmaker-gradle-build.log'
-$ServerJava    = Join-Path $JdkHome 'bin\java.exe'
+$ServerJava    = (Get-Command java.exe -ErrorAction SilentlyContinue).Source
 
 $webProcess = $null
 $tunnelProcess = $null
@@ -49,13 +49,15 @@ function Assert-MainBranch {
 }
 
 function Assert-ServerJava {
-    Ensure-Jdk21
+    if (-not $ServerJava) {
+        throw 'Java 25 is required to run the installed WorldEdit plugins, but java.exe was not found in PATH.'
+    }
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try { $version = (& $ServerJava -version 2>&1 | Out-String) }
     finally { $ErrorActionPreference = $previousErrorAction }
-    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "21(?:\.|\")') {
-        throw "Paper 1.21.8 requires Java 21. Managed java.exe: $ServerJava"
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "25(?:\.|\")') {
+        throw "The installed WorldEdit plugins require Java 25. java.exe: $ServerJava"
     }
 }
 
