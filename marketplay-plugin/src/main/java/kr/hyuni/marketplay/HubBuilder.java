@@ -80,6 +80,7 @@ final class HubBuilder implements Listener {
 
     boolean ensure() {
         boolean existed = Files.exists(plugin.getServer().getWorldContainer().toPath().resolve(WORLD).resolve("level.dat"));
+        boolean generatedNow = false;
         world = Bukkit.getWorld(WORLD);
         if (world == null) world = Bukkit.createWorld(new WorldCreator(WORLD).type(WorldType.FLAT).generateStructures(false)
                 .generatorSettings("{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2},{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\",\"features\":false,\"lakes\":false}"));
@@ -88,9 +89,12 @@ final class HubBuilder implements Listener {
         if (marker.getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 로비 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             paste(world);
+            generatedNow = true;
             plugin.getLogger().info("FAWE schematic으로 시장놀이 중앙광장을 설치했습니다.");
         }
-        if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        if (generatedNow && world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION) buildExpansion();
+        else if (world.getBlockAt(1, FLOOR_Y - 2, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 로비 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect(world);
         world.getWorldBorder().setCenter(0, 0);
         world.getWorldBorder().setSize(BUILD_LIMIT * 2.0);

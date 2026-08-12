@@ -8,6 +8,10 @@ import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.event.NPCRightClickEvent;
+import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.trait.LookClose;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
@@ -20,6 +24,7 @@ import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
@@ -48,6 +53,7 @@ final class TutorialManager implements Listener {
     private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private static final String DIALOGUE = "시장놀이_시설안내";
+    private static final String NPC_KEY = "marketplay_tutorial_role";
     private static final String LEGACY_DIALOGUE_COMMAND = "/rpgmaker play 시장놀이_첫걸음";
     private static final int MIN = -18;
     private static final int MAX = 18;
@@ -89,11 +95,30 @@ final class TutorialManager implements Listener {
         protect();
         world.setSpawnLocation(spawn());
         updateDisplays();
+        spawnGuideNpc();
         plugin.getServer().getOnlinePlayers().forEach(this::recoverWhenLoaded);
     }
 
     @EventHandler public void onJoin(PlayerJoinEvent event) {
         recoverWhenLoaded(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onGuideNpcInteract(NPCRightClickEvent event) {
+        String role = event.getNPC().data().get(NPC_KEY, "");
+        if (!"guide".equals(role)) return;
+        event.setCancelled(true);
+        Player player = event.getClicker();
+        PlayerProfile profile = plugin.profile(player.getUniqueId());
+        if (profile == null || !WORLD.equals(player.getWorld().getName())) return;
+        if (profile.tutorialStep() == TutorialProgress.DIALOGUE) {
+            replayDialogue(player);
+            advance(player, profile, TutorialProgress.Action.DIALOGUE_COMPLETE);
+            display(player, "다음 · GUI 실습", "대화를 읽은 뒤 Shift+F를 눌러 통합 메뉴를 여세요");
+        } else {
+            showCurrentStep(player, profile);
+            replayDialogue(player);
+        }
     }
 
     @EventHandler public void onRespawn(PlayerRespawnEvent event) {
@@ -336,6 +361,28 @@ final class TutorialManager implements Listener {
 
     private void replayDialogue(Player player) {
         player.performCommand("rpgmaker play " + DIALOGUE);
+    }
+
+    private void spawnGuideNpc() {
+        if (!CitizensAPI.hasImplementation()) throw new IllegalStateException("Citizens가 없어 튜토리얼 NPC를 만들 수 없습니다.");
+        List<NPC> found = new java.util.ArrayList<>();
+        CitizensAPI.getNPCRegistry().forEach(npc -> {
+            Location stored = npc.getStoredLocation();
+            if ("guide".equals(npc.data().get(NPC_KEY, "")) && stored != null && stored.getWorld() != null
+                    && WORLD.equals(stored.getWorld().getName())) found.add(npc);
+        });
+        NPC npc = found.isEmpty() ? CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, "시장놀이 안내인") : found.getFirst();
+        found.stream().skip(1).forEach(NPC::destroy);
+        npc.data().setPersistent(NPC_KEY, "guide");
+        npc.data().setPersistent("rpgmaker-guide-dialogue", DIALOGUE);
+        npc.setProtected(true);
+        npc.getOrAddTrait(LookClose.class).lookClose(true);
+        Location target = new Location(world, GUIDE_X + .5, GUIDE_Y, GUIDE_Z + .5, 180, 0);
+        target.getChunk().load();
+        if (npc.isSpawned()) npc.teleport(target, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        else if (!npc.spawn(target)) throw new IllegalStateException("튜토리얼 안내인 생성 실패");
+        npc.getEntity().setPersistent(false);
+        CitizensAPI.getNPCRegistry().saveToStore();
     }
 
     private void teleportHere(Player player) {

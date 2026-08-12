@@ -92,7 +92,8 @@ final class EndgameManager implements Listener {
         if (marker.getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 후반 콘텐츠 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             buildPersistent();
-        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION) buildPersistent();
+        } else if (world.getBlockAt(1, Y - 1, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 후반 콘텐츠 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect(); Bukkit.getPluginManager().registerEvents(this, plugin);
         for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) world.setChunkForceLoaded(x, z, true);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);

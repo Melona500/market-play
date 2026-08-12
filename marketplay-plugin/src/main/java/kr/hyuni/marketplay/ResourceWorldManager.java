@@ -65,7 +65,8 @@ final class ResourceWorldManager implements Listener {
         if (world.getBlockAt(0, Y - 2, 0).getType() != Material.LODESTONE) {
             if (existed) throw new IllegalStateException("기존 자원 월드에 설치 표식이 없어 덮어쓰지 않습니다.");
             build();
-        } else if (world.getBlockAt(1, Y - 2, 0).getType() != MAP_VERSION) build();
+        } else if (world.getBlockAt(1, Y - 2, 0).getType() != MAP_VERSION)
+            plugin.getLogger().warning("기존 자원 월드의 맵 버전이 오래됐지만 월드를 보존합니다. 명시적인 마이그레이션 없이 덮어쓰지 않습니다.");
         protect();
         spawnNpcs();
         world.setSpawnLocation(spawn());
