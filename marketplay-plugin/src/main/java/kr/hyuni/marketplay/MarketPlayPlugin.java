@@ -126,7 +126,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         endgame = new EndgameManager(this, profiles);
         endgame.start();
         art = new ArtManager(this, artStore, housingStore);
-        art.start();
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
@@ -143,6 +142,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onCitizensEnable(CitizensEnableEvent event) {
         try {
             hubReady = hub.ensure();
+            art.start();
             resources.start();
             exploration.start();
         } catch (RuntimeException error) {
