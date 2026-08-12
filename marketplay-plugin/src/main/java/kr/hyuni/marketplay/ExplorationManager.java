@@ -8,6 +8,7 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.GlobalProtectedRegion;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.trait.LookClose;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -616,9 +617,10 @@ final class ExplorationManager implements Listener {
     }
 
     private void npc(String role, String name, double x, double z) {
-        NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.VILLAGER, name);
+        NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, name);
         npc.data().setPersistent("marketplay_role", role);
         npc.setProtected(true);
+        npc.getOrAddTrait(LookClose.class).lookClose(true);
         if (!npc.spawn(new Location(world, x + .5, 65, z + .5))) throw new IllegalStateException(name + " Citizens NPC 생성 실패");
         npc.getEntity().setPersistent(false);
         npc.getEntity().getPersistentDataContainer().set(entityRole, PersistentDataType.STRING, role);

@@ -57,7 +57,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component ADVENTURE_TITLE = Component.text("모험과 사냥", NamedTextColor.RED);
     private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
     private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
-    private static final Component STATUS_TITLE = Component.text("내 상태와 인벤토리", NamedTextColor.GREEN);
+    private static final Component STATUS_TITLE = Component.text("내 상태", NamedTextColor.GREEN);
     private ProfileStore profiles;
     private HousingStore housingStore;
     private HousingManager housing;
@@ -240,7 +240,13 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     @EventHandler public void onDrop(PlayerDropItemEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
-    @EventHandler public void onSwap(PlayerSwapHandItemsEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
+    @EventHandler public void onSwap(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
+        if (!player.isSneaking()) return;
+        event.setCancelled(true);
+        openHubMenu(player, "hub");
+    }
     @EventHandler public void onHeld(PlayerItemHeldEvent event) { if (busy.contains(event.getPlayer().getUniqueId())) event.setCancelled(true); }
 
     @EventHandler(ignoreCancelled = true) public void onBlockBreak(BlockBreakEvent event) {
@@ -332,6 +338,15 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         }
         if (args.length > 0 && args[0].equalsIgnoreCase("admin")) return admin(sender, args);
         if (!(sender instanceof Player player)) return true;
+        if (args.length > 1 && args[0].equalsIgnoreCase("dialogue-menu")) {
+            String section = args[1].toLowerCase(Locale.ROOT);
+            player.performCommand("rpgmaker close");
+            getServer().getScheduler().runTask(this, () -> {
+                if (section.equals("market")) openMarket(player);
+                else openHubMenu(player, section);
+            });
+            return true;
+        }
         if (args.length > 0 && args[0].equalsIgnoreCase("market")) { openMarket(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("sell")) { sellHand(player); return true; }
         if (args.length > 0 && args[0].equalsIgnoreCase("tools")) { openToolbox(player); return true; }
@@ -561,7 +576,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(16, menuItem(Material.COOKED_BEEF, "레스토랑", "restaurant", "요리와 협동 영업"));
         menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
         menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
-        menu.setItem(20, menuItem(Material.PLAYER_HEAD, "내 상태·인벤토리", "status", "돈·계급·활력·숙련도·보유 아이템"));
+        menu.setItem(20, menuItem(Material.PLAYER_HEAD, "내 상태", "status", "돈·계급·내공·활력·숙련도"));
         player.openInventory(menu);
     }
 
@@ -612,7 +627,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private void openStatusMenu(Player player) {
         PlayerProfile profile = profiles.get(player.getUniqueId());
         if (profile == null) { message(player, "플레이어 데이터를 불러오는 중입니다.", NamedTextColor.RED); return; }
-        Inventory menu = Bukkit.createInventory(null, 54, STATUS_TITLE);
+        Inventory menu = Bukkit.createInventory(null, 9, STATUS_TITLE);
         menu.setItem(0, menuItem(Material.EMERALD, "보유 금액", "status", profile.money() + "원"));
         menu.setItem(2, menuItem(Material.NETHER_STAR, "계급", "status", ranks.rankFor(profile.innerPower())));
         menu.setItem(4, menuItem(Material.BLAZE_POWDER, "내공", "status", String.valueOf(profile.innerPower())));
@@ -620,8 +635,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         ItemStack skills = menuItem(Material.EXPERIENCE_BOTTLE, "생활 숙련도", "status", "아래 항목을 확인하세요");
         skills.editMeta(meta -> meta.lore(Arrays.stream(Skill.values()).map(skill -> Component.text(skill.displayName() + " " + profile.level(skill), NamedTextColor.GRAY)).toList()));
         menu.setItem(8, skills);
-        ItemStack[] contents = player.getInventory().getStorageContents();
-        for (int slot = 0; slot < contents.length; slot++) if (contents[slot] != null) menu.setItem(18 + slot, contents[slot].clone());
         player.openInventory(menu);
     }
 

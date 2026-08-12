@@ -451,19 +451,23 @@ public-dialogues:
     portrait: MALE_VILLAGER
     message-pages:
     - |-
-      채집을 시작하려면 알맞은 생활도구가 필요합니다.
-      필요한 도구를 고르고, 모은 자원도 이곳에서 판매하세요.
+      솔은 고고학, 뜰채는 곤충, 괭이는 농사, 도끼는 벌목에 씁니다.
+      가위는 채집, 곡괭이는 채광용이며 손에 든 자원은 즉시 판매할 수 있습니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 시장 메뉴 열기
+        choice-1: 생활도구와 판매 품목을 고른다
         response-pages-1:
         - 상품 목록을 보여 드리겠습니다.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay market, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu market
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [필요할 때 다시 찾아오세요.]
+        choice-2: 자원 등급과 판매법을 듣는다
+        response-pages-2:
+        - 품질이 높은 자원일수록 값이 오릅니다. 팔 물건을 손에 들고 판매하세요.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
@@ -473,18 +477,23 @@ public-dialogues:
     portrait: FEMALE_VILLAGER
     message-pages:
     - |-
-      오늘의 시세와 주민 소식이 모이는 게시판입니다.
-      왕실 주문과 다른 주민의 글도 확인해 보세요.
+      오늘의 자원 시세, 왕실 주문, 주민 게시글을 한곳에서 확인합니다.
+      시세는 매일 바뀌며 왕실 주문은 지정 물품에 추가 보상을 줍니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 게시판 열기
-        response-pages-1: [게시판을 펼쳐 드리겠습니다.]
+        choice-1: 오늘의 시세와 주문을 확인한다
+        response-pages-1:
+        - 게시판을 펼쳐 드리겠습니다.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay menu board, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu board
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [새 소식이 궁금할 때 다시 오세요.]
+        choice-2: 주민 글 작성법을 듣는다
+        response-pages-2:
+        - /mp board post 제목|내용 명령으로 주민 게시글을 남길 수 있습니다.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
@@ -494,18 +503,23 @@ public-dialogues:
     portrait: FEMALE_INNKEEPER
     message-pages:
     - |-
-      내 집을 만들고 확장하면 가구, 우편, 방문 기능을 이용할 수 있습니다.
-      집에서 쉬며 생활을 정리해 보세요.
+      내 집은 개인 월드로 분리되며 가구, 우편, 손님 초대 기능을 제공합니다.
+      재료를 모아 확장하면 더 넓은 공간과 생활 기능을 이용할 수 있습니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 주택 메뉴 열기
-        response-pages-1: [주택 업무를 안내하겠습니다.]
+        choice-1: 내 집과 우편을 확인한다
+        response-pages-1:
+        - 주택 업무를 안내하겠습니다.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay menu housing, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu housing
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [필요할 때 다시 찾아오세요.]
+        choice-2: 집 확장 조건을 듣는다
+        response-pages-2:
+        - 주택 메뉴의 내 집에서 현재 단계와 필요한 확장 재료를 확인하세요.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
@@ -515,18 +529,23 @@ public-dialogues:
     portrait: MALE_VILLAGER
     message-pages:
     - |-
-      자원 채집소와 계급별 탐험 지역으로 이동할 수 있습니다.
-      로비로 돌아오는 길도 이 메뉴에서 찾을 수 있어요.
+      자원 채집소에는 숲, 들, 목장, 광산, 강이 있어 생활 재료를 얻습니다.
+      조이광산부터 왕성까지의 탐험지는 계급에 따라 차례로 열립니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 여행 메뉴 열기
-        response-pages-1: [목적지를 골라 주세요.]
+        choice-1: 채집소와 탐험지를 고른다
+        response-pages-1:
+        - 목적지를 골라 주세요.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay menu travel, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu travel
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [안전한 여행 되세요.]
+        choice-2: 계급별 탐험 순서를 듣는다
+        response-pages-2:
+        - 평민은 조이광산, 남작은 바다, 자작은 반짝광산과 왕성, 백작은 요정광산이 열립니다.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
@@ -536,18 +555,23 @@ public-dialogues:
     portrait: MALE_WARRIOR
     message-pages:
     - |-
-      왕성 기사 시험부터 사냥 던전, 무한 탑, 후반 마을까지 안내합니다.
-      위험한 지역은 장비와 계급 조건을 먼저 확인하세요.
+      기사 시험장은 전직 준비, 던전은 보스 사냥, 무한 탑은 연속 전투 콘텐츠입니다.
+      후반 마을에서는 용, 선행, 전직, 천국 콘텐츠를 이어서 진행합니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 모험 메뉴 열기
-        response-pages-1: [도전할 콘텐츠를 선택하세요.]
+        choice-1: 사냥터와 도전 콘텐츠를 고른다
+        response-pages-1:
+        - 도전할 콘텐츠를 선택하세요.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay menu adventure, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu adventure
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [준비가 끝나면 다시 찾아오세요.]
+        choice-2: 후반 성장 순서를 듣는다
+        response-pages-2:
+        - 기사 시험과 던전 장비를 준비한 뒤 무한 탑과 후반 마을에 도전하세요.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
@@ -557,18 +581,23 @@ public-dialogues:
     portrait: FEMALE_VILLAGER
     message-pages:
     - |-
-      생활, 문화, 식당, 상단과 내 상태를 한 메뉴에서 확인할 수 있습니다.
-      필요한 시설을 선택해 주세요.
+      시장은 도구와 판매, 게시판은 시세, 주택은 집과 우편을 담당합니다.
+      여행, 모험, 미술관, 식당, 상단과 내 상태도 종합 안내에서 찾을 수 있습니다.
     page-choices:
       '0':
         choice-count: 2
-        choice-1: 종합 메뉴 열기
-        response-pages-1: [안내 메뉴를 열겠습니다.]
+        choice-1: 생활 시설과 내 상태를 살펴본다
+        response-pages-1:
+        - 안내 메뉴를 열겠습니다.
         response-effects-1:
-          '0': {return-mode: NONE, command: marketplay menu hub, command-target: PLAYER}
+          '0':
+            return-mode: NONE
+            command: marketplay dialogue-menu hub
+            command-target: PLAYER
         end-1: true
-        choice-2: 다음에 보기
-        response-pages-2: [필요할 때 다시 불러 주세요.]
+        choice-2: 빠른 메뉴 조작법을 듣는다
+        response-pages-2:
+        - 웅크린 채 손 바꾸기 키를 누르면 어디서든 종합 메뉴가 열립니다.
         end-2: true
     public-owner: 00000000-0000-0000-0000-000000000000
     public-by: RPGMaker
