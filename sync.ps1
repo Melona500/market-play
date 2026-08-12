@@ -41,15 +41,45 @@ if ($SelfTest) {
         'marketplay-plugin/src/main/java/MarketPlayPlugin.java' = $true
         'plugins/MarketPlay.jar' = $true
         'plugins/MarketPlay/marketplay.db' = $false
+        'mp_lobby/level.dat' = $false
+        'mp_exploration/region/r.0.0.mca' = $false
         'world/level.dat' = $false
         'logs/latest.log' = $false
         'latest.log' = $false
         'world/session.lock' = $false
         'plugins/Citizens/saves.yml' = $false
+        'plugins/RPGMaker/shares.yml' = $false
+        'plugins/RPGMaker/players/player.yml' = $false
         'plugins/RPGMaker/backups/config.yml.bak' = $false
+        'plugins/Skript/variables.csv' = $false
     }
     foreach ($case in $cases.GetEnumerator()) {
         if ((Test-SyncPath $case.Key) -ne $case.Value) { throw "Sync path rule failed: $($case.Key)" }
+    }
+
+    $ignoredRuntimePaths = @(
+        'mp_lobby/level.dat'
+        'plugins/.paper-remapped/index.json'
+        'plugins/Citizens/saves.yml'
+        'plugins/RPGMaker/backups/config.yml.bak'
+        'plugins/RPGMaker/players/player.yml'
+        'plugins/RPGMaker/shares.yml'
+        'plugins/Skript/backups/variables.csv.gz'
+        'plugins/Skript/variables.csv'
+    )
+    foreach ($path in $ignoredRuntimePaths) {
+        & git -C $RepoPath check-ignore --quiet --no-index -- $path
+        if ($LASTEXITCODE -ne 0) { throw "Runtime path must be ignored: $path" }
+    }
+
+    $trackedCodePaths = @(
+        'plugins/RPGMaker/common.yml'
+        'plugins/RPGMaker/config.yml'
+        'plugins/Skript/scripts/server-management.sk'
+    )
+    foreach ($path in $trackedCodePaths) {
+        & git -C $RepoPath check-ignore --quiet --no-index -- $path
+        if ($LASTEXITCODE -eq 0) { throw "Code path must remain trackable: $path" }
     }
     Write-Host 'Automatic merge path rules passed.'
     exit 0
