@@ -2,6 +2,7 @@ package kr.hyuni.marketplay;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.title.Title;
 import net.citizensnpcs.api.event.NPCRightClickEvent;
 import net.citizensnpcs.api.event.CitizensEnableEvent;
 import org.bukkit.Material;
@@ -13,11 +14,13 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Monster;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -25,6 +28,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.block.Action;
@@ -54,8 +58,6 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private static final Component TOOLBOX_TITLE = Component.text("생활도구함", NamedTextColor.AQUA);
     private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
-    private static final Component TRAVEL_TITLE = Component.text("여행 안내", NamedTextColor.AQUA);
-    private static final Component ADVENTURE_TITLE = Component.text("모험과 사냥", NamedTextColor.RED);
     private static final Component BOARD_TITLE = Component.text("시장 게시판", NamedTextColor.YELLOW);
     private static final Component HOUSING_TITLE = Component.text("주택 안내", NamedTextColor.GREEN);
     private static final Component STATUS_TITLE = Component.text("내 상태", NamedTextColor.GREEN);
@@ -205,8 +207,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "market" -> openMarket(player);
             case "board" -> openBoardMenu(player);
             case "housing" -> openHousingMenu(player);
-            case "travel", "lobby" -> openTravelMenu(player);
-            case "adventure" -> openAdventureMenu(player);
+            case "travel", "lobby" -> showTravelGuide(player);
+            case "adventure" -> showAdventureGuide(player);
             case "resources" -> openHubMenu(player, "resources");
             case "art" -> openHubMenu(player, "art");
             case "restaurant" -> openHubMenu(player, "restaurant");
@@ -221,8 +223,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
         boolean market = event.getView().title().equals(MARKET_TITLE);
         boolean toolbox = event.getView().title().equals(TOOLBOX_TITLE);
-        boolean hubMenu = event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
-                || event.getView().title().equals(ADVENTURE_TITLE)
+        boolean hubMenu = event.getView().title().equals(HUB_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
                 || event.getView().title().equals(STATUS_TITLE);
         if (!market && !toolbox && !hubMenu) return;
@@ -242,8 +243,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     @EventHandler public void onInventoryDrag(InventoryDragEvent event) {
         if (event.getWhoClicked() instanceof Player player && busy.contains(player.getUniqueId())) { event.setCancelled(true); return; }
         if (event.getView().title().equals(MARKET_TITLE) || event.getView().title().equals(TOOLBOX_TITLE)
-                || event.getView().title().equals(HUB_TITLE) || event.getView().title().equals(TRAVEL_TITLE)
-                || event.getView().title().equals(ADVENTURE_TITLE)
+                || event.getView().title().equals(HUB_TITLE)
                 || event.getView().title().equals(BOARD_TITLE) || event.getView().title().equals(HOUSING_TITLE)
                 || event.getView().title().equals(STATUS_TITLE)) event.setCancelled(true);
     }
@@ -262,6 +262,26 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         if (event.getBlock().getWorld().getName().startsWith("mp_house_")) return;
         Skill skill = activityBlocks.get(event.getBlock().getType());
         if (skill != null) rewardActivity(event.getPlayer(), skill);
+    }
+
+    @EventHandler(ignoreCancelled = true) public void onMobDeath(EntityDeathEvent event) {
+        Player player = event.getEntity().getKiller();
+        if (player != null && event.getEntity() instanceof Monster)
+            advanceTutorial(player, 2, 3, "튜토리얼 완료", "채집과 사냥을 익혔습니다 · Shift+F 메뉴");
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onMapEdge(PlayerMoveEvent event) {
+        Location to = event.getTo();
+        if (!event.hasChangedBlock() || to == null || busy.contains(event.getPlayer().getUniqueId())) return;
+        String destination = ProfileStore.mapEdgeDestination(to.getWorld().getName(), to.getBlockX(), to.getBlockZ());
+        if (destination == null) return;
+        switch (destination) {
+            case "resources" -> resources.teleport(event.getPlayer());
+            case "exploration" -> exploration.teleportEntrance(event.getPlayer());
+            case "lobby" -> teleportLobby(event.getPlayer());
+            default -> endgame.teleport(event.getPlayer(), destination);
+        }
     }
 
     @EventHandler(ignoreCancelled = true) public void onBlockDrop(BlockDropItemEvent event) {
@@ -335,6 +355,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             });
         }
         player.sendActionBar(Component.text(skill.displayName() + " 숙련도 +1 · 내공 +1", NamedTextColor.GREEN));
+        advanceTutorial(player, 1, 2, "튜토리얼 2/2", "채집 완료 · 채집소 북쪽→로비, 로비 북쪽→사냥터");
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -544,6 +565,7 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
                 player.saveData();
                 remaining.forEach(grant -> deliverGrant(player, grant));
                 busy.remove(player.getUniqueId());
+                if (profile.tutorialStep() == 0) startTutorial(player, profile);
             }));
         }));
     }
@@ -570,8 +592,8 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     void openHubMenu(Player player, String section) {
-        if (section.equals("travel")) { openTravelMenu(player); return; }
-        if (section.equals("adventure")) { openAdventureMenu(player); return; }
+        if (section.equals("travel")) { showTravelGuide(player); return; }
+        if (section.equals("adventure")) { showAdventureGuide(player); return; }
         if (section.equals("board")) { openBoardMenu(player); return; }
         if (section.equals("housing")) { openHousingMenu(player); return; }
         if (section.equals("status")) { openStatusMenu(player); return; }
@@ -579,38 +601,18 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         menu.setItem(10, menuItem(Material.EMERALD, "생활도구 시장", "market", "도구 구매와 자원 판매"));
         menu.setItem(11, menuItem(Material.CHEST, "생활도구함", "tools", "구매한 생활도구 확인"));
         menu.setItem(12, menuItem(Material.WRITABLE_BOOK, "시장 게시판", "board", "시세·왕실 주문·주민 게시글"));
-        menu.setItem(13, menuItem(Material.COMPASS, "여행 안내", "travel", "채집소와 탐험 지역 이동"));
+        menu.setItem(13, menuItem(Material.COMPASS, "여행 안내", "travel", "남쪽 끝 채집소 · 북쪽 끝 탐험지"));
         menu.setItem(14, menuItem(Material.RED_BED, "주택 안내", "housing", "개인 집과 우편"));
         menu.setItem(15, menuItem(Material.FILLED_MAP, "그림과 전시", "art", "작품 제작·전시·거래"));
         menu.setItem(16, menuItem(Material.COOKED_BEEF, "레스토랑", "restaurant", "요리와 협동 영업"));
         menu.setItem(22, menuItem(Material.CHEST_MINECART, "상단", "guild", "공동 창고와 프로젝트"));
-        menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
+        menu.setItem(21, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "동쪽 끝 던전·무한 탑·후반 마을"));
         menu.setItem(20, menuItem(Material.PLAYER_HEAD, "내 상태", "status", "돈·계급·내공·활력·숙련도"));
         player.openInventory(menu);
     }
 
-    private void openTravelMenu(Player player) {
-        Inventory menu = Bukkit.createInventory(null, 27, TRAVEL_TITLE);
-        menu.setItem(10, menuItem(Material.IRON_AXE, "자원 채집소", "resources", "숲·들·목장·광산·강"));
-        menu.setItem(11, menuItem(Material.REDSTONE_ORE, "조이광산", "joy", "평민부터 이용 가능"));
-        menu.setItem(12, menuItem(Material.TUBE_CORAL, "해변과 바다", "sea", "남작부터 이용 가능"));
-        menu.setItem(13, menuItem(Material.LAPIS_ORE, "반짝광산", "glitter", "자작부터 이용 가능"));
-        menu.setItem(14, menuItem(Material.AMETHYST_BLOCK, "요정광산", "fairy", "백작부터 이용 가능"));
-        menu.setItem(15, menuItem(Material.STONE_BRICKS, "왕성", "castle", "자작부터 이용 가능"));
-        menu.setItem(16, menuItem(Material.IRON_SWORD, "모험과 사냥", "adventure", "기사 시험·던전·무한 탑·후반 마을"));
-        menu.setItem(22, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
-        player.openInventory(menu);
-    }
-
-    private void openAdventureMenu(Player player) {
-        Inventory menu = Bukkit.createInventory(null, 27, ADVENTURE_TITLE);
-        menu.setItem(10, menuItem(Material.IRON_SWORD, "기사 시험장", "knight", "왕성 훈련장·자작/평판 조건"));
-        menu.setItem(12, menuItem(Material.ZOMBIE_HEAD, "던전 접수소", "dungeon-gate", "쓰레기장·해적·아누비스 사냥"));
-        menu.setItem(14, menuItem(Material.SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE, "무한 탑 접수소", "tower-gate", "솔로·길드 연속 전투"));
-        menu.setItem(16, menuItem(Material.DRAGON_EGG, "후반 마을", "endgame", "용·선행·전직·천국 콘텐츠"));
-        menu.setItem(22, menuItem(Material.BELL, "중앙 로비", "lobby", "광장으로 돌아가기"));
-        player.openInventory(menu);
-    }
+    private void showTravelGuide(Player player) { player.sendActionBar(Component.text("로비 남쪽 끝 → 채집소 · 북쪽 끝 → 탐험지", NamedTextColor.AQUA)); }
+    private void showAdventureGuide(Player player) { player.sendActionBar(Component.text("로비 동쪽 끝: 북쪽 던전 · 중앙 무한 탑 · 남쪽 후반 마을", NamedTextColor.RED)); }
 
     private void openBoardMenu(Player player) {
         Inventory menu = Bukkit.createInventory(null, 27, BOARD_TITLE);
@@ -664,15 +666,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             case "sell" -> sellHand(player);
             case "board" -> openBoardMenu(player);
             case "board-chat" -> board(player, new String[]{"board"});
-            case "travel" -> openTravelMenu(player);
-            case "adventure" -> openAdventureMenu(player);
+            case "travel" -> showTravelGuide(player);
+            case "adventure" -> showAdventureGuide(player);
             case "housing" -> openHousingMenu(player);
             case "status" -> openStatusMenu(player);
-            case "resources" -> resources.teleport(player);
-            case "lobby" -> teleportLobby(player);
-            case "joy", "sea", "glitter", "fairy", "castle" -> exploration.command(player, new String[]{"explore", action});
-            case "knight" -> { exploration.command(player, new String[]{"explore", "castle"}); player.sendMessage(Component.text("왕성 훈련장에서 /mp knight start", NamedTextColor.YELLOW)); }
-            case "endgame", "dungeon-gate", "tower-gate" -> endgame.teleport(player, action);
             case "home" -> player.performCommand("marketplay home");
             case "home-create" -> player.performCommand("marketplay home create");
             case "mail" -> player.performCommand("marketplay mail");
@@ -684,6 +681,27 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
     }
 
     void teleportLobby(Player player) { if (hubReady) hub.teleport(player); }
+
+    private void startTutorial(Player player, PlayerProfile profile) {
+        profile.setTutorialStep(1);
+        saveProfile(profile);
+        player.performCommand("rpgmaker play 시장놀이_첫걸음");
+        tutorialDisplay(player, "튜토리얼 1/2", "로비 남쪽 끝으로 이동해 자원을 직접 채집하세요");
+    }
+
+    private void advanceTutorial(Player player, int expected, int next, String title, String subtitle) {
+        PlayerProfile profile = profiles.get(player.getUniqueId());
+        if (profile == null || profile.tutorialStep() != expected) return;
+        profile.setTutorialStep(next);
+        saveProfile(profile);
+        tutorialDisplay(player, title, subtitle);
+    }
+
+    private void tutorialDisplay(Player player, String title, String subtitle) {
+        player.showTitle(Title.title(Component.text(title, NamedTextColor.GOLD), Component.text(subtitle, NamedTextColor.YELLOW),
+                Title.Times.times(Duration.ofMillis(300), Duration.ofSeconds(5), Duration.ofMillis(500))));
+    }
+
     Location lobbyLocation() { return hub.spawn(); }
     World lobbyWorld() { return hub.world(); }
 

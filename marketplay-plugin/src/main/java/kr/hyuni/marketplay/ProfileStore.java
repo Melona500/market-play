@@ -375,6 +375,7 @@ public final class ProfileStore implements AutoCloseable {
             ensurePlayerColumn(statement, "deep_omen", "INTEGER NOT NULL DEFAULT 0 CHECK (deep_omen BETWEEN 0 AND 100)");
             ensurePlayerColumn(statement, "royal_reputation", "INTEGER NOT NULL DEFAULT 0 CHECK (royal_reputation >= 0)");
             ensurePlayerColumn(statement, "knight_state", "TEXT NOT NULL DEFAULT 'NONE' CHECK (knight_state IN ('NONE','ARCHERY','DUEL','APPRENTICE'))");
+            ensurePlayerColumn(statement, "tutorial_step", "INTEGER NOT NULL DEFAULT 0 CHECK (tutorial_step BETWEEN 0 AND 3)");
         }
     }
 
@@ -403,7 +404,7 @@ public final class ProfileStore implements AutoCloseable {
             create.executeUpdate();
         }
         PlayerProfile profile;
-        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality, deep_omen, royal_reputation, knight_state FROM players WHERE uuid=?")) {
+        try (PreparedStatement query = database.prepareStatement("SELECT money, inner_power, vitality, deep_omen, royal_reputation, knight_state, tutorial_step FROM players WHERE uuid=?")) {
             query.setString(1, id.toString());
             try (ResultSet row = query.executeQuery()) {
                 if (!row.next()) throw new SQLException("Player row missing: " + id);
@@ -411,6 +412,7 @@ public final class ProfileStore implements AutoCloseable {
                 profile.setDeepOmen(row.getInt(4));
                 profile.addRoyalReputation(row.getInt(5));
                 profile.setKnightState(row.getString(6));
+                profile.setTutorialStep(row.getInt(7));
             }
         }
         try (PreparedStatement query = database.prepareStatement("SELECT skill, xp FROM masteries WHERE player_uuid=?")) {
@@ -440,14 +442,15 @@ public final class ProfileStore implements AutoCloseable {
 
     private void saveSync(PlayerProfile profile) throws SQLException {
         transaction(() -> {
-            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, deep_omen=?, royal_reputation=?, knight_state=?, updated_at=? WHERE uuid=?")) {
+            try (PreparedStatement update = database.prepareStatement("UPDATE players SET inner_power=?, vitality=?, deep_omen=?, royal_reputation=?, knight_state=?, tutorial_step=?, updated_at=? WHERE uuid=?")) {
                 update.setLong(1, profile.innerPower());
                 update.setDouble(2, profile.vitality());
                 update.setInt(3, profile.deepOmen());
                 update.setInt(4, profile.royalReputation());
                 update.setString(5, profile.knightState());
-                update.setString(6, Instant.now().toString());
-                update.setString(7, profile.playerId().toString());
+                update.setInt(6, profile.tutorialStep());
+                update.setString(7, Instant.now().toString());
+                update.setString(8, profile.playerId().toString());
                 if (update.executeUpdate() != 1) throw new SQLException("Player row missing: " + profile.playerId());
             }
             try (PreparedStatement upsert = database.prepareStatement("INSERT INTO masteries VALUES (?, ?, ?) ON CONFLICT(player_uuid, skill) DO UPDATE SET xp=excluded.xp")) {
@@ -2070,6 +2073,19 @@ public final class ProfileStore implements AutoCloseable {
     public record PartySnapshot(String groupKey, List<UUID> members) {}
     static boolean allowsEndgameDamage(Set<UUID> members, UUID attacker, String sourceSession, String session, boolean victimPlayer) { return attacker != null && members.contains(attacker) || victimPlayer && session.equals(sourceSession); }
     static boolean insideExplorationMap(int x, int z) { return x >= -65 && x <= 60 && z >= -68 && z <= 70 && (z <= 12 || x >= -4); }
+    static String mapEdgeDestination(String world, int x, int z) {
+        if (world.equals(HubBuilder.WORLD)) {
+            if (Math.abs(x) <= 4 && z >= 76) return "resources";
+            if (Math.abs(x) <= 4 && z <= -76) return "exploration";
+            if (x >= 76 && z >= -18 && z <= -6) return "dungeon-gate";
+            if (x >= 76 && Math.abs(z) <= 5) return "tower-gate";
+            if (x >= 76 && z >= 6 && z <= 18) return "endgame";
+        }
+        if (world.equals(ResourceWorldManager.WORLD) && Math.abs(x) <= 5 && z <= -92) return "lobby";
+        if (world.equals(ExplorationManager.WORLD) && x <= -62 && z >= 4 && z <= 12) return "lobby";
+        if (world.equals("mp_endgame") && Math.abs(x) <= 4 && z <= -44) return "lobby";
+        return null;
+    }
     static boolean allowsEndgameMove(int ownSlot, int destinationSlot, boolean persistentArea) { return ownSlot >= 0 ? destinationSlot == ownSlot : destinationSlot < 0 && persistentArea; }
     static boolean insideEndgameInstance(int x, int y, int z) {
         if (y < 64 || y > 71) return false;

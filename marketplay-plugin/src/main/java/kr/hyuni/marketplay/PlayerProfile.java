@@ -14,6 +14,7 @@ public final class PlayerProfile {
     private int deepOmen;
     private int royalReputation;
     private String knightState = "NONE";
+    private int tutorialStep;
     private final EnumMap<Skill, Long> experience = new EnumMap<>(Skill.class);
     private final Set<String> tools = new HashSet<>();
 
@@ -32,6 +33,7 @@ public final class PlayerProfile {
     public int deepOmen() { return deepOmen; }
     public int royalReputation() { return royalReputation; }
     public String knightState() { return knightState; }
+    public int tutorialStep() { return tutorialStep; }
     public long experience(Skill skill) { return experience.get(skill); }
     public int level(Skill skill) { return (int) Math.sqrt(experience(skill) / 25.0); }
     public Map<Skill, Long> experience() { return Map.copyOf(experience); }
@@ -49,6 +51,7 @@ public final class PlayerProfile {
         if (!Set.of("NONE", "ARCHERY", "DUEL", "APPRENTICE").contains(value)) throw new IllegalArgumentException("Unknown knight state: " + value);
         knightState = value;
     }
+    public void setTutorialStep(int value) { tutorialStep = Math.max(0, Math.min(3, value)); }
     public void addTool(String toolId) { tools.add(toolId); }
     public boolean spendVitality(double value) {
         if (value < 0 || vitality < value) return false;
@@ -64,6 +67,7 @@ public final class PlayerProfile {
         copy.setDeepOmen(deepOmen);
         copy.addRoyalReputation(royalReputation);
         copy.setKnightState(knightState);
+        copy.setTutorialStep(tutorialStep);
         return copy;
     }
 
@@ -78,6 +82,7 @@ public final class PlayerProfile {
         deepOmen = source.deepOmen;
         royalReputation = source.royalReputation;
         knightState = source.knightState;
+        tutorialStep = source.tutorialStep;
     }
 
     void setMoney(long value) { money = value; }
