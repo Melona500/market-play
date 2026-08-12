@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0cleanup-stale-web-editor.ps1" -RepoPath "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0cleanup-stale-web-editor.ps1"
 set "PRECHECK_EXIT_CODE=%errorlevel%"
 if not "%PRECHECK_EXIT_CODE%"=="0" (
     echo.

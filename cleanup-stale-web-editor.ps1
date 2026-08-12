@@ -1,10 +1,5 @@
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$RepoPath
-)
-
 $ErrorActionPreference = 'Stop'
-$webPath = [IO.Path]::GetFullPath((Join-Path $RepoPath 'rpgmaker-web-editor'))
+$webPath = Join-Path $PSScriptRoot 'rpgmaker-web-editor'
 
 $listeners = @(Get-NetTCPConnection -State Listen -LocalPort 5173 -ErrorAction SilentlyContinue)
 $ownerPids = @($listeners | Select-Object -ExpandProperty OwningProcess -Unique)
