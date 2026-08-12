@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$webPath = [IO.Path]::GetFullPath((Join-Path $RepoPath 'rpgmaker-web-editor')).TrimEnd('\')
+$webPath = [IO.Path]::GetFullPath((Join-Path $RepoPath 'rpgmaker-web-editor'))
 
 $listeners = @(Get-NetTCPConnection -State Listen -LocalPort 5173 -ErrorAction SilentlyContinue)
 $ownerPids = @($listeners | Select-Object -ExpandProperty OwningProcess -Unique)
@@ -18,7 +18,7 @@ foreach ($ownerPid in $ownerPids) {
     $name = [string]$process.Name
     $commandLine = [string]$process.CommandLine
     $belongsToWebEditor = $name -ieq 'node.exe' -and (
-        $commandLine.IndexOf($webPath, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $commandLine.IndexOf($webPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
         $commandLine -match '(?i)rpgmaker-web-editor[\\/].*node_modules[\\/].*vite'
     )
 
