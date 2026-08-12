@@ -35,7 +35,7 @@ $JdkChecksum   = Join-Path $ToolsPath 'temurin-jdk-21.zip.sha256.txt'
 $JdkExtract    = Join-Path $ToolsPath '.temurin-jdk-21-extract'
 $JdkApiUrl     = "https://api.adoptium.net/v3/binary/latest/$JdkMajor/ga/windows/x64/jdk/hotspot/normal/eclipse"
 $BuildLog      = Join-Path $ToolsPath 'rpgmaker-gradle-build.log'
-$ServerJava    = (Get-Command java.exe -ErrorAction Stop).Source
+$ServerJava    = Join-Path $JdkHome 'bin\java.exe'
 
 $webProcess = $null
 $tunnelProcess = $null
@@ -49,12 +49,13 @@ function Assert-MainBranch {
 }
 
 function Assert-ServerJava {
+    Ensure-Jdk21
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try { $version = (& $ServerJava -version 2>&1 | Out-String) }
     finally { $ErrorActionPreference = $previousErrorAction }
-    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "25(?:\.|")') {
-        throw "Paper requires Java 25. Current java.exe: $ServerJava"
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'version "21(?:\.|\")') {
+        throw "Paper 1.21.8 requires Java 21. Managed java.exe: $ServerJava"
     }
 }
 
@@ -325,6 +326,9 @@ try {
     if (-not (Test-Path -LiteralPath $MarketPlayProjectPath)) {
         throw "MarketPlay plugin project not found: $MarketPlayProjectPath"
     }
+    if (-not (Test-Path -LiteralPath $WebPath)) {
+        throw "Web editor directory not found: $WebPath"
+    }
 
     if ($BuildOnly -or (Test-PluginBuildRequired $PluginProjectPath $PluginJar)) {
         Deploy-Plugin 'RPGMaker' $PluginProjectPath $PluginJar
@@ -353,10 +357,6 @@ try {
     if ($BuildOnly) {
         Write-Host 'Build-only validation completed.'
         return
-    }
-
-    if (-not (Test-Path -LiteralPath $WebPath)) {
-        throw "Web editor directory not found: $WebPath"
     }
 
     Start-ResourcePackTunnel
