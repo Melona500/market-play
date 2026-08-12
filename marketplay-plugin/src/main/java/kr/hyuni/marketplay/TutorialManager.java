@@ -22,6 +22,18 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -29,9 +41,11 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
 
-final class TutorialManager {
+final class TutorialManager implements Listener {
     static final String WORLD = "mp_tutorial";
     static final int FLOOR_Y = 64;
+    private static final Component HUB_TITLE = Component.text("시장놀이 안내", NamedTextColor.GOLD);
+    private static final Component MARKET_TITLE = Component.text("생활도구 상점", NamedTextColor.GOLD);
     private static final String DIALOGUE = "시장놀이_첫걸음";
     private static final int MIN = -18;
     private static final int MAX = 18;
@@ -41,13 +55,19 @@ final class TutorialManager {
 
     private final MarketPlayPlugin plugin;
     private final NamespacedKey sampleKey;
+    private final NamespacedKey sampleIssuedKey;
+    private final NamespacedKey sampleBalanceKey;
     private final NamespacedKey displayKey;
+    private final NamespacedKey hubActionKey;
     private World world;
 
     TutorialManager(MarketPlayPlugin plugin) {
         this.plugin = plugin;
         sampleKey = new NamespacedKey(plugin, "tutorial_sample");
+        sampleIssuedKey = new NamespacedKey(plugin, "tutorial_sample_issued");
+        sampleBalanceKey = new NamespacedKey(plugin, "tutorial_sample_balance");
         displayKey = new NamespacedKey(plugin, "tutorial_display");
+        hubActionKey = new NamespacedKey(plugin, "hub_action");
     }
 
     void ensure() {
@@ -67,9 +87,106 @@ final class TutorialManager {
         protect();
         world.setSpawnLocation(spawn());
         updateDisplays();
+        plugin.getServer().getOnlinePlayers().forEach(this::recoverWhenLoaded);
     }
 
-    void recover(Player player, PlayerProfile profile) {
+    @EventHandler public void onJoin(PlayerJoinEvent event) {
+        recoverWhenLoaded(event.getPlayer());
+    }
+
+    @EventHandler public void onRespawn(PlayerRespawnEvent event) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> recoverWhenLoaded(event.getPlayer()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onGuideInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
+        Block block = event.getClickedBlock();
+        if (!WORLD.equals(block.getWorld().getName()) || block.getX() != GUIDE_X || block.getY() != GUIDE_Y || block.getZ() != GUIDE_Z) return;
+        event.setCancelled(true);
+        PlayerProfile profile = plugin.profile(event.getPlayer().getUniqueId());
+        if (profile == null) return;
+        if (profile.tutorialStep() == TutorialProgress.DIALOGUE) {
+            replayDialogue(event.getPlayer());
+            advance(event.getPlayer(), profile, TutorialProgress.Action.DIALOGUE_COMPLETE);
+            display(event.getPlayer(), "다음 · GUI 실습", "대화를 읽은 뒤 Shift+F를 눌러 통합 메뉴를 여세요");
+            return;
+        }
+        if (profile.tutorialStep() == TutorialProgress.SELL_SAMPLE) {
+            ensureSample(event.getPlayer(), profile);
+            event.getPlayer().sendMessage(Component.text("판매 실습 아이템을 확인했습니다. 주 손에 들고 시장 GUI의 호퍼를 누르세요.", NamedTextColor.GREEN));
+            return;
+        }
+        event.getPlayer().sendMessage(Component.text("대화창 안내는 확인했습니다. 현재 화면의 튜토리얼 목표를 진행하세요.", NamedTextColor.YELLOW));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+    public void onMenuShortcut(PlayerSwapHandItemsEvent event) {
+        if (!event.getPlayer().isSneaking()) return;
+        PlayerProfile profile = plugin.profile(event.getPlayer().getUniqueId());
+        if (profile == null || profile.tutorialStep() != TutorialProgress.OPEN_MENU) return;
+        advance(event.getPlayer(), profile, TutorialProgress.Action.MENU_OPENED);
+        display(event.getPlayer(), "튜토리얼 3/4 · 시장", "GUI에서 '생활도구 시장'을 클릭하세요");
+        event.getPlayer().sendMessage(Component.text("[GUI] Shift+F 통합 메뉴에는 시장·도구함·게시판·주택·그림·레스토랑·상단·모험·내 상태가 모여 있습니다.", NamedTextColor.AQUA));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+    public void onMenuClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        PlayerProfile profile = plugin.profile(player.getUniqueId());
+        if (profile == null) return;
+        ItemStack clicked = event.getCurrentItem();
+        if (event.getView().title().equals(HUB_TITLE) && profile.tutorialStep() == TutorialProgress.OPEN_MARKET && clicked != null) {
+            String action = clicked.getPersistentDataContainer().get(hubActionKey, PersistentDataType.STRING);
+            if (!"market".equals(action)) return;
+            advance(player, profile, TutorialProgress.Action.MARKET_OPENED);
+            ensureSample(player, profile);
+            display(player, "튜토리얼 4/4 · 판매", "튜토리얼 사과를 주 손에 들고 시장 GUI의 호퍼를 클릭하세요");
+            player.sendMessage(Component.text("[시장] 생활도구를 구매하고 채집한 자원을 판매하는 곳입니다. 도구함에서는 보유 도구와 직접/자동 사용 방식을 확인할 수 있습니다.", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("[판매] 판매할 시장놀이 자원을 주 손에 들고 '손에 든 자원 판매' 호퍼를 누르면 현재 시세로 실제 거래가 처리됩니다.", NamedTextColor.GREEN));
+            return;
+        }
+        if (!event.getView().title().equals(MARKET_TITLE) || profile.tutorialStep() != TutorialProgress.SELL_SAMPLE || clicked == null || clicked.getType() != Material.HOPPER) return;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (!isSample(hand)) {
+            player.sendMessage(Component.text("튜토리얼 사과를 주 손에 든 뒤 판매 호퍼를 클릭하세요.", NamedTextColor.YELLOW));
+            return;
+        }
+        verifySale(player, 0);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (isSample(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            event.getPlayer().sendActionBar(Component.text("튜토리얼 사과는 판매 실습에 사용하세요.", NamedTextColor.YELLOW));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        PlayerProfile profile = plugin.profile(event.getPlayer().getUniqueId());
+        if (profile == null || !TutorialProgress.active(profile.tutorialStep()) || event.getFrom().getWorld() == null || !WORLD.equals(event.getFrom().getWorld().getName())) return;
+        if (event.getTo().getWorld() != null && WORLD.equals(event.getTo().getWorld().getName())) return;
+        event.setCancelled(true);
+        event.getPlayer().sendActionBar(Component.text("튜토리얼을 완료하면 중앙 로비로 이동합니다.", NamedTextColor.YELLOW));
+    }
+
+    private void recoverWhenLoaded(Player player) {
+        recoverWhenLoaded(player, 0);
+    }
+
+    private void recoverWhenLoaded(Player player, int attempts) {
+        if (!player.isOnline() || world == null) return;
+        PlayerProfile profile = plugin.profile(player.getUniqueId());
+        if (profile == null) {
+            if (attempts < 40) plugin.getServer().getScheduler().runTaskLater(plugin, () -> recoverWhenLoaded(player, attempts + 1), 5L);
+            return;
+        }
+        recover(player, profile);
+    }
+
+    private void recover(Player player, PlayerProfile profile) {
         int step = profile.tutorialStep();
         if (step == TutorialProgress.NOT_STARTED || TutorialProgress.shouldRestartLegacy(step)) {
             begin(player, profile);
@@ -83,108 +200,135 @@ final class TutorialManager {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> showCurrentStep(player, profile), 8L);
     }
 
-    boolean handleGuide(Player player, Block block) {
-        if (!WORLD.equals(block.getWorld().getName()) || block.getX() != GUIDE_X || block.getY() != GUIDE_Y || block.getZ() != GUIDE_Z) return false;
-        PlayerProfile profile = plugin.profile(player.getUniqueId());
-        if (profile == null) return true;
-        if (profile.tutorialStep() == TutorialProgress.DIALOGUE) replayDialogue(player);
-        else player.sendMessage(Component.text("안내 대화는 이미 확인했습니다. 현재 화면의 튜토리얼 목표를 진행하세요.", NamedTextColor.YELLOW));
-        return true;
-    }
-
-    void onDialogueComplete(Player player) {
-        if (!advance(player, TutorialProgress.Action.DIALOGUE_COMPLETE)) return;
-        display(player, "튜토리얼 2/4 · GUI", "Shift+F를 눌러 시장놀이 통합 메뉴를 여세요");
-        player.sendMessage(Component.text("[GUI] Shift+F는 어디서든 주요 기능을 여는 빠른 메뉴입니다. 시장·도구함·게시판·주택·상태·여행 메뉴를 여기서 찾을 수 있습니다.", NamedTextColor.AQUA));
-    }
-
-    void onMenuOpened(Player player) {
-        if (!advance(player, TutorialProgress.Action.MENU_OPENED)) return;
-        display(player, "튜토리얼 3/4 · 시장", "GUI에서 '생활도구 시장'을 클릭하세요");
-        player.sendMessage(Component.text("[GUI] 메뉴 아이콘을 클릭하면 해당 기능으로 이동합니다. 먼저 생활도구 시장을 직접 열어 보세요.", NamedTextColor.AQUA));
-    }
-
-    void onMarketOpened(Player player) {
-        if (!advance(player, TutorialProgress.Action.MARKET_OPENED)) return;
-        ensureSample(player);
-        display(player, "튜토리얼 4/4 · 판매", "튜토리얼 사과를 주 손에 들고 GUI의 호퍼를 클릭하세요");
-        player.sendMessage(Component.text("[판매] 시장 가격은 매일 변합니다. 판매할 시장놀이 자원을 주 손에 든 뒤 '손에 든 자원 판매' 호퍼를 누르면 실제 거래가 처리됩니다.", NamedTextColor.GREEN));
-    }
-
-    boolean isSample(ItemStack item) {
-        return item != null && item.getPersistentDataContainer().has(sampleKey, PersistentDataType.BYTE);
-    }
-
-    void onSampleSold(Player player) {
-        if (!advance(player, TutorialProgress.Action.SAMPLE_SOLD)) return;
-        display(player, "튜토리얼 완료", "대화창 · GUI · 실제 판매를 모두 실습했습니다");
-        player.sendMessage(Component.text("튜토리얼을 완료했습니다. 판매 대금은 그대로 보유합니다.", NamedTextColor.GREEN));
-        player.sendMessage(Component.text("Shift+F: 통합 GUI · 시장: 도구 구매/판매 · 도구함: 보유 생활도구 · 게시판: 시세/주문/글 · 내 상태: 돈/내공/활력/숙련도", NamedTextColor.AQUA));
-        player.sendMessage(Component.text("로비 남쪽 끝은 채집소, 북쪽 끝은 탐험지, 동쪽 끝은 던전·무한 탑·후반 지역입니다. 주택·그림·레스토랑·상단도 GUI와 안내 NPC에서 시작할 수 있습니다.", NamedTextColor.GRAY));
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline()) plugin.teleportLobby(player);
-        }, 30L);
-    }
-
     private void begin(Player player, PlayerProfile profile) {
         profile.setTutorialStep(TutorialProgress.DIALOGUE);
         plugin.saveProfile(profile);
+        clearSampleState(player);
         teleportHere(player);
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
-            display(player, "튜토리얼 1/4 · 대화창", "안내 대화를 끝까지 읽고 다음 단계로 진행하세요");
-            replayDialogue(player);
-        }, 10L);
+            display(player, "튜토리얼 1/4 · 대화창", "앞의 안내대를 우클릭해 서버 안내 대화를 확인하세요");
+            player.sendMessage(Component.text("이 연습장은 중앙 로비와 분리되어 있습니다. 안내대 → Shift+F GUI → 시장 → 실제 판매 순서로 진행합니다.", NamedTextColor.GOLD));
+        }, 8L);
     }
 
     private void showCurrentStep(Player player, PlayerProfile profile) {
         switch (profile.tutorialStep()) {
-            case TutorialProgress.DIALOGUE -> {
-                display(player, "튜토리얼 1/4 · 대화창", "앞의 안내대를 우클릭하거나 자동 대화를 끝까지 읽으세요");
-                replayDialogue(player);
-            }
+            case TutorialProgress.DIALOGUE -> display(player, "튜토리얼 1/4 · 대화창", "앞의 안내대를 우클릭해 서버 안내 대화를 확인하세요");
             case TutorialProgress.OPEN_MENU -> display(player, "튜토리얼 2/4 · GUI", "Shift+F를 눌러 시장놀이 통합 메뉴를 여세요");
             case TutorialProgress.OPEN_MARKET -> display(player, "튜토리얼 3/4 · 시장", "GUI에서 '생활도구 시장'을 클릭하세요");
             case TutorialProgress.SELL_SAMPLE -> {
-                ensureSample(player);
-                display(player, "튜토리얼 4/4 · 판매", "튜토리얼 사과를 주 손에 들고 GUI의 호퍼를 클릭하세요");
+                if (saleAlreadyPaid(player, profile)) {
+                    finish(player, profile);
+                } else {
+                    ensureSample(player, profile);
+                    display(player, "튜토리얼 4/4 · 판매", "튜토리얼 사과를 주 손에 들고 시장 GUI의 호퍼를 클릭하세요");
+                }
             }
             default -> { }
         }
     }
 
-    private boolean advance(Player player, TutorialProgress.Action action) {
-        PlayerProfile profile = plugin.profile(player.getUniqueId());
-        if (profile == null) return false;
-        int current = profile.tutorialStep();
-        int next = TutorialProgress.advance(current, action);
-        if (next == current) return false;
-        profile.setTutorialStep(next);
-        plugin.saveProfile(profile);
-        return true;
-    }
-
-    private void replayDialogue(Player player) {
-        player.performCommand("rpgmaker play " + DIALOGUE);
-    }
-
-    private void ensureSample(Player player) {
+    private void ensureSample(Player player, PlayerProfile profile) {
         for (ItemStack item : player.getInventory().getContents()) if (isSample(item)) return;
+        if (saleAlreadyPaid(player, profile)) {
+            finish(player, profile);
+            return;
+        }
+        Long applePrice = plugin.prices().get("apple");
+        if (applePrice == null || applePrice <= 0) {
+            player.sendMessage(Component.text("튜토리얼 판매 시세가 아직 준비되지 않았습니다. 잠시 후 안내대를 다시 우클릭하세요.", NamedTextColor.RED));
+            return;
+        }
         ItemStack sample = new ItemStack(Material.APPLE);
-        plugin.tagTutorialItem(sample, "apple");
+        tagSaleItem(sample, "apple");
         sample.editMeta(meta -> {
             meta.displayName(Component.text("튜토리얼 사과 ★", NamedTextColor.GREEN));
             meta.lore(List.of(Component.text("판매 실습 전용 · 주 손에 들고 판매하세요", NamedTextColor.GRAY)));
             meta.getPersistentDataContainer().set(sampleKey, PersistentDataType.BYTE, (byte) 1);
         });
         if (!player.getInventory().addItem(sample).isEmpty()) {
-            player.sendMessage(Component.text("인벤토리를 한 칸 비운 뒤 안내대를 우클릭하면 판매 실습 아이템을 다시 받을 수 있습니다.", NamedTextColor.RED));
+            player.sendMessage(Component.text("인벤토리를 한 칸 비운 뒤 안내대를 우클릭하면 판매 실습 아이템을 받을 수 있습니다.", NamedTextColor.RED));
+            return;
         }
+        player.getPersistentDataContainer().set(sampleIssuedKey, PersistentDataType.BYTE, (byte) 1);
+        player.getPersistentDataContainer().set(sampleBalanceKey, PersistentDataType.LONG, profile.money());
+        player.saveData();
+    }
+
+    private void tagSaleItem(ItemStack item, String itemId) {
+        item.editPersistentDataContainer(data -> {
+            data.set(new NamespacedKey(plugin, "item_id"), PersistentDataType.STRING, itemId);
+            data.set(new NamespacedKey(plugin, "item_schema"), PersistentDataType.INTEGER, 1);
+            data.set(new NamespacedKey(plugin, "quality"), PersistentDataType.INTEGER, 1);
+        });
+    }
+
+    private boolean isSample(ItemStack item) {
+        return item != null && item.getPersistentDataContainer().has(sampleKey, PersistentDataType.BYTE);
+    }
+
+    private boolean hasSample(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) if (isSample(item)) return true;
+        return false;
+    }
+
+    private boolean saleAlreadyPaid(Player player, PlayerProfile profile) {
+        if (!player.getPersistentDataContainer().has(sampleIssuedKey, PersistentDataType.BYTE) || hasSample(player)) return false;
+        Long before = player.getPersistentDataContainer().get(sampleBalanceKey, PersistentDataType.LONG);
+        return before != null && profile.money() > before;
+    }
+
+    private void verifySale(Player player, int attempts) {
+        if (!player.isOnline()) return;
+        PlayerProfile profile = plugin.profile(player.getUniqueId());
+        if (profile == null || profile.tutorialStep() != TutorialProgress.SELL_SAMPLE) return;
+        if (saleAlreadyPaid(player, profile)) {
+            finish(player, profile);
+            return;
+        }
+        if (attempts >= 40) {
+            if (hasSample(player)) player.sendMessage(Component.text("판매가 완료되지 않았습니다. 튜토리얼 사과를 주 손에 들고 판매 호퍼를 다시 눌러 주세요.", NamedTextColor.YELLOW));
+            else player.sendMessage(Component.text("판매 정산을 확인하는 중입니다. 재접속해도 진행 상태는 이어집니다.", NamedTextColor.YELLOW));
+            return;
+        }
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> verifySale(player, attempts + 1), 5L);
+    }
+
+    private void finish(Player player, PlayerProfile profile) {
+        if (profile.tutorialStep() != TutorialProgress.SELL_SAMPLE) return;
+        profile.setTutorialStep(TutorialProgress.COMPLETE);
+        plugin.saveProfile(profile);
+        clearSampleState(player);
+        display(player, "튜토리얼 완료", "대화창 · GUI · 시장 · 실제 판매를 모두 실습했습니다");
+        player.sendMessage(Component.text("튜토리얼을 완료했습니다. 판매 대금은 실제 잔액에 반영됩니다.", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Shift+F: 통합 GUI · 시장: 도구 구매/판매 · 도구함: 보유 생활도구 · 게시판: 시세/왕실 주문/주민 글 · 내 상태: 돈/내공/활력/숙련도", NamedTextColor.AQUA));
+        player.sendMessage(Component.text("로비 남쪽 끝은 채집소, 북쪽 끝은 탐험지, 동쪽 끝은 던전·무한 탑·후반 지역입니다. 주택·그림·레스토랑·상단도 GUI와 안내 NPC에서 시작할 수 있습니다.", NamedTextColor.GRAY));
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) plugin.teleportLobby(player);
+        }, 30L);
+    }
+
+    private void clearSampleState(Player player) {
+        player.getPersistentDataContainer().remove(sampleIssuedKey);
+        player.getPersistentDataContainer().remove(sampleBalanceKey);
+        player.saveData();
+    }
+
+    private void advance(Player player, PlayerProfile profile, TutorialProgress.Action action) {
+        int current = profile.tutorialStep();
+        int next = TutorialProgress.advance(current, action);
+        if (next == current) return;
+        profile.setTutorialStep(next);
+        plugin.saveProfile(profile);
+    }
+
+    private void replayDialogue(Player player) {
+        player.performCommand("rpgmaker play " + DIALOGUE);
     }
 
     private void teleportHere(Player player) {
-        if (world == null) return;
-        player.teleportAsync(spawn());
+        if (world != null) player.teleportAsync(spawn());
     }
 
     private Location spawn() {
@@ -204,11 +348,10 @@ final class TutorialManager {
         fill(MAX, FLOOR_Y + 1, MIN, MAX, FLOOR_Y + 5, MAX, Material.STONE_BRICKS);
         fill(-2, FLOOR_Y, -12, 2, FLOOR_Y, 12, Material.POLISHED_ANDESITE);
         fill(-12, FLOOR_Y, -2, 12, FLOOR_Y, 2, Material.POLISHED_ANDESITE);
-
         world.getBlockAt(GUIDE_X, GUIDE_Y, GUIDE_Z).setType(Material.LECTERN, false);
-        world.getBlockAt(-9, FLOOR_Y + 1, 0).setType(Material.CHEST, false);
-        world.getBlockAt(9, FLOOR_Y + 1, 0).setType(Material.EMERALD_BLOCK, false);
-        world.getBlockAt(0, FLOOR_Y + 1, -12).setType(Material.HOPPER, false);
+        fill(-10, FLOOR_Y + 1, -1, -8, FLOOR_Y + 2, 1, Material.CYAN_WOOL);
+        fill(8, FLOOR_Y + 1, -1, 10, FLOOR_Y + 2, 1, Material.EMERALD_BLOCK);
+        fill(-1, FLOOR_Y + 1, -13, 1, FLOOR_Y + 2, -11, Material.LIME_WOOL);
         world.getBlockAt(0, FLOOR_Y - 2, 0).setType(Material.LODESTONE, false);
     }
 
