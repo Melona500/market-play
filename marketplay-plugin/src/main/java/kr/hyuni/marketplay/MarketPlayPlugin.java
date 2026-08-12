@@ -114,13 +114,10 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
             return;
         }
         hub = new HubBuilder(this);
-        hubReady = hub.ensure();
         resources = new ResourceWorldManager(this);
-        resources.start();
         housing = new HousingManager(this, housingStore);
         housing.start();
         exploration = new ExplorationManager(this, profiles, housing);
-        exploration.start();
         socialEconomy = new SocialEconomyManager(this, profiles);
         socialEconomy.start();
         endgame = new EndgameManager(this, profiles);
@@ -130,6 +127,16 @@ public final class MarketPlayPlugin extends JavaPlugin implements Listener {
         refreshMarketDay();
         refreshBulletins();
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getScheduler().runTask(this, () -> {
+            try {
+                hubReady = hub.ensure();
+                resources.start();
+                exploration.start();
+            } catch (RuntimeException error) {
+                getLogger().severe("Citizens NPC 및 월드 시작 실패: " + error.getMessage());
+                getServer().getPluginManager().disablePlugin(this);
+            }
+        });
         for (Player player : getServer().getOnlinePlayers()) {
             housingStore.remember(player.getUniqueId(), player.getName());
             load(player);
